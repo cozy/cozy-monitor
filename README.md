@@ -6,7 +6,7 @@ Installation:
 
     npm install cozy-monitor -g
 
-Run following command to see all command available
+Run following command to see all available actions:
 
     cozy-monitor --help
 

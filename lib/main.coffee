@@ -19,6 +19,7 @@ couchUrl = "http://localhost:5984/"
 haibuUrl = "http://localhost:9002/"
 homeClient = new Client homeUrl
 controllerClient = new Client haibuUrl
+statusClient = new Client ''
 
 client = haibu.createClient
   host: 'localhost'

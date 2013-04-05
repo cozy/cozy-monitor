@@ -218,7 +218,8 @@ program
     .command("script <app> <script> [argument]")
     .description("Launch script that comes with given application")
     .action (app, script, argument) ->
-        argument = argument | ''
+        argument ?= ''
+
         console.log "Run script #{script} for #{app}..."
         path = "/usr/local/cozy/apps/#{app}/#{app}/cozy-#{app}/"
         exec "cd #{path}; compound database #{script} #{argument}", \
@@ -364,7 +365,7 @@ program
     .command("*")
     .description("Display error message for an unknown command.")
     .action ->
-        console.log 'Unknown command, run "coffee monitor --help"' + \
+        console.log 'Unknown command, run "cozy-monitor --help"' + \
                     ' to know the list of available commands.'
 
 program.parse(process.argv)

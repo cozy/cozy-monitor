@@ -1,0 +1,37 @@
+{
+  "name": "cozy",
+  "version": "0.8.0",
+  "description": "Tool to manage cozy instance internally",
+  "license": "GPL v3",
+  "main": "./lib/main",
+  "scripts": {
+    "prepublish": "cake build"
+  },
+  "bin": {
+    "cozy": "./bin/cozy-montor"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mycozycloud/cozy-monitor"
+  },
+  "keywords": [
+    "deploy",
+    "cozy",
+    "web",
+    "application"
+  ],
+  "engines": {
+    "node": "0.8 || 0.9 || 0.10"
+  },
+  "dependencies": {
+    "coffee-script": "~1.3.3",
+    "commander": "=1.0.5",
+    "async": "=0.1.22",
+    "request-json": "=0.3.0",
+    "colors": "=0.6.0-1",
+    "haibu-api": "=0.9.0"
+  },
+  "devDependencies": {
+  },
+  "author": "Cozy Cloud"
+}

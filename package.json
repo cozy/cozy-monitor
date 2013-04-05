@@ -1,5 +1,5 @@
 {
-  "name": "cozy",
+  "name": "cozy-monitor",
   "version": "0.8.0",
   "description": "Tool to manage cozy instance internally",
   "license": "GPL v3",

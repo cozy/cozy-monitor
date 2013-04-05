@@ -214,18 +214,19 @@ program
             else
                 console.log "All apps sucessfully uinstalled"
 
-#program
-    #.command("script <app> <script>")
-    #.description("(Broken) Launch script that comes with given application")
-    #.action (app, script) ->
-        #console.log "Run script #{script} for #{app}..."
-        #path = "./node_modules/haibu/local/cozy/#{app}/cozy-#{app}/"
-        #child = exec "cd #{path}; coffee #{script}.coffee", \
-                     #(error, stdout, stderr) ->
-            #console.log stdout
-            #if error != null
-                #console.log "exec error: #{error}"
-                #console.log "stderr: #{stderr}"
+program
+    .command("script <app> <script> [argument]")
+    .description("Launch script that comes with given application")
+    .action (app, script, argument) ->
+        argument = argument | ''
+        console.log "Run script #{script} for #{app}..."
+        path = "/usr/local/cozy/apps/#{app}/#{app}/cozy-#{app}/"
+        exec "cd #{path}; compound database #{script} #{argument}", \
+                     (err, stdout, stderr) ->
+            console.log stdout
+            if err
+                console.log "exec error: #{err}"
+                console.log "stderr: #{stderr}"
 
 #program
     #.command("script_arg <app> <script> <argument>")

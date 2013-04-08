@@ -10,7 +10,7 @@ async = require "async"
 exec = require('child_process').exec
 
 haibu = require('haibu-api')
-Client = require("request-json").JsonClient
+Client = require("../../request-json/main").JsonClient
 
 
 homeUrl = "http://localhost:9103/"
@@ -28,7 +28,14 @@ client = client.drone
 
 client.brunch = (manifest, callback) ->
     data = brunch: manifest
+    controllerClient.setToken "hai"
     controllerClient.post "drones/#{manifest.name}/brunch", data, callback
+
+client.lightUpdate = (manifest,callback) ->
+    data = update: manifest
+    controllerClient.setToken "haibu"
+    controllerClient.post "drones/#{manifest.name}/light-update", data, callback
+
 
 manifest =
    "domain": "localhost"
@@ -191,9 +198,7 @@ program
         manifest.repository.url =
             "https ://github.com/mycozycloud/cozy-#{app}.git"
         manifest.user = app
-
-        controllerClient.post "drones/#{app}/light-update", \
-             {update : manifest}, (err, res, body) ->
+        client.lightUpdate manifest, (err, res, body) ->
             if (res.statusCode isnt 200)
                 console.log "Update failed"
                 console.log body

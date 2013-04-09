@@ -10,7 +10,7 @@ async = require "async"
 exec = require('child_process').exec
 
 haibu = require('haibu-api')
-Client = require("../../request-json/main").JsonClient
+Client = require("request-json").JsonClient
 
 
 homeUrl = "http://localhost:9103/"
@@ -25,16 +25,45 @@ client = haibu.createClient
   host: 'localhost'
   port: 9002
 client = client.drone
+token = "haibu"
+
+
+client.clean = (manifest, callback) ->
+    data = manifest
+    controllerClient.setToken token
+    controllerClient.post "drones/#{manifest.name}/clean", data, callback
+
+client.cleanAll = (callback) ->
+    controllerClient.setToken token
+    controllerClient.post "drones/cleanAll", callback
+
+client.stop = (manifest, callback) ->
+    data =
+        stop:
+            name: manifest
+    controllerClient.setToken token
+    controllerClient.post "drones/#{manifest.name}/start", data, callback
+
+client.start = (manifest, callback) ->
+    data = start: manifest
+    controllerClient.setToken token
+    controllerClient.post "drones/#{manifest.name}/start", data, callback
 
 client.brunch = (manifest, callback) ->
     data = brunch: manifest
-    controllerClient.setToken "hai"
+    controllerClient.setToken token
     controllerClient.post "drones/#{manifest.name}/brunch", data, callback
 
 client.lightUpdate = (manifest,callback) ->
     data = update: manifest
-    controllerClient.setToken "haibu"
+    controllerClient.setToken token
     controllerClient.post "drones/#{manifest.name}/light-update", data, callback
+
+client.token = (callback) ->
+    data = token: token
+    controllerClient.setToken token
+    controllerClient.post "authToken", data, callback
+
 
 
 manifest =
@@ -48,6 +77,19 @@ program
   .version('0.0.1')
   .usage('<action> <app>')
 
+
+program
+    .command("token")
+    .description("Add authenticate Token")
+    .action ->
+        client.token (err, res, body) ->
+            if err or res.statusCode isnt 200
+                console.log err if err?
+                console.log "AuthToken failed"
+                if body?
+                    if body.msg? then console.log body.msg else console.log body
+            else
+                console.log "token sucessfully added"
 
 program
     .command("install <app>")

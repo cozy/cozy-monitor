@@ -7,10 +7,11 @@ require "colors"
 
 program = require 'commander'
 async = require "async"
+fs = require "fs"
 exec = require('child_process').exec
 
 haibu = require('haibu-api')
-Client = require("request-json").JsonClient
+Client = require("../../request-json/main").JsonClient
 
 
 homeUrl = "http://localhost:9103/"
@@ -26,39 +27,40 @@ client = haibu.createClient
   port: 9002
 client = client.drone
 
+token = fs.readFileSync('/etc/cozy/controller.token','ascii');
+token = token.split('\n')[0];
 
-client.clean = (manifest, token, callback) ->
+
+client.clean = (manifest, callback) ->
     data = manifest
     controllerClient.setToken token
     controllerClient.post "drones/#{manifest.name}/clean", data, callback
 
-client.cleanAll = (token, callback) ->
+client.cleanAll = (callback) ->
     controllerClient.setToken token
     controllerClient.post "drones/cleanAll", callback
 
-client.stop = (manifest, token, callback) ->
-    data =
-        stop:
-            name: manifest
+client.stop = (manifest, callback) ->
+    data = stop: manifest
     controllerClient.setToken token
     controllerClient.post "drones/#{manifest.name}/stop", data, callback
 
-client.start = (manifest, token, callback) ->
+client.start = (manifest, callback) ->
     data = start: manifest
     controllerClient.setToken token
     controllerClient.post "drones/#{manifest.name}/start", data, callback
 
-client.brunch = (manifest, token, callback) ->
+client.brunch = (manifest, callback) ->
     data = brunch: manifest
     controllerClient.setToken token
     controllerClient.post "drones/#{manifest.name}/brunch", data, callback
 
-client.lightUpdate = (manifest, token, callback) ->
+client.lightUpdate = (manifest, callback) ->
     data = update: manifest
     controllerClient.setToken token
     controllerClient.post "drones/#{manifest.name}/light-update", data, callback
 
-client.token = (token, callback) ->
+client.token = (callback) ->
     controllerClient.setToken token
     data = token: token
     controllerClient.post "authToken", data,  callback
@@ -78,10 +80,10 @@ program
 
 
 program
-    .command("token <token>")
+    .command("token")
     .description("Add authenticate Token")
-    .action (token) ->
-        client.token token, (err, res, body) ->
+    .action () ->
+        client.token (err, res, body) ->
             if err or res.statusCode isnt 200
                 console.log err if err?
                 console.log "AuthToken failed"
@@ -91,24 +93,24 @@ program
                 console.log "token sucessfully added"
 
 program
-    .command("install <app> <token>")
+    .command("install <app> ")
     .description("Install application in haibu")
-    .action (app, token) ->
+    .action (app) ->
         manifest.name = app
         manifest.repository.url =
             "https://github.com/mycozycloud/cozy-#{app}.git"
         manifest.user = app
         console.log "Install started for #{app}..."
 
-        client.clean manifest, token, (err, res, body) ->
-            client.start manifest, token, (err, res, body)  ->
+        client.clean manifest, (err, res, body) ->
+            client.start manifest, (err, res, body)  ->
                 if err or res.statusCode isnt 200
                     console.log err if err
                     console.log "Install failed"
                     if res.body?
                         if res.body.msg? then console.log res.body.msg else console.log res.body
                 else
-                    client.brunch manifest, token, ->
+                    client.brunch manifest, ->
                         console.log "#{app} sucessfully installed"
 
 program
@@ -146,15 +148,14 @@ program
                 console.log "#{app} sucessfully uninstalled"
 
 program
-    .command("uninstall <app> <token>")
+    .command("uninstall <app>")
     .description("Remove application from haibu")
-    .action (app, token) ->
+    .action (app) ->
         manifest.name = app
         manifest.user = app
         console.log "Uninstall started for #{app}..."
 
-        client.clean manifest, token, (err, res, body) ->
-            console.log res
+        client.clean manifest, (err, res, body) ->
             if err or res.statusCode isnt 200
                 console.log "Uninstall failed"
                 console.log err if err
@@ -164,16 +165,16 @@ program
                 console.log "#{app} sucessfully uninstalled"
 
 program
-    .command("start <app> <token>")
+    .command("start <app>")
     .description("Start application through haibu")
-    .action (app, token) ->
+    .action (app) ->
         manifest.name = app
         manifest.repository.url =
             "https://github.com/mycozycloud/cozy-#{app}.git"
         manifest.user = app
         console.log "Starting #{app}..."
 
-        client.start manifest, token, (err, res, body) ->
+        client.start manifest, (err, res, body) ->
             if err or res.statusCode isnt 200
                 console.log "Start failed"
                 console.log err if err
@@ -183,12 +184,12 @@ program
                 console.log "#{app} sucessfully started"
 
 program
-    .command("stop <app> <token>")
+    .command("stop <app>")
     .description("Stop application through haibu")
-    .action (app, token) ->
+    .action (app) ->
         console.log "Stopping #{app}..."
         app.user = app
-        client.stop app, token, (err, res) ->
+        client.stop app, (err, res) ->
             if err or res.statusCode isnt 200
                 console.log "Stop failed"
                 console.log err if err
@@ -198,15 +199,15 @@ program
                 console.log "#{app} sucessfully stopped"
 
 program
-    .command("brunch <app> <token>")
+    .command("brunch <app>")
     .description("Build brunch client for given application.")
-    .action (app, token) ->
+    .action (app) ->
         console.log "Brunch build #{app}..."
         manifest.name = app
         manifest.repository.url =
             "https ://github.com/mycozycloud/cozy-#{app}.git"
         manifest.user = app
-        client.brunch manifest, token, (err, res, body) ->
+        client.brunch manifest, (err, res, body) ->
             if err or res.statusCode isnt 200
                 console.log "Brunch build failed."
                 console.log err if err
@@ -216,12 +217,12 @@ program
                 console.log "#{app} client sucessfully built."
 
 program
-    .command("restart <app> <token>")
+    .command("restart <app>")
     .description("Restart application trough haibu")
-    .action (app, token) ->
+    .action (app) ->
         console.log "Stopping #{app}..."
 
-        client.stop app, token, (err, res) ->
+        client.stop app, (err, res) ->
             if err or res.statusCode isnt 200
                 console.log "Stop failed"
                 console.log err if err
@@ -235,7 +236,7 @@ program
                 manifest.user = app
                 console.log "Starting #{app}..."
 
-                client.start manifest, token, (err, res, body) ->
+                client.start manifest, (err, res, body) ->
                 if err or res.statusCode isnt 200
                     console.log "Start failed"
                     console.log err
@@ -243,16 +244,16 @@ program
                     console.log "#{app} sucessfully started"
 
 program
-    .command("light-update <app> <token>")
+    .command("light-update <app>")
     .description(
         "Update application (git + npm install) and restart it through haibu")
-    .action (app, token) ->
+    .action (app) ->
         console.log "Light update #{app}..."
         manifest.name = app
         manifest.repository.url =
             "https ://github.com/mycozycloud/cozy-#{app}.git"
         manifest.user = app
-        client.lightUpdate manifest, token, (err, res, body) ->
+        client.lightUpdate manifest, (err, res, body) ->
             if (res.statusCode isnt 200)
                 console.log "Update failed"
                 console.log err if err
@@ -263,12 +264,12 @@ program
                     console.log "#{app} sucessfully updated"
 
 program
-    .command("uninstall-all <token>")
+    .command("uninstall-all")
     .description("Uninstall all apps from haibu")
-    .action (token) ->
+    .action () ->
         console.log "Uninstall all apps..."
 
-        client.cleanAll token, (err, res) ->
+        client.cleanAll (err, res) ->
             if err or res.statusCode isnt 200
                 console.log "Uninstall all failed"
                 console.log err if err
@@ -363,25 +364,25 @@ program
                     async.series funcs, ->
 
 program
-    .command("reinstall-all <token>")
+    .command("reinstall-all")
     .description("Reinstall all user applications")
     .action ->
-        installApp = (app, token) ->
+        installApp = (app) ->
             (callback) ->
                 console.log "Install started for #{app.name}..."
                 manifest.name = app.name
                 manifest.repository.url = app.git
                 manifest.user = app.user
 
-                client.clean manifest, token, (err, res, body) ->
-                    client.start manifest, token, (err, res, body) ->
+                client.clean manifest, (err, res, body) ->
+                    client.start manifest, (err, res, body) ->
                         if err or res.statusCode isnt 200
                             console.log "Install failed"
                             console.log err if err
                             if res.body?
                                 if res.body.msg? then console.log res.body.msg else console.log res.body
                         else
-                            client.brunch manifest, token, ->
+                            client.brunch manifest, ->
                                 console.log "#{app.name} sucessfully installed"
                         callback()
 

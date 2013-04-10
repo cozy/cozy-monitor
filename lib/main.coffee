@@ -11,7 +11,7 @@ fs = require "fs"
 exec = require('child_process').exec
 
 haibu = require('haibu-api')
-Client = require("../../request-json/main").JsonClient
+Client = require("request-json").JsonClient
 
 
 homeUrl = "http://localhost:9103/"

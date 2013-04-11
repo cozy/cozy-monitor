@@ -7,7 +7,6 @@ require "colors"
 
 program = require 'commander'
 async = require "async"
-fs = require "fs"
 exec = require('child_process').exec
 
 haibu = require('haibu-api')
@@ -27,43 +26,57 @@ client = haibu.createClient
   port: 9002
 client = client.drone
 
-token = fs.readFileSync('/etc/cozy/controller.token','ascii');
-token = token.split('\n')[0];
+getToken = (callback) ->
+    exec 'sudo cat /etc/cozy/controller.token', (err, stdout, stderr) =>
+        if err isnt null
+            console.log "Cannot read token"
+            callback ''
+        else
+            token = stdout
+            token = token.split('\n')[0]
+            callback token
+
 
 
 client.clean = (manifest, callback) ->
-    data = manifest
-    controllerClient.setToken token
-    controllerClient.post "drones/#{manifest.name}/clean", data, callback
+    getToken (token) ->
+        data = manifest
+        controllerClient.setToken token
+        controllerClient.post "drones/#{manifest.name}/clean", data, callback
 
 client.cleanAll = (callback) ->
-    controllerClient.setToken token
-    controllerClient.post "drones/cleanAll", callback
+    getToken (token) ->
+        controllerClient.setToken token
+        controllerClient.post "drones/cleanall", {}, callback
 
 client.stop = (manifest, callback) ->
-    data = stop: manifest
-    controllerClient.setToken token
-    controllerClient.post "drones/#{manifest.name}/stop", data, callback
+    getToken (token) ->
+        data = stop: manifest
+        controllerClient.setToken token
+        controllerClient.post "drones/#{manifest.name}/stop", data, callback
 
 client.start = (manifest, callback) ->
-    data = start: manifest
-    controllerClient.setToken token
-    controllerClient.post "drones/#{manifest.name}/start", data, callback
+    getToken (token) ->
+        data = start: manifest
+        controllerClient.setToken token
+        controllerClient.post "drones/#{manifest.name}/start", data, callback
 
 client.brunch = (manifest, callback) ->
-    data = brunch: manifest
-    controllerClient.setToken token
-    controllerClient.post "drones/#{manifest.name}/brunch", data, callback
+    getToken (token) ->
+        data = brunch: manifest
+        controllerClient.setToken token
+        controllerClient.post "drones/#{manifest.name}/brunch", data, callback
 
 client.lightUpdate = (manifest, callback) ->
-    data = update: manifest
-    controllerClient.setToken token
-    controllerClient.post "drones/#{manifest.name}/light-update", data, callback
+    getToken (token) ->
+        data = update: manifest
+        controllerClient.setToken token
+        controllerClient.post "drones/#{manifest.name}/light-update", data, callback
 
 client.token = (callback) ->
-    controllerClient.setToken token
-    data = token: token
-    controllerClient.post "authToken", data,  callback
+    getToken (token) ->
+        controllerClient.setToken token
+        controllerClient.post "authToken", {}, callback
 
 
 

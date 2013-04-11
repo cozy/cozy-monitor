@@ -27,7 +27,7 @@ client = haibu.createClient
 client = client.drone
 
 getToken = (callback) ->
-    exec 'sudo cat /etc/cozy/controller.token', (err, stdout, stderr) =>
+    exec 'cat /etc/cozy/controller.token', (err, stdout, stderr) =>
         if err isnt null
             console.log "Cannot read token"
             callback ''

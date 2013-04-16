@@ -89,12 +89,12 @@ manifest =
 
 program
   .version('0.0.1')
-  .usage('<action> <app> <token>')
+  .usage('<action> <app>')
 
 
 program
     .command("token")
-    .description("Add authenticate Token")
+    .description("Add token for cozy-controller")
     .action () ->
         client.token (err, res, body) ->
             if err or res.statusCode isnt 200
@@ -103,7 +103,7 @@ program
                 if body?
                     if body.msg? then console.log body.msg else console.log body
             else
-                console.log "token sucessfully added"
+                console.log "Token sucessfully added"
 
 program
     .command("install <app> ")

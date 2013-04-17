@@ -1,6 +1,6 @@
-# Cozy Manager
+# Cozy Monitor
 
-Cozy Manager is a tool to manage your cozy instance from the inside.
+Cozy Monitor is a tool to manage your cozy instance from the inside.
 
 Installation:
 

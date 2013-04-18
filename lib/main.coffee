@@ -8,6 +8,7 @@ require "colors"
 program = require 'commander'
 async = require "async"
 exec = require('child_process').exec
+fs = require 'fs'
 
 haibu = require('haibu-api')
 Client = require("request-json").JsonClient
@@ -38,14 +39,15 @@ manifest =
        "start": "server.coffee"
 
 getAuthCouchdb = (callback) ->
-    exec 'cat /usr/local/couchDB/log.txt', (err, stdout, stderr) =>
+    fs.readFile '/etc/cozy/couchdb.login', 'utf8', (err, data) =>
         if err isnt null
+            console.log(err)
             console.log "Cannot read login"
-            callback ''
+            callback err
         else
-            username = stdout.split('\n')[0]
-            password = stdout.split('\n')[1]
-            callback username, password
+            username = data.split('\n')[0]
+            password = data.split('\n')[1]
+            callback null, username, password
 
 program
   .version('0.0.1')
@@ -354,7 +356,7 @@ program
     .command("backup <target>")
     .description("Start couchdb replication to the target")
     .action (target) ->
-        getAuthCouchdb (username, password) ->
+        getAuthCouchdb (err, username, password) ->
             client = new Client couchUrl
             client.setBasicAuth(username, password)
             data =

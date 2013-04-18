@@ -41,7 +41,6 @@ manifest =
 getAuthCouchdb = (callback) ->
     fs.readFile '/etc/cozy/couchdb.login', 'utf8', (err, data) =>
         if err isnt null
-            console.log(err)
             console.log "Cannot read login"
             callback err
         else

@@ -59,7 +59,7 @@ program
                     console.log "Install failed"
                 else
                     client.brunch manifest, ->
-                        console.log "#{app} sucessfully installed"
+                        console.log "#{app} successfully installed"
 
 program
     .command("install_home <app>")
@@ -78,7 +78,7 @@ program
                 if body?
                     if body.msg? then console.log body.msg else console.log body
             else
-                console.log "#{app} sucessfully installed"
+                console.log "#{app} successfully installed"
 
 program
     .command("uninstall_home <app>")
@@ -93,7 +93,7 @@ program
                 if body?
                     if body.msg? then console.log body.msg else console.log body
             else
-                console.log "#{app} sucessfully uninstalled"
+                console.log "#{app} successfully uninstalled"
 
 program
     .command("uninstall <app>")
@@ -108,7 +108,7 @@ program
                 console.log "Uninstall failed"
                 console.log err
             else
-                console.log "#{app} sucessfully uninstalled"
+                console.log "#{app} successfully uninstalled"
 
 program
     .command("start <app>")
@@ -125,7 +125,7 @@ program
                 console.log "Start failed"
                 console.log err
             else
-                console.log "#{app} sucessfully started"
+                console.log "#{app} successfully started"
 
 program
     .command("stop <app>")
@@ -138,7 +138,7 @@ program
                 console.log "Stop failed"
                 console.log err.result.error.message
             else
-                console.log "#{app} sucessfully stopped"
+                console.log "#{app} successfully stopped"
 
 program
     .command("brunch <app>")
@@ -154,7 +154,7 @@ program
                 console.log "Brunch build failed."
                 console.log body
             else
-                console.log "#{app} client sucessfully built."
+                console.log "#{app} client successfully built."
 
 program
     .command("restart <app>")
@@ -167,7 +167,7 @@ program
                 console.log "Stop failed"
                 console.log err.result.error.message
             else
-                console.log "#{app} sucessfully stopped"
+                console.log "#{app} successfully stopped"
                 manifest.name = app
                 manifest.repository.url =
                     "https://github.com/mycozycloud/cozy-#{app}.git"
@@ -179,7 +179,7 @@ program
                     console.log "Start failed"
                     console.log err
                 else
-                    console.log "#{app} sucessfully started"
+                    console.log "#{app} successfully started"
 
 program
     .command("light-update <app>")
@@ -199,7 +199,7 @@ program
                 console.log body
             else
                 client.brunch manifest, ->
-                    console.log "#{app} sucessfully updated"
+                    console.log "#{app} successfully updated"
 
 program
     .command("uninstall-all")
@@ -212,7 +212,7 @@ program
                 console.log "Uninstall all failed"
                 console.log err.result.error.message
             else
-                console.log "All apps sucessfully uinstalled"
+                console.log "All apps successfully uinstalled"
 
 program
     .command("script <app> <script> [argument]")
@@ -317,7 +317,7 @@ program
                             console.log "Install failed"
                         else
                             client.brunch manifest, ->
-                                console.log "#{app.name} sucessfully installed"
+                                console.log "#{app.name} successfully installed"
                         callback()
 
         statusClient.host = homeUrl

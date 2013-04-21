@@ -315,10 +315,11 @@ program
                         if err
                             console.log err
                             console.log "Install failed"
+                            callback()
                         else
                             client.brunch manifest, ->
                                 console.log "#{app.name} successfully installed"
-                        callback()
+                                callback()
 
         statusClient.host = homeUrl
         statusClient.get "api/applications/", (err, res, apps) ->

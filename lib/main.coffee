@@ -73,13 +73,6 @@ client.lightUpdate = (manifest, callback) ->
         controllerClient.setToken token
         controllerClient.post "drones/#{manifest.name}/light-update", data, callback
 
-client.token = (callback) ->
-    getToken (err, token) ->
-        controllerClient.setToken token
-        controllerClient.post "authToken", {}, callback
-
-
-
 manifest =
    "domain": "localhost"
    "repository":
@@ -90,20 +83,6 @@ manifest =
 program
   .version('0.0.1')
   .usage('<action> <app>')
-
-
-program
-    .command("token")
-    .description("Add token for cozy-controller")
-    .action () ->
-        client.token (err, res, body) ->
-            if err or res.statusCode isnt 200
-                console.log err if err?
-                console.log "AuthToken failed"
-                if body?
-                    if body.msg? then console.log body.msg else console.log body
-            else
-                console.log "Token sucessfully added"
 
 program
     .command("install <app> ")

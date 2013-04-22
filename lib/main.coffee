@@ -137,7 +137,7 @@ program
         console.log "Install started for #{app}..."
         path = "api/applications/install"
         homeClient.post path, manifest, (err, res, body) ->
-            if err or res.statusCode isnt 200
+            if err or res.statusCode isnt 201
                 console.log err if err?
                 console.log "Install failed"
                 if body?

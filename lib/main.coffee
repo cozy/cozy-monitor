@@ -284,7 +284,7 @@ program
                     callback()
 
         async.series [
-            checkApp("haibu", "http://localhost:9002/", "version")
+            checkApp("controller", "http://localhost:9002/", "version")
             checkApp("data-system", "http://localhost:9101/")
             checkApp("indexer", "http://localhost:9102/")
             checkApp("home", "http://localhost:9103/")

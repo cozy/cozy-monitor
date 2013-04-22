@@ -318,7 +318,7 @@ program
                 console.log "Install started for #{app.name}..."
                 manifest.name = app.name
                 manifest.repository.url = app.git
-                manifest.user = app.user
+                manifest.user = app.name
 
                 client.clean manifest, (err, result) ->
                     client.start manifest, (err, result) ->

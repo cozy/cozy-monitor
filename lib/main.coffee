@@ -11,7 +11,7 @@ fs = require "fs"
 exec = require('child_process').exec
 
 haibu = require('haibu-api')
-Client = require("request-json").JsonClient
+Client = require("../../request-json/main").JsonClient
 
 
 homeUrl = "http://localhost:9103/"
@@ -180,8 +180,9 @@ program
     .description("Stop application through haibu")
     .action (app) ->
         console.log "Stopping #{app}..."
-        app.user = app
-        client.stop app, (err, res) ->
+        manifest.name = app
+        manifest.user = app
+        client.stop manifest, (err, res) ->
             if err or res.statusCode isnt 200
                 console.log "Stop failed"
                 console.log err if err

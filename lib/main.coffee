@@ -165,15 +165,15 @@ program
             "https://github.com/mycozycloud/cozy-#{app}.git"
         manifest.user = app
         console.log "Starting #{app}..."
-
-        client.start manifest, (err, res, body) ->
-            if err or res.statusCode isnt 200
-                console.log "Start failed"
-                console.log err if err
-                if res.body?
-                    if res.body.msg? then console.log res.body.msg else console.log res.body
-            else
-                console.log "#{app} sucessfully started"
+        client.stop manifest, (err, res, body) ->
+            client.start manifest, (err, res, body) ->
+                if err or res.statusCode isnt 200
+                    console.log "Start failed"
+                    console.log err if err
+                    if res.body?
+                        if res.body.msg? then console.log res.body.msg else console.log res.body
+                else
+                    console.log "#{app} sucessfully started"
 
 program
     .command("stop <app>")
@@ -365,7 +365,7 @@ program
                 console.log "Install started for #{app.name}..."
                 manifest.name = app.name
                 manifest.repository.url = app.git
-                manifest.user = app.user
+                manifest.user = app.name
 
                 client.clean manifest, (err, res, body) ->
                     client.start manifest, (err, res, body) ->

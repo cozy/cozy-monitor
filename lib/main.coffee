@@ -268,7 +268,7 @@ program
             (callback) ->
                 statusClient.host = host
                 statusClient.get path, (err, res) ->
-                    if err
+                    if res.statusCode isnt 200
                         console.log "#{app}: " + "down".red
                     else
                         console.log "#{app}: " + "up".green

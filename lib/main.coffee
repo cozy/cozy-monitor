@@ -344,24 +344,22 @@ program
     .command("backup <target>")
     .description("Start couchdb replication to the target")
     .action (target) ->
-        getAuthCouchdb (username, password) ->
-            client = new Client couchUrl
-            client.setBasicAuth(username, password)
-            data =
-                source: "cozy"
-                target: target
-            client.post "_replicate", data, (err, res, body) ->
-                if err
-                    console.log err
-                    console.log "Backup Not Started"
-                    process.exit 1
-                else if not body.ok
-                    console.log body
-                    console.log "Backup start but failed"
-                    process.exit 1
-                else
-                    console.log "Backup succeed"
-                    process.exit 0
+        client = new Client couchUrl
+        data =
+            source: "cozy"
+            target: target
+        client.post "_replicate", data, (err, res, body) ->
+            if err
+                console.log err
+                console.log "Backup Not Started"
+                process.exit 1
+            else if not body.ok
+                console.log body
+                console.log "Backup start but failed"
+                process.exit 1
+            else
+                console.log "Backup succeed"
+                process.exit 0
 
 program
     .command("*")

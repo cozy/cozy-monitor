@@ -37,16 +37,6 @@ manifest =
    "scripts":
        "start": "server.coffee"
 
-getAuthCouchdb = (callback) ->
-    exec 'cat /usr/local/couchDB/log.txt', (err, stdout, stderr) =>
-        if err isnt null
-            console.log "Cannot read login"
-            callback ''
-        else
-            username = stdout.split('\n')[0]
-            password = stdout.split('\n')[1]
-            callback username, password
-
 program
   .version('0.0.1')
   .usage('<action> <app>')

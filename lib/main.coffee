@@ -233,11 +233,11 @@ program
                 console.log "Starting #{app}..."
 
                 client.start manifest, (err, res, body) ->
-                if err or res.statusCode isnt 200
-                    console.log "Start failed"
-                    console.log err
-                else
-                    console.log "#{app} sucessfully started"
+                    if err or res.statusCode isnt 200
+                        console.log "Start failed"
+                        console.log err
+                    else
+                        console.log "#{app} sucessfully started"
 
 program
     .command("light-update <app>")

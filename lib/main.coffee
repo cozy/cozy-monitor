@@ -13,10 +13,14 @@ haibu = require('haibu-api')
 Client = require("request-json").JsonClient
 
 
-homeUrl = "http://localhost:9103/"
-proxyUrl = "http://localhost:9104/"
 couchUrl = "http://localhost:5984/"
 controllerUrl = "http://localhost:9002/"
+
+dataSystemUrl = "http://localhost:9101/"
+indexerUrl = "http://localhost:9102/"
+homeUrl = "http://localhost:9103/"
+proxyUrl = "http://localhost:9104/"
+
 homeClient = new Client homeUrl
 controllerClient = new Client controllerUrl
 statusClient = new Client ''
@@ -271,11 +275,11 @@ program
                     callback()
 
         async.series [
-            checkApp("controller", "http://localhost:9002/", "version")
-            checkApp("data-system", "http://localhost:9101/")
-            checkApp("indexer", "http://localhost:9102/")
-            checkApp("home", "http://localhost:9103/")
-            checkApp("proxy", "http://localhost:9104/", "routes")
+            checkApp("controller", controllerUrl, "version")
+            checkApp("data-system", dataSystemUrl)
+            checkApp("indexer", indexerUrl)
+            checkApp("home", homeUrl)
+            checkApp("proxy", proxyUrl, "routes")
         ], ->
             statusClient.host = homeUrl
             statusClient.get "api/applications/", (err, res, apps) ->

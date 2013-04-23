@@ -119,13 +119,13 @@ program
             "https://github.com/mycozycloud/cozy-#{app}.git"
         manifest.user = app
         console.log "Starting #{app}..."
-
-        client.start manifest, (err, result) ->
-            if err
-                console.log "Start failed"
-                console.log err
-            else
-                console.log "#{app} sucessfully started"
+        client.stop app, (err, result) ->
+            client.start manifest, (err, result) ->
+                if err
+                    console.log "Start failed"
+                    console.log err
+                else
+                    console.log "#{app} sucessfully started"
 
 program
     .command("stop <app>")

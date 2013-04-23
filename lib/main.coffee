@@ -16,9 +16,9 @@ Client = require("request-json").JsonClient
 homeUrl = "http://localhost:9103/"
 proxyUrl = "http://localhost:9104/"
 couchUrl = "http://localhost:5984/"
-haibuUrl = "http://localhost:9002/"
+controllerUrl = "http://localhost:9002/"
 homeClient = new Client homeUrl
-controllerClient = new Client haibuUrl
+controllerClient = new Client controllerUrl
 statusClient = new Client ''
 
 client = haibu.createClient
@@ -44,7 +44,7 @@ program
 
 program
     .command("install <app>")
-    .description("Install application in haibu")
+    .description("Install application in controller")
     .action (app) ->
         manifest.name = app
         manifest.repository.url =
@@ -97,7 +97,7 @@ program
 
 program
     .command("uninstall <app>")
-    .description("Remove application from haibu")
+    .description("Remove application from controller")
     .action (app) ->
         manifest.name = app
         manifest.user = app
@@ -112,24 +112,24 @@ program
 
 program
     .command("start <app>")
-    .description("Start application through haibu")
+    .description("Start application through controller")
     .action (app) ->
         manifest.name = app
         manifest.repository.url =
             "https://github.com/mycozycloud/cozy-#{app}.git"
         manifest.user = app
         console.log "Starting #{app}..."
-
-        client.start manifest, (err, result) ->
-            if err
-                console.log "Start failed"
-                console.log err
-            else
-                console.log "#{app} successfully started"
+        client.stop app, (err, result) ->
+            client.start manifest, (err, result) ->
+                if err
+                    console.log "Start failed"
+                    console.log err
+                else
+                    console.log "#{app} successfully started"
 
 program
     .command("stop <app>")
-    .description("Stop application through haibu")
+    .description("Stop application through controller")
     .action (app) ->
         console.log "Stopping #{app}..."
         app.user = app
@@ -158,7 +158,7 @@ program
 
 program
     .command("restart <app>")
-    .description("Restart application trough haibu")
+    .description("Restart application trough controller")
     .action (app) ->
         console.log "Stopping #{app}..."
 
@@ -184,7 +184,7 @@ program
 program
     .command("light-update <app>")
     .description(
-        "Update application (git + npm install) and restart it through haibu")
+        "Update application (git + npm) and restart it through controller")
     .action (app) ->
         console.log "Light update #{app}..."
         manifest.name = app
@@ -203,7 +203,7 @@ program
 
 program
     .command("uninstall-all")
-    .description("Uninstall all apps from haibu")
+    .description("Uninstall all apps from controller")
     .action (app) ->
         console.log "Uninstall all apps..."
 
@@ -228,19 +228,6 @@ program
             if err
                 console.log "exec error: #{err}"
                 console.log "stderr: #{stderr}"
-
-#program
-    #.command("script_arg <app> <script> <argument>")
-    #.description("(Broken) Launch script that comes with given application")
-    #.action (app, script, argument) ->
-        #console.log "Run script #{script} for #{app}..."
-        #path = "./node_modules/haibu/local/cozy/#{app}/cozy-#{app}/"
-        #child = exec "cd #{path}; coffee #{script}.coffee #{argument}", \
-                     #(error, stdout, stderr) ->
-            #console.log stdout
-            #if error != null
-                #console.log "exec error: #{error}"
-                #console.log "stderr: #{stderr}"
 
 program
     .command("reset-proxy")

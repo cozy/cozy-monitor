@@ -11,7 +11,7 @@ fs = require "fs"
 exec = require('child_process').exec
 
 haibu = require('haibu-api')
-Client = require("../../request-json/main").JsonClient
+Client = require("request-json").JsonClient
 
 
 homeUrl = "http://localhost:9103/"
@@ -29,14 +29,17 @@ client = client.drone
 
 
 getToken = (callback) ->
-    fs.readFile '/etc/cozy/controller.token', 'utf8', (err, data) =>
-        if err isnt null
-            console.log "Cannot read token"
-            callback new Error("Cannot read token")
-        else
-            token = data
-            token = token.split('\n')[0]
-            callback null, token
+    if fs.existsSync '/etc/cozy/controller.token'
+        fs.readFile '/etc/cozy/controller.token', 'utf8', (err, data) =>
+            if err isnt null
+                console.log "Cannot read token"
+                callback new Error("Cannot read token")
+            else
+                token = data
+                token = token.split('\n')[0]
+                callback null, token
+    else
+        callback null, ""
 
 client.clean = (manifest, callback) ->
     getToken (err, token) ->

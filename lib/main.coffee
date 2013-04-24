@@ -154,7 +154,7 @@ program
             "https ://github.com/mycozycloud/cozy-#{app}.git"
         manifest.user = app
         client.brunch manifest, (err, res, body) ->
-            if res.statusCode isnt 200
+            if res?.statusCode isnt 200
                 console.log "Brunch build failed."
                 console.log body
             else
@@ -268,11 +268,12 @@ program
             (callback) ->
                 statusClient.host = host
                 statusClient.get path, (err, res) ->
-                    if res.statusCode isnt 200
+                    if not res? or res.statusCode isnt 200
                         console.log "#{app}: " + "down".red
                     else
                         console.log "#{app}: " + "up".green
                     callback()
+                , false
 
         async.series [
             checkApp("controller", controllerUrl, "version")

@@ -248,61 +248,64 @@ program
                 console.log "Reset proxy succeeded."
 
 program
-    .command("dev-route <slug> <port>")
+    .command("dev-route:start <slug> <port>")
     .description("Create a route so we can access it by the proxy. ")
     .action (slug, port) ->
-        if slug is 'stop'
-            slug = port
-            client = new Client couchUrl
-            appsQuery = 'cozy/_design/application/_view/all/'
+        client = new Client dataSystemUrl
+        data =
+            docType: "Application"
+            status: "installed"
+            slug: slug
+            name: slug
+            port: port
+            devRoute: true
 
-            client.get appsQuery, (err, res, apps) ->
-                if err or not apps?
-                    console.log "Unable to access couchdb"
-                    return
+        client.post "data/", data, (err, res) ->
+            if err
+                console.log "Unable to create route"
+                return
 
-                for row in apps.rows
-                    if row.key is slug and row.value.devRoute
-                        delQuery = "cozy/#{row.id}/?rev=#{row.value._rev}"
-                        client.del delQuery, (err, res) ->
-                            if err
-                                console.log "Unable to delete route"
-                            else
-                                console.log "Route deleted"
-                                client.host = proxyUrl
-                                client.get 'routes/reset', (err, res) ->
-                                    if err
-                                        console.log "unable to reset routes"
-                                    else
-                                        console.log "Proxy routes reset"
-                        return
-
-                console.log "There is no dev route with this slug"
-
-        else
-            client = new Client couchUrl
-            data =
-                docType: "Application"
-                status: "installed"
-                slug: slug
-                name: slug
-                port: port
-                devRoute: true
-
-            client.post "cozy", data, (err, res) ->
+            statusClient.host = proxyUrl
+            statusClient.get "routes/reset", (err) ->
                 if err
-                    console.log "Unable to create route"
+                    console.log "Unable to reset proxy routes"
                     return
 
-                statusClient.host = proxyUrl
-                statusClient.get "routes/reset", (err) ->
-                    if err
-                        console.log "Unable to reset proxy routes"
-                        return
+                console.log "route created"
+                console.log "start your app on port #{port}"
+                console.log "Use dev-route:stop #{slug} to remove the route."
 
-                    console.log "route created"
-                    console.log "start your app on port #{port}"
-                    console.log "Use dev-route stop <slug> to remove the route."
+
+program
+    .command("dev-route:stop <slug>")
+    .action (slug) ->
+        client = new Client dataSystemUrl
+        appsQuery = 'request/application/all/'
+
+        client.post appsQuery, null, (err, res, apps) ->
+            if err or not apps?
+                console.log "Unable to access couchdb"
+                console.log err
+                console.log apps
+                return
+
+            for app in apps
+                if (app.key is slug or slug is 'all') and app.value.devRoute
+                    delQuery = "data/#{app.id}/"
+                    client.del delQuery, (err, res) ->
+                        if err
+                            console.log "Unable to delete route"
+                        else
+                            console.log "Route deleted"
+                            client.host = proxyUrl
+                            client.get 'routes/reset', (err, res) ->
+                                if err
+                                    console.log "unable to reset routes"
+                                else
+                                    console.log "Proxy routes reset"
+                    return
+
+            console.log "There is no dev route with this slug"
 
 
 

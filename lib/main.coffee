@@ -357,7 +357,8 @@ program
     .action (target) ->
         getAuthCouchdb (err, username, password) ->
             client = new Client couchUrl
-            client.setBasicAuth(username, password)
+            if not err
+                client.setBasicAuth(username, password)
             data =
                 source: "cozy"
                 target: target

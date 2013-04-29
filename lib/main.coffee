@@ -7,6 +7,7 @@ require "colors"
 
 program = require 'commander'
 async = require "async"
+fs = require "fs"
 exec = require('child_process').exec
 
 haibu = require('haibu-api')
@@ -30,9 +31,54 @@ client = haibu.createClient
   port: 9002
 client = client.drone
 
+
+getToken = (callback) ->
+    if fs.existsSync '/etc/cozy/controller.token'
+        fs.readFile '/etc/cozy/controller.token', 'utf8', (err, data) =>
+            if err isnt null
+                console.log "Cannot read token"
+                callback new Error("Cannot read token")
+            else
+                token = data
+                token = token.split('\n')[0]
+                callback null, token
+    else
+        callback null, ""
+
+client.clean = (manifest, callback) ->
+    getToken (err, token) ->
+        data = manifest
+        controllerClient.setToken token
+        controllerClient.post "drones/#{manifest.name}/clean", data, callback
+
+client.cleanAll = (callback) ->
+    getToken (err, token) ->
+        controllerClient.setToken token
+        controllerClient.post "drones/cleanall", {}, callback
+
+client.stop = (manifest, callback) ->
+    getToken (err, token) ->
+        data = stop: manifest
+        controllerClient.setToken token
+        controllerClient.post "drones/#{manifest.name}/stop", data, callback
+
+client.start = (manifest, callback) ->
+    getToken (err, token) ->
+        data = start: manifest
+        controllerClient.setToken token
+        controllerClient.post "drones/#{manifest.name}/start", data, callback
+
 client.brunch = (manifest, callback) ->
-    data = brunch: manifest
-    controllerClient.post "drones/#{manifest.name}/brunch", data, callback
+    getToken (err, token) ->
+        data = brunch: manifest
+        controllerClient.setToken token
+        controllerClient.post "drones/#{manifest.name}/brunch", data, callback
+
+client.lightUpdate = (manifest, callback) ->
+    getToken (err, token) ->
+        data = update: manifest
+        controllerClient.setToken token
+        controllerClient.post "drones/#{manifest.name}/light-update", data, callback
 
 manifest =
    "domain": "localhost"
@@ -45,7 +91,6 @@ program
   .version('0.0.1')
   .usage('<action> <app>')
 
-
 program
     .command("install <app>")
     .description("Install application in controller")
@@ -56,11 +101,15 @@ program
         manifest.user = app
         console.log "Install started for #{app}..."
 
-        client.clean manifest, (err, result) ->
-            client.start manifest, (err, result) ->
-                if err
-                    console.log err
+        client.clean manifest, (err, res, body) ->
+            client.start manifest, (err, res, body)  ->
+                if err or res.statusCode isnt 200
+                    console.log err if err
                     console.log "Install failed"
+                    if res.body?
+                        if res.body.msg?
+                           console.log res.body.msg
+                        else console.log res.body
                 else
                     client.brunch manifest, ->
                         console.log "#{app} successfully installed"
@@ -76,11 +125,13 @@ program
         console.log "Install started for #{app}..."
         path = "api/applications/install"
         homeClient.post path, manifest, (err, res, body) ->
-            if err or res.statusCode isnt 200
+            if err or body.error
                 console.log err if err?
                 console.log "Install failed"
                 if body?
-                    if body.msg? then console.log body.msg else console.log body
+                    if body.msg?
+                        console.log body.msg
+                    else console.log body
             else
                 console.log "#{app} successfully installed"
 
@@ -92,10 +143,12 @@ program
         path = "api/applications/#{app}/uninstall"
         homeClient.del path, (err, res, body) ->
             if err or res.statusCode isnt 200
-                console.log err if err?
+                console.log err if err
                 console.log "Uninstall failed"
                 if body?
-                    if body.msg? then console.log body.msg else console.log body
+                    if body.msg?
+                        console.log body.msg
+                    else console.log body
             else
                 console.log "#{app} successfully uninstalled"
 
@@ -107,10 +160,14 @@ program
         manifest.user = app
         console.log "Uninstall started for #{app}..."
 
-        client.clean manifest, (err, result) ->
-            if err
+        client.clean manifest, (err, res, body) ->
+            if err or res.statusCode isnt 200
                 console.log "Uninstall failed"
-                console.log err
+                console.log err if err
+                if body?
+                    if body.msg?
+                        console.log body.msg
+                    else console.log body
             else
                 console.log "#{app} successfully uninstalled"
 
@@ -123,11 +180,15 @@ program
             "https://github.com/mycozycloud/cozy-#{app}.git"
         manifest.user = app
         console.log "Starting #{app}..."
-        client.stop app, (err, result) ->
-            client.start manifest, (err, result) ->
-                if err
+        client.stop manifest, (err, res, body) ->
+            client.start manifest, (err, res, body) ->
+                if err or res.statusCode isnt 200
                     console.log "Start failed"
-                    console.log err
+                    console.log err if err
+                    if res.body?
+                        if res.body.msg?
+                            console.log res.body.msg
+                        else console.log res.body
                 else
                     console.log "#{app} successfully started"
 
@@ -136,11 +197,16 @@ program
     .description("Stop application through controller")
     .action (app) ->
         console.log "Stopping #{app}..."
-        app.user = app
-        client.stop app, (err) ->
-            if err
+        manifest.name = app
+        manifest.user = app
+        client.stop manifest, (err, res) ->
+            if err or res.statusCode isnt 200
                 console.log "Stop failed"
-                console.log err.result.error.message
+                console.log err if err
+                if res.body?
+                    if res.body.msg?
+                        console.log res.body.msg
+                    else console.log res.body
             else
                 console.log "#{app} successfully stopped"
 
@@ -154,9 +220,14 @@ program
             "https ://github.com/mycozycloud/cozy-#{app}.git"
         manifest.user = app
         client.brunch manifest, (err, res, body) ->
-            if res?.statusCode isnt 200
+            if err or res?.statusCode isnt 200
                 console.log "Brunch build failed."
-                console.log body
+                console.log err if err
+                if res.body?
+                    if res.body.msg?
+                        console.log res.body.msg
+                else
+                    console.log res.body
             else
                 console.log "#{app} client successfully built."
 
@@ -166,10 +237,14 @@ program
     .action (app) ->
         console.log "Stopping #{app}..."
 
-        client.stop app, (err) ->
-            if err
+        client.stop app, (err, res) ->
+            if err or res.statusCode isnt 200
                 console.log "Stop failed"
-                console.log err.result.error.message
+                console.log err if err
+                if res.body?
+                    if res.body.msg?
+                        console.log res.body.msg
+                    else console.log res.body
             else
                 console.log "#{app} successfully stopped"
                 manifest.name = app
@@ -178,12 +253,12 @@ program
                 manifest.user = app
                 console.log "Starting #{app}..."
 
-                client.start manifest, (err, result) ->
-                if err
-                    console.log "Start failed"
-                    console.log err
-                else
-                    console.log "#{app} successfully started"
+                client.start manifest, (err, res, body) ->
+                    if err or res.statusCode isnt 200
+                        console.log "Start failed"
+                        console.log err
+                    else
+                        console.log "#{app} sucessfully started"
 
 program
     .command("light-update <app>")
@@ -195,12 +270,14 @@ program
         manifest.repository.url =
             "https ://github.com/mycozycloud/cozy-#{app}.git"
         manifest.user = app
-
-        controllerClient.post "drones/#{app}/light-update", \
-             {update : manifest}, (err, res, body) ->
+        client.lightUpdate manifest, (err, res, body) ->
             if (res.statusCode isnt 200)
                 console.log "Update failed"
-                console.log body
+                console.log err if err
+                if res.body?
+                    if res.body.msg?
+                        console.log res.body.msg
+                    else console.log res.body
             else
                 client.brunch manifest, ->
                     console.log "#{app} successfully updated"
@@ -211,10 +288,15 @@ program
     .action (app) ->
         console.log "Uninstall all apps..."
 
-        client.cleanAll (err) ->
-            if err
+        client.cleanAll (err, res) ->
+            if err or res.statusCode isnt 200
                 console.log "Uninstall all failed"
-                console.log err.result.error.message
+                console.log err if err
+                if res.body?
+                    if res.body.msg?
+                        console.log res.body.msg
+                else
+                    console.log res.body
             else
                 console.log "All apps successfully uinstalled"
 
@@ -365,11 +447,16 @@ program
                 manifest.repository.url = app.git
                 manifest.user = app.name
 
-                client.clean manifest, (err, result) ->
-                    client.start manifest, (err, result) ->
-                        if err
-                            console.log err
+                client.clean manifest, (err, res, body) ->
+                    client.start manifest, (err, res, body) ->
+                        if err or res.statusCode isnt 200
                             console.log "Install failed"
+                            console.log err if err
+                            if res.body?
+                                if res.body.msg?
+                                    console.log res.body.msg
+                                else
+                                    console.log res.body
                             callback()
                         else
                             client.brunch manifest, ->

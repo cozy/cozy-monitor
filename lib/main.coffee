@@ -412,8 +412,14 @@ program
         checkApp = (app, host, path="") ->
             (callback) ->
                 statusClient.host = host
+                console.log host
+
                 statusClient.get path, (err, res) ->
-                    if not res? or res.statusCode isnt 200
+                    console.log res?.statusCode
+
+                    if not res? or
+                    (res.statusCode isnt 200 and res.statusCode isnt 403)
+
                         console.log "#{app}: " + "down".red
                     else
                         console.log "#{app}: " + "up".green

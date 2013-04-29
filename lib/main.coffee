@@ -106,7 +106,7 @@ program
                 if err or res.statusCode isnt 200
                     console.log err if err
                     console.log "Install failed"
-                    if res.body?
+                    if res?.body?
                         if res.body.msg?
                            console.log res.body.msg
                         else console.log res.body
@@ -185,7 +185,7 @@ program
                 if err or res.statusCode isnt 200
                     console.log "Start failed"
                     console.log err if err
-                    if res.body?
+                    if res?.body?
                         if res.body.msg?
                             console.log res.body.msg
                         else console.log res.body
@@ -203,7 +203,7 @@ program
             if err or res.statusCode isnt 200
                 console.log "Stop failed"
                 console.log err if err
-                if res.body?
+                if res?.body?
                     if res.body.msg?
                         console.log res.body.msg
                     else console.log res.body
@@ -223,7 +223,7 @@ program
             if err or res?.statusCode isnt 200
                 console.log "Brunch build failed."
                 console.log err if err
-                if res.body?
+                if res?.body?
                     if res.body.msg?
                         console.log res.body.msg
                 else
@@ -241,7 +241,7 @@ program
             if err or res.statusCode isnt 200
                 console.log "Stop failed"
                 console.log err if err
-                if res.body?
+                if res?.body?
                     if res.body.msg?
                         console.log res.body.msg
                     else console.log res.body
@@ -271,10 +271,10 @@ program
             "https ://github.com/mycozycloud/cozy-#{app}.git"
         manifest.user = app
         client.lightUpdate manifest, (err, res, body) ->
-            if (res.statusCode isnt 200)
+            if (err or not res? or res.statusCode isnt 200)
                 console.log "Update failed"
                 console.log err if err
-                if res.body?
+                if res?.body?
                     if res.body.msg?
                         console.log res.body.msg
                     else console.log res.body
@@ -292,7 +292,7 @@ program
             if err or res.statusCode isnt 200
                 console.log "Uninstall all failed"
                 console.log err if err
-                if res.body?
+                if res?.body?
                     if res.body.msg?
                         console.log res.body.msg
                 else
@@ -452,7 +452,7 @@ program
                         if err or res.statusCode isnt 200
                             console.log "Install failed"
                             console.log err if err
-                            if res.body?
+                            if res?.body?
                                 if res.body.msg?
                                     console.log res.body.msg
                                 else

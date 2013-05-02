@@ -91,7 +91,7 @@ manifest =
 getAuthCouchdb = (callback) ->
     fs.readFile '/etc/cozy/couchdb.login', 'utf8', (err, data) =>
         if err
-            console.log "Cannot read login"
+            console.log "Cannot read login in /etc/cozy/couchdb.login"
             callback err
         else
             username = data.split('\n')[0]
@@ -504,18 +504,23 @@ program
         data =
             source: "cozy"
             target: target
-        client.post "_replicate", data, (err, res, body) ->
+        getAuthCouchdb (err, username, password) ->
             if err
-                console.log err
-                console.log "Backup Not Started"
-                process.exit 1
-            else if not body.ok
-                console.log body
-                console.log "Backup start but failed"
                 process.exit 1
             else
-                console.log "Backup succeed"
-                process.exit 0
+                client.setBasicAuth username, password
+                client.post "_replicate", data, (err, res, body) ->
+                    if err
+                        console.log err
+                        console.log "Backup Not Started"
+                        process.exit 1
+                    else if not body.ok
+                        console.log body
+                        console.log "Backup start but failed"
+                        process.exit 1
+                    else
+                        console.log "Backup succeed"
+                        process.exit 0
 
 program
     .command("*")

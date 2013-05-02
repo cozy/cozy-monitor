@@ -1,6 +1,6 @@
 {
   "name": "cozy-monitor",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Tool to manage cozy instance internally",
   "license": "GPL v3",
   "main": "./lib/main",

@@ -9,6 +9,7 @@ program = require 'commander'
 async = require "async"
 fs = require "fs"
 exec = require('child_process').exec
+fs = require 'fs'
 
 haibu = require('haibu-api')
 Client = require("request-json").JsonClient
@@ -86,6 +87,16 @@ manifest =
        "type": "git",
    "scripts":
        "start": "server.coffee"
+
+getAuthCouchdb = (callback) ->
+    fs.readFile '/etc/cozy/couchdb.login', 'utf8', (err, data) =>
+        if err
+            console.log "Cannot read login"
+            callback err
+        else
+            username = data.split('\n')[0]
+            password = data.split('\n')[1]
+            callback null, username, password
 
 program
   .version('0.0.1')

@@ -247,8 +247,11 @@ program
     .description("Restart application trough controller")
     .action (app) ->
         console.log "Stopping #{app}..."
-
-        client.stop app, (err, res) ->
+        manifest.name = app
+        manifest.repository.url =
+            "https://github.com/mycozycloud/cozy-#{app}.git"
+        manifest.user = app
+        client.stop manifest, (err, res) ->
             if err or res.statusCode isnt 200
                 console.log "Stop failed"
                 console.log err if err
@@ -258,10 +261,6 @@ program
                     else console.log res.body
             else
                 console.log "#{app} successfully stopped"
-                manifest.name = app
-                manifest.repository.url =
-                    "https://github.com/mycozycloud/cozy-#{app}.git"
-                manifest.user = app
                 console.log "Starting #{app}..."
 
                 client.start manifest, (err, res, body) ->

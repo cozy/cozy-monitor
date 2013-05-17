@@ -13,7 +13,7 @@ fs = require 'fs'
 
 haibu = require('haibu-api')
 Client = require("request-json").JsonClient
-
+redis = require 'redis'
 
 couchUrl = "http://localhost:5984/"
 controllerUrl = "http://localhost:9002/"
@@ -31,7 +31,6 @@ client = haibu.createClient
   host: 'localhost'
   port: 9002
 client = client.drone
-
 
 getToken = (callback) ->
     if fs.existsSync '/etc/cozy/controller.token'
@@ -144,7 +143,16 @@ program
                         console.log body.msg
                     else console.log body
             else
-                console.log "#{app} successfully installed"
+                clientRedis = redis.createClient()
+                clientRedis.psubscribe 'application.update'
+                clientRedis.on 'pmessage', (pat, ch, msg) =>
+                    DSclient = new Client dataSystemUrl
+                    DSclient.get "data/#{msg}/", (err, response, body) =>
+                        clientRedis.quit()
+                        if body.state is "installed"
+                            console.log "#{app} successfully installed" 
+                        else
+                            console.log "Install failed"
 
 program
     .command("uninstall_home <app>")

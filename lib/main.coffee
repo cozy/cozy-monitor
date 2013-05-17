@@ -146,11 +146,11 @@ program
                 clientRedis = redis.createClient()
                 clientRedis.psubscribe 'application.update'
                 clientRedis.on 'pmessage', (pat, ch, msg) =>
-                    DSclient = new Client dataSystemUrl
-                    DSclient.get "data/#{msg}/", (err, response, body) =>
+                    dSclient = new Client dataSystemUrl
+                    dSclient.get "data/#{msg}/", (err, response, body) =>
                         clientRedis.quit()
                         if body.state is "installed"
-                            console.log "#{app} successfully installed" 
+                            console.log "#{app} successfully installed"
                         else
                             console.log "Install failed"
 

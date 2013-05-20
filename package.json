@@ -29,7 +29,8 @@
     "async": "=0.1.22",
     "request-json": "=0.3.3",
     "colors": "=0.6.0-1",
-    "haibu-api": "=0.9.0"
+    "haibu-api": "=0.9.0", 
+    "redis": "=0.8.3"
   },
   "devDependencies": {
   },

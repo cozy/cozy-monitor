@@ -9,7 +9,6 @@ program = require 'commander'
 async = require "async"
 fs = require "fs"
 exec = require('child_process').exec
-fs = require 'fs'
 
 haibu = require('haibu-api')
 Client = require("request-json").JsonClient
@@ -32,6 +31,7 @@ client = haibu.createClient
   port: 9002
 client = client.drone
 
+
 getToken = (callback) ->
     if fs.existsSync '/etc/cozy/controller.token'
         fs.readFile '/etc/cozy/controller.token', 'utf8', (err, data) =>
@@ -45,16 +45,19 @@ getToken = (callback) ->
     else
         callback null, ""
 
+
 client.clean = (manifest, callback) ->
     getToken (err, token) ->
         data = manifest
         controllerClient.setToken token
         controllerClient.post "drones/#{manifest.name}/clean", data, callback
 
+
 client.cleanAll = (callback) ->
     getToken (err, token) ->
         controllerClient.setToken token
         controllerClient.post "drones/cleanall", {}, callback
+
 
 client.stop = (manifest, callback) ->
     getToken (err, token) ->
@@ -62,11 +65,13 @@ client.stop = (manifest, callback) ->
         controllerClient.setToken token
         controllerClient.post "drones/#{manifest.name}/stop", data, callback
 
+
 client.start = (manifest, callback) ->
     getToken (err, token) ->
         data = start: manifest
         controllerClient.setToken token
         controllerClient.post "drones/#{manifest.name}/start", data, callback
+
 
 client.brunch = (manifest, callback) ->
     getToken (err, token) ->
@@ -74,11 +79,13 @@ client.brunch = (manifest, callback) ->
         controllerClient.setToken token
         controllerClient.post "drones/#{manifest.name}/brunch", data, callback
 
+
 client.lightUpdate = (manifest, callback) ->
     getToken (err, token) ->
         data = update: manifest
         controllerClient.setToken token
         controllerClient.post "drones/#{manifest.name}/light-update", data, callback
+
 
 manifest =
    "domain": "localhost"
@@ -86,6 +93,7 @@ manifest =
        "type": "git",
    "scripts":
        "start": "server.coffee"
+
 
 getAuthCouchdb = (callback) ->
     fs.readFile '/etc/cozy/couchdb.login', 'utf8', (err, data) =>
@@ -97,9 +105,11 @@ getAuthCouchdb = (callback) ->
             password = data.split('\n')[1]
             callback null, username, password
 
+
 program
   .version('0.0.1')
   .usage('<action> <app>')
+
 
 program
     .command("install <app>")
@@ -120,9 +130,11 @@ program
                         if res.body.msg?
                            console.log res.body.msg
                         else console.log res.body
+                    process.exit 1
                 else
                     client.brunch manifest, ->
                         console.log "#{app} successfully installed"
+
 
 program
     .command("install_home <app>")
@@ -142,7 +154,9 @@ program
                     if body.msg?
                         console.log body.msg
                     else console.log body
+                process.exit 1
             else
+                console.log "install started"
                 clientRedis = redis.createClient()
                 clientRedis.psubscribe 'application.update'
                 clientRedis.on 'pmessage', (pat, ch, msg) =>
@@ -153,6 +167,8 @@ program
                             console.log "#{app} successfully installed"
                         else
                             console.log "Install failed"
+                            process.exit 1
+
 
 program
     .command("uninstall_home <app>")
@@ -168,8 +184,10 @@ program
                     if body.msg?
                         console.log body.msg
                     else console.log body
+                process.exit 1
             else
                 console.log "#{app} successfully uninstalled"
+
 
 program
     .command("uninstall <app>")
@@ -187,8 +205,10 @@ program
                     if body.msg?
                         console.log body.msg
                     else console.log body
+                process.exit 1
             else
                 console.log "#{app} successfully uninstalled"
+
 
 program
     .command("start <app>")
@@ -208,8 +228,10 @@ program
                         if res.body.msg?
                             console.log res.body.msg
                         else console.log res.body
+                    process.exit 1
                 else
                     console.log "#{app} successfully started"
+
 
 program
     .command("stop <app>")
@@ -226,8 +248,10 @@ program
                     if res.body.msg?
                         console.log res.body.msg
                     else console.log res.body
+                process.exit 1
             else
                 console.log "#{app} successfully stopped"
+
 
 program
     .command("brunch <app>")
@@ -247,8 +271,10 @@ program
                         console.log res.body.msg
                 else
                     console.log res.body
+                process.exit 1
             else
                 console.log "#{app} client successfully built."
+
 
 program
     .command("restart <app>")
@@ -267,6 +293,7 @@ program
                     if res.body.msg?
                         console.log res.body.msg
                     else console.log res.body
+                process.exit 1
             else
                 console.log "#{app} successfully stopped"
                 console.log "Starting #{app}..."
@@ -276,7 +303,9 @@ program
                         console.log "Start failed"
                         console.log err
                     else
+                        process.exit 1
                         console.log "#{app} sucessfully started"
+
 
 program
     .command("light-update <app>")
@@ -296,9 +325,11 @@ program
                     if res.body.msg?
                         console.log res.body.msg
                     else console.log res.body
+                process.exit 1
             else
                 client.brunch manifest, ->
                     console.log "#{app} successfully updated"
+
 
 program
     .command("uninstall-all")
@@ -315,8 +346,10 @@ program
                         console.log res.body.msg
                 else
                     console.log res.body
+                process.exit 1
             else
                 console.log "All apps successfully uinstalled"
+
 
 program
     .command("script <app> <script> [argument]")
@@ -332,6 +365,10 @@ program
             if err
                 console.log "exec error: #{err}"
                 console.log "stderr: #{stderr}"
+                process.exit 1
+            else
+                console.log "Command successfully applied."
+
 
 program
     .command("reset-proxy")
@@ -344,8 +381,10 @@ program
             if err
                 console.log err
                 console.log "Reset proxy failed."
+                process.exit 1
             else
                 console.log "Reset proxy succeeded."
+
 
 program
     .command("dev-route:start <slug> <port>")
@@ -369,11 +408,12 @@ program
             statusClient.get "routes/reset", (err) ->
                 if err
                     console.log "Unable to reset proxy routes"
-                    return
+                    process.exit 1
 
-                console.log "route created"
-                console.log "start your app on port #{port}"
-                console.log "Use dev-route:stop #{slug} to remove the route."
+                else
+                    console.log "route created"
+                    console.log "start your app on port #{port}"
+                    console.log "Use dev-route:stop #{slug} to remove it."
 
 
 program
@@ -387,27 +427,25 @@ program
                 console.log "Unable to access couchdb"
                 console.log err
                 console.log apps
-                return
-
-            for app in apps
-                if (app.key is slug or slug is 'all') and app.value.devRoute
-                    delQuery = "data/#{app.id}/"
-                    client.del delQuery, (err, res) ->
-                        if err
-                            console.log "Unable to delete route"
-                        else
-                            console.log "Route deleted"
-                            client.host = proxyUrl
-                            client.get 'routes/reset', (err, res) ->
-                                if err
-                                    console.log "unable to reset routes"
-                                else
-                                    console.log "Proxy routes reset"
-                    return
+                process.exit 1
+            else
+                for app in apps
+                    if (app.key is slug or slug is 'all') and app.value.devRoute
+                        delQuery = "data/#{app.id}/"
+                        client.del delQuery, (err, res) ->
+                            if err
+                                console.log "Unable to delete route"
+                            else
+                                console.log "Route deleted"
+                                client.host = proxyUrl
+                                client.get 'routes/reset', (err, res) ->
+                                    if err
+                                        console.log "unable to reset routes"
+                                    else
+                                        console.log "Proxy routes reset"
+                        return
 
             console.log "There is no dev route with this slug"
-
-
 
 
 program
@@ -419,9 +457,14 @@ program
         statusClient.host = proxyUrl
         statusClient.get "routes", (err, res, routes) ->
 
-            if not err and routes?
+            if err
+                console.log err
+                console.log "Cannot display routes"
+                process.exit 1
+            else if routes?
                 for route of routes
                     console.log "#{route} => #{routes[route]}"
+
 
 program
     .command("status")
@@ -455,6 +498,7 @@ program
                         func = checkApp(app.name, "http://localhost:#{app.port}/")
                         funcs.push func
                     async.series funcs, ->
+
 
 program
     .command("reinstall-all")
@@ -500,8 +544,10 @@ program
                         if err
                             console.log err
                             console.log "Reset proxy failed."
+                            process.exit 1
                         else
                             console.log "Reset proxy succeeded."
+
 
 program
     .command("backup <target>")
@@ -529,6 +575,7 @@ program
                         console.log "Backup succeed"
                         process.exit 0
 
+
 program
     .command("*")
     .description("Display error message for an unknown command.")
@@ -536,4 +583,4 @@ program
         console.log 'Unknown command, run "cozy-monitor --help"' + \
                     ' to know the list of available commands.'
 
-program.parse(process.argv)
+program.parse process.argv

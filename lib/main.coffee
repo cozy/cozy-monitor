@@ -106,6 +106,16 @@ getAuthCouchdb = (callback) ->
             callback null, username, password
 
 
+handleError = (err, body, msg) ->
+    console.log err if err
+    console.log "Install failed"
+    if body?
+        if body.msg?
+           console.log res.body.msg
+        else console.log res.body
+    process.exit 1
+
+
 program
   .version('0.0.1')
   .usage('<action> <app>')
@@ -124,13 +134,7 @@ program
         client.clean manifest, (err, res, body) ->
             client.start manifest, (err, res, body)  ->
                 if err or res.statusCode isnt 200
-                    console.log err if err
-                    console.log "Install failed"
-                    if res?.body?
-                        if res.body.msg?
-                           console.log res.body.msg
-                        else console.log res.body
-                    process.exit 1
+                    handleError err, body, "Install failed"
                 else
                     client.brunch manifest, ->
                         console.log "#{app} successfully installed"
@@ -148,13 +152,7 @@ program
         path = "api/applications/install"
         homeClient.post path, manifest, (err, res, body) ->
             if err or body.error
-                console.log err if err?
-                console.log "Install failed"
-                if body?
-                    if body.msg?
-                        console.log body.msg
-                    else console.log body
-                process.exit 1
+                handleError err, body, "Install home failed"
             else
                 console.log "install started"
                 clientRedis = redis.createClient()
@@ -163,11 +161,10 @@ program
                     dSclient = new Client dataSystemUrl
                     dSclient.get "data/#{msg}/", (err, response, body) =>
                         clientRedis.quit()
-                        if body.state is "installed"
+                        if not err? and body.state is "installed"
                             console.log "#{app} successfully installed"
                         else
-                            console.log "Install failed"
-                            process.exit 1
+                            handleError null, null, "Install home failed"
 
 
 program
@@ -178,13 +175,7 @@ program
         path = "api/applications/#{app}/uninstall"
         homeClient.del path, (err, res, body) ->
             if err or res.statusCode isnt 200
-                console.log err if err
-                console.log "Uninstall failed"
-                if body?
-                    if body.msg?
-                        console.log body.msg
-                    else console.log body
-                process.exit 1
+                handleError err, body, "Uninstall home failed"
             else
                 console.log "#{app} successfully uninstalled"
 
@@ -199,13 +190,7 @@ program
 
         client.clean manifest, (err, res, body) ->
             if err or res.statusCode isnt 200
-                console.log "Uninstall failed"
-                console.log err if err
-                if body?
-                    if body.msg?
-                        console.log body.msg
-                    else console.log body
-                process.exit 1
+                handleError err, body, "Uninstall failed"
             else
                 console.log "#{app} successfully uninstalled"
 
@@ -222,13 +207,7 @@ program
         client.stop manifest, (err, res, body) ->
             client.start manifest, (err, res, body) ->
                 if err or res.statusCode isnt 200
-                    console.log "Start failed"
-                    console.log err if err
-                    if res?.body?
-                        if res.body.msg?
-                            console.log res.body.msg
-                        else console.log res.body
-                    process.exit 1
+                    handleError err, body, "Start failed"
                 else
                     console.log "#{app} successfully started"
 
@@ -242,13 +221,7 @@ program
         manifest.user = app
         client.stop manifest, (err, res) ->
             if err or res.statusCode isnt 200
-                console.log "Stop failed"
-                console.log err if err
-                if res?.body?
-                    if res.body.msg?
-                        console.log res.body.msg
-                    else console.log res.body
-                process.exit 1
+                handleError err, body, "Stop failed"
             else
                 console.log "#{app} successfully stopped"
 
@@ -264,14 +237,7 @@ program
         manifest.user = app
         client.brunch manifest, (err, res, body) ->
             if err or res?.statusCode isnt 200
-                console.log "Brunch build failed."
-                console.log err if err
-                if res?.body?
-                    if res.body.msg?
-                        console.log res.body.msg
-                else
-                    console.log res.body
-                process.exit 1
+                handleError err, body, "Brunch build failed"
             else
                 console.log "#{app} client successfully built."
 
@@ -287,23 +253,15 @@ program
         manifest.user = app
         client.stop manifest, (err, res) ->
             if err or res.statusCode isnt 200
-                console.log "Stop failed"
-                console.log err if err
-                if res?.body?
-                    if res.body.msg?
-                        console.log res.body.msg
-                    else console.log res.body
-                process.exit 1
+                handleError err, body, "Stop failed"
             else
                 console.log "#{app} successfully stopped"
                 console.log "Starting #{app}..."
 
                 client.start manifest, (err, res, body) ->
                     if err or res.statusCode isnt 200
-                        console.log "Start failed"
-                        console.log err
+                        handleError err, body, "Start failed"
                     else
-                        process.exit 1
                         console.log "#{app} sucessfully started"
 
 
@@ -319,13 +277,7 @@ program
         manifest.user = app
         client.lightUpdate manifest, (err, res, body) ->
             if (err or not res? or res.statusCode isnt 200)
-                console.log "Update failed"
-                console.log err if err
-                if res?.body?
-                    if res.body.msg?
-                        console.log res.body.msg
-                    else console.log res.body
-                process.exit 1
+                handleError err, body, "Light update failed"
             else
                 client.brunch manifest, ->
                     console.log "#{app} successfully updated"
@@ -339,14 +291,7 @@ program
 
         client.cleanAll (err, res) ->
             if err or res.statusCode isnt 200
-                console.log "Uninstall all failed"
-                console.log err if err
-                if res?.body?
-                    if res.body.msg?
-                        console.log res.body.msg
-                else
-                    console.log res.body
-                process.exit 1
+                handleError err, body, "Uninstall all failed"
             else
                 console.log "All apps successfully uinstalled"
 
@@ -363,9 +308,7 @@ program
                      (err, stdout, stderr) ->
             console.log stdout
             if err
-                console.log "exec error: #{err}"
-                console.log "stderr: #{stderr}"
-                process.exit 1
+                handleError err, body, "Script execution failed"
             else
                 console.log "Command successfully applied."
 
@@ -377,11 +320,9 @@ program
         console.log "Reset proxy routes"
 
         statusClient.host = proxyUrl
-        statusClient.get "routes/reset", (err) ->
+        statusClient.get "routes/reset", (err, res, body) ->
             if err
-                console.log err
-                console.log "Reset proxy failed."
-                process.exit 1
+                handleError err, body, "Reset routes failed"
             else
                 console.log "Reset proxy succeeded."
 
@@ -399,21 +340,18 @@ program
             port: port
             devRoute: true
 
-        client.post "data/", data, (err, res) ->
+        client.post "data/", data, (err, res, body) ->
             if err
-                console.log "Unable to create route"
-                return
-
-            statusClient.host = proxyUrl
-            statusClient.get "routes/reset", (err) ->
-                if err
-                    console.log "Unable to reset proxy routes"
-                    process.exit 1
-
-                else
-                    console.log "route created"
-                    console.log "start your app on port #{port}"
-                    console.log "Use dev-route:stop #{slug} to remove it."
+                handleError err, body, "Create route failed"
+            else
+                statusClient.host = proxyUrl
+                statusClient.get "routes/reset", (err, res, body) ->
+                    if err
+                        handleError err, body, "Reset routes failed"
+                    else
+                        console.log "route created"
+                        console.log "start your app on port #{port}"
+                        console.log "Use dev-route:stop #{slug} to remove it."
 
 
 program
@@ -424,23 +362,21 @@ program
 
         client.post appsQuery, null, (err, res, apps) ->
             if err or not apps?
-                console.log "Unable to access couchdb"
-                console.log err
-                console.log apps
-                process.exit 1
+                handleError err, apps, "Unable to retrieve apps data."
             else
                 for app in apps
                     if (app.key is slug or slug is 'all') and app.value.devRoute
                         delQuery = "data/#{app.id}/"
-                        client.del delQuery, (err, res) ->
+                        client.del delQuery, (err, res, body) ->
                             if err
-                                console.log "Unable to delete route"
+                                handleError err, body, "Unable to delete route."
                             else
                                 console.log "Route deleted"
                                 client.host = proxyUrl
-                                client.get 'routes/reset', (err, res) ->
+                                client.get 'routes/reset', (err, res, body) ->
                                     if err
-                                        console.log "unable to reset routes"
+                                        handleError err, body, \
+                                            "Reset routes failed"
                                     else
                                         console.log "Proxy routes reset"
                         return
@@ -458,9 +394,7 @@ program
         statusClient.get "routes", (err, res, routes) ->
 
             if err
-                console.log err
-                console.log "Cannot display routes"
-                process.exit 1
+                handleError err, body, "Cannot display routes."
             else if routes?
                 for route of routes
                     console.log "#{route} => #{routes[route]}"
@@ -540,11 +474,9 @@ program
                     console.log "Reset proxy routes"
 
                     statusClient.host = proxyUrl
-                    statusClient.get "routes/reset", (err) ->
+                    statusClient.get "routes/reset", (err, res, body) ->
                         if err
-                            console.log err
-                            console.log "Reset proxy failed."
-                            process.exit 1
+                            handleError err, body, "Cannot reset routes."
                         else
                             console.log "Reset proxy succeeded."
 
@@ -564,15 +496,11 @@ program
                 client.setBasicAuth username, password
                 client.post "_replicate", data, (err, res, body) ->
                     if err
-                        console.log err
-                        console.log "Backup Not Started"
-                        process.exit 1
+                        handleError err, body, "Backup failed."
                     else if not body.ok
-                        console.log body
-                        console.log "Backup start but failed"
-                        process.exit 1
+                        handleError err, body, "Backup failed."
                     else
-                        console.log "Backup succeed"
+                        console.log "Backup succeeded"
                         process.exit 0
 
 

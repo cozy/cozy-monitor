@@ -145,7 +145,18 @@ program
             else
                 clientRedis = redis.createClient()
                 clientRedis.psubscribe 'application.update'
+                timeoutId = setTimeout () =>
+                    clientRedis.quit()
+                    statusClient.host = body.host
+                    statusClient.get "api/applications/", (err, res) ->
+                        if not res? or
+                        (res.statusCode isnt 200 and res.statusCode isnt 403)
+                            console.log "Install failed"
+                        else
+                            console.log "#{app} successfully installed" 
+                , 240000
                 clientRedis.on 'pmessage', (pat, ch, msg) =>
+                    clearTimeout(timeoutId)
                     DSclient = new Client dataSystemUrl
                     DSclient.get "data/#{msg}/", (err, response, body) =>
                         clientRedis.quit()

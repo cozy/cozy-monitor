@@ -108,11 +108,11 @@ getAuthCouchdb = (callback) ->
 
 handleError = (err, body, msg) ->
     console.log err if err
-    console.log "Install failed"
+    console.log msg
     if body?
         if body.msg?
-           console.log res.body.msg
-        else console.log res.body
+           console.log body.msg
+        else console.log body
     process.exit 1
 
 
@@ -479,6 +479,28 @@ program
                             handleError err, body, "Cannot reset routes."
                         else
                             console.log "Reset proxy succeeded."
+
+
+program
+    .command("compaction <database>")
+    .description("Start couchdb compaction")
+    .action (database) ->
+        console.log "Start couchdb compaction on #{database} ..."
+        client = new Client couchUrl
+        getAuthCouchdb (err, username, password) ->
+            if err
+                process.exit 1
+            else
+                client.setBasicAuth username, password
+                path = "#{database}/_compact"
+                client.post "#{database}/_compact", {}, (err, res, body) ->
+                    if err
+                        handleError err, body, "Compaction failed."
+                    else if not body.ok
+                        handleError err, body, "Compaction failed."
+                    else
+                        console.log "#{database} compaction succeeded"
+                        process.exit 0
 
 
 program

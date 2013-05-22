@@ -108,11 +108,11 @@ getAuthCouchdb = (callback) ->
 
 handleError = (err, body, msg) ->
     console.log err if err
-    console.log "Install failed"
+    console.log msg
     if body?
         if body.msg?
-           console.log res.body.msg
-        else console.log res.body
+           console.log body.msg
+        else console.log body
     process.exit 1
 
 

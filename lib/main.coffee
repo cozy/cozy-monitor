@@ -36,7 +36,7 @@ getToken = (callback) ->
     if fs.existsSync '/etc/cozy/controller.token'
         fs.readFile '/etc/cozy/controller.token', 'utf8', (err, data) =>
             if err isnt null
-                console.log "Cannot read token"
+                console.log "Cannot read token, are you sure you are root ?"
                 callback new Error("Cannot read token")
             else
                 token = data
@@ -98,8 +98,9 @@ manifest =
 getAuthCouchdb = (callback) ->
     fs.readFile '/etc/cozy/couchdb.login', 'utf8', (err, data) =>
         if err
-            console.log "Cannot read login in /etc/cozy/couchdb.login"
-            callback err
+            console.log "Cannot read login in /etc/cozy/couchdb.login, are you" +
+            " sure you are root ?"
+            callback err, ""
         else
             username = data.split('\n')[0]
             password = data.split('\n')[1]

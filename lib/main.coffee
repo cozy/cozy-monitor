@@ -492,7 +492,6 @@ program
                 process.exit 1
             else
                 client.setBasicAuth username, password
-                path = "#{database}/_compact"
                 client.post "#{database}/_compact", {}, (err, res, body) ->
                     if err
                         handleError err, body, "Compaction failed."
@@ -500,6 +499,27 @@ program
                         handleError err, body, "Compaction failed."
                     else
                         console.log "#{database} compaction succeeded"
+                        process.exit 0
+
+
+program
+    .command("cleanup <view>")
+    .description("Start couchdb cleanup")
+    .action (database) ->
+        console.log "Start couchdb cleanup on #{database} ..."
+        client = new Client couchUrl
+        getAuthCouchdb (err, username, password) ->
+            if err
+                process.exit 1
+            else
+                client.setBasicAuth username, password
+                client.post "#{database}/_view_cleanup", {}, (err, res, body) ->
+                    if err
+                        handleError err, body, "Cleanup failed."
+                    else if not body.ok
+                        handleError err, body, "Cleanup failed."
+                    else
+                        console.log "#{database} cleanup succeeded"
                         process.exit 0
 
 

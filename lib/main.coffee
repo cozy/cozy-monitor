@@ -95,6 +95,8 @@ manifest =
        "start": "server.coffee"
 
 
+## Helpers
+
 getAuthCouchdb = (callback) ->
     fs.readFile '/etc/cozy/couchdb.login', 'utf8', (err, data) =>
         if err
@@ -115,6 +117,33 @@ handleError = (err, body, msg) ->
            console.log body.msg
         else console.log body
     process.exit 1
+
+
+compact_views = (database, design_doc, callback) ->
+    client = new Client couchUrl
+    getAuthCouchdb (err, username, password) ->
+        if err
+            process.exit 1
+        else
+            client.setBasicAuth username, password
+            client.post "#{database}/_compact/#{design_doc}", {}, 
+            (err, res, body) =>
+                if err
+                    handleError err, body, "compaction failed for #{design_doc}"
+                else if not body.ok
+                    handleError err, body, "compaction failed for #{design_doc}"
+                else
+                    callback null
+
+
+compact_all_views = (database, designs, callback) ->
+    if designs.length > 0
+        design = designs.pop()
+        console.log("views compaction for #{design}")
+        compact_views database, design, (err) =>
+            compact_all_views database, designs, callback
+    else
+        callback null
 
 
 program
@@ -480,6 +509,87 @@ program
                             handleError err, body, "Cannot reset routes."
                         else
                             console.log "Reset proxy succeeded."
+
+
+program
+    .command("compact <database>")
+    .description("Start couchdb compaction")
+    .action (database) ->
+        console.log "Start couchdb compaction on #{database} ..."
+        client = new Client couchUrl
+        getAuthCouchdb (err, username, password) ->
+            if err
+                process.exit 1
+            else
+                client.setBasicAuth username, password
+                client.post "#{database}/_compact", {}, (err, res, body) ->
+                    if err
+                        handleError err, body, "Compaction failed."
+                    else if not body.ok
+                        handleError err, body, "Compaction failed."
+                    else
+                        console.log "#{database} compaction succeeded"
+                        process.exit 0
+
+
+program
+    .command("compact-views <database> <design_doc>")
+    .description("Start couchdb compaction")
+    .action (database, design_doc) ->
+        console.log "Start vews compaction on #{database} for #{design_doc} ..."
+        compact_views database, design_doc, (err) =>
+            if not err
+                console.log "#{database} compaction for #{design_doc}" +
+                            " succeeded"
+                process.exit 0
+
+program
+    .command("compact-all-views <database>")
+    .description("Start couchdb compaction")
+    .action (database) ->
+        console.log "Start vews compaction on #{database} ..."
+        client = new Client couchUrl
+        getAuthCouchdb (err, username, password) ->
+            if err
+                process.exit 1
+            else
+                client.setBasicAuth username, password
+                path = "#{database}/_all_docs?startkey=\"_design/\"&endkey=" + 
+                    "\"_design0\"&include_docs=true"
+                client.get path, (err, res, body) =>
+                    if err
+                        handleError err, body, "Views compaction failed. " + 
+                            "Cannot recover all design documents"
+                    else
+                        designs = []
+                        (body.rows).forEach (design) ->
+                            design_id = design.id
+                            design_doc = design_id.substring 8, design_id.length
+                            designs.push design_doc
+                        compact_all_views database, designs, (err) =>
+                            if not err
+                                console.log "Views are successfully compacted"
+
+
+program
+    .command("cleanup <database>")
+    .description("Start couchdb cleanup")
+    .action (database) ->
+        console.log "Start couchdb cleanup on #{database} ..."
+        client = new Client couchUrl
+        getAuthCouchdb (err, username, password) ->
+            if err
+                process.exit 1
+            else
+                client.setBasicAuth username, password
+                client.post "#{database}/_view_cleanup", {}, (err, res, body) ->
+                    if err
+                        handleError err, body, "Cleanup failed."
+                    else if not body.ok
+                        handleError err, body, "Cleanup failed."
+                    else
+                        console.log "#{database} cleanup succeeded"
+                        process.exit 0
 
 
 program

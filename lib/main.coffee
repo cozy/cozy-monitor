@@ -503,7 +503,7 @@ program
 
 
 program
-    .command("cleanup <view>")
+    .command("cleanup <database>")
     .description("Start couchdb cleanup")
     .action (database) ->
         console.log "Start couchdb cleanup on #{database} ..."

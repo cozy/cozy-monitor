@@ -482,7 +482,7 @@ program
 
 
 program
-    .command("compaction <database>")
+    .command("compact <database>")
     .description("Start couchdb compaction")
     .action (database) ->
         console.log "Start couchdb compaction on #{database} ..."
@@ -499,6 +499,29 @@ program
                         handleError err, body, "Compaction failed."
                     else
                         console.log "#{database} compaction succeeded"
+                        process.exit 0
+
+
+program
+    .command("compact-views <database> <design_doc>")
+    .description("Start couchdb compaction")
+    .action (database, design_doc) ->
+        console.log "Start vews compaction on #{database} for #{design_doc} ..."
+        client = new Client couchUrl
+        getAuthCouchdb (err, username, password) ->
+            if err
+                process.exit 1
+            else
+                client.setBasicAuth username, password
+                client.post "#{database}/_compact/#{design_doc}", {}, 
+                (err, res, body) =>
+                    if err
+                        handleError err, body, "Views compaction failed."
+                    else if not body.ok
+                        handleError err, body, "Views compaction failed."
+                    else
+                        console.log "#{database} compaction for #{design_doc}" +
+                                    " succeeded"
                         process.exit 0
 
 

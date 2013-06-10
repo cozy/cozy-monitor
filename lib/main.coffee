@@ -10,7 +10,7 @@ async = require "async"
 fs = require "fs"
 exec = require('child_process').exec
 
-cozyClients = require('../../cozy-clients/cozy_clients')
+cozyClients = require('cozy-clients')
 Client = require("request-json").JsonClient
 redis = require 'redis'
 

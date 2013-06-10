@@ -26,34 +26,17 @@ homeClient = new Client homeUrl
 controllerClient = new Client controllerUrl
 statusClient = new Client ''
 
-client = cozyClients.controllerClient
-  host: 'localhost'
-  port: 9002
-  token: "haibu"
-
-
-manifest =
-   "domain": "localhost"
-   "repository":
-       "type": "git",
-   "scripts":
-       "start": "server.coffee"
 
 
 ## Helpers
 
-getToken = (callback) ->
+getToken = () ->
     if fs.existsSync '/etc/cozy/controller.token'
-        fs.readFile '/etc/cozy/controller.token', 'utf8', (err, data) =>
-            if err isnt null
-                console.log "Cannot read token"
-                callback new Error("Cannot read token")
-            else
-                token = data
-                token = token.split('\n')[0]
-                callback null, token
+        token = fs.readFileSync '/etc/cozy/controller.token', 'utf8'
+        token = token.split('\n')[0]
+        return token
     else
-        callback null, ""
+        return null
 
 
 getAuthCouchdb = (callback) ->
@@ -102,6 +85,21 @@ compact_all_views = (database, designs, callback) ->
             compact_all_views database, designs, callback
     else
         callback null
+
+
+token = getToken()
+client = cozyClients.controllerClient
+    host: 'localhost'
+    port: 9002
+    token: token
+
+
+manifest =
+   "domain": "localhost"
+   "repository":
+       "type": "git",
+   "scripts":
+       "start": "server.coffee"
 
 
 program

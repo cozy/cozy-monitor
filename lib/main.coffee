@@ -10,10 +10,6 @@ async = require "async"
 fs = require "fs"
 exec = require('child_process').exec
 
-<<<<<<< Updated upstream
-=======
-cozyClients = require('../../cozy-clients/cozy_clients')
->>>>>>> Stashed changes
 Client = require("request-json").JsonClient
 ControllerClient = require("cozy-clients").ControllerClient
 redis = require 'redis'

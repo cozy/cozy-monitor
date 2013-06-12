@@ -10,6 +10,10 @@ async = require "async"
 fs = require "fs"
 exec = require('child_process').exec
 
+<<<<<<< Updated upstream
+=======
+cozyClients = require('../../cozy-clients/cozy_clients')
+>>>>>>> Stashed changes
 Client = require("request-json").JsonClient
 ControllerClient = require("cozy-clients").ControllerClient
 redis = require 'redis'
@@ -29,9 +33,12 @@ statusClient = new Client ''
 
 getToken = () ->
     if fs.existsSync '/etc/cozy/controller.token'
-        token = fs.readFileSync '/etc/cozy/controller.token', 'utf8'
-        token = token.split('\n')[0]
-        return token
+        try
+            token = fs.readFileSync '/etc/cozy/controller.token', 'utf8'
+            token = token.split('\n')[0]
+            return token
+        catch err
+            console.log("Are you sure, you are root ?")
     else
         return null
 

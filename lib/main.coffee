@@ -29,9 +29,12 @@ statusClient = new Client ''
 
 getToken = () ->
     if fs.existsSync '/etc/cozy/controller.token'
-        token = fs.readFileSync '/etc/cozy/controller.token', 'utf8'
-        token = token.split('\n')[0]
-        return token
+        try
+            token = fs.readFileSync '/etc/cozy/controller.token', 'utf8'
+            token = token.split('\n')[0]
+            return token
+        catch err
+            console.log("Are you sure, you are root ?")
     else
         return null
 

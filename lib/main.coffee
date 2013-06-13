@@ -12,7 +12,7 @@ exec = require('child_process').exec
 
 Client = require("request-json").JsonClient
 ControllerClient = require("cozy-clients").ControllerClient
-redis = require 'redis'
+axon = require 'axon'
 
 couchUrl = "http://localhost:5984/"
 dataSystemUrl = "http://localhost:9101/"
@@ -57,6 +57,8 @@ handleError = (err, body, msg) ->
     if body?
         if body.msg?
            console.log body.msg
+        else if body.message?
+            console.log body.message
         else console.log body
     process.exit 1
 
@@ -87,6 +89,41 @@ compact_all_views = (database, designs, callback) ->
     else
         callback null
 
+
+wait_install_complete = (slug, callback) ->
+    axon   = require 'axon'
+    socket = axon.socket 'sub-emitter'
+    socket.connect 9105
+
+    timeoutId = setTimeout ->
+        socket.close()
+
+        statusClient.host = homeUrl
+        statusClient.get "api/applications/", (err, res, apps) ->
+            return unless apps?.rows?
+
+            for app in apps.rows
+                console.log slug, app.slug, app.state, app.port
+                if app.slug is slug and app.state is 'installed' and app.port
+                    statusClient.host = "http://localhost:#{app.port}/"
+                    statusClient.get "", (err, res) ->
+                        if res?.statusCode in [200, 403]
+                            callback null, state: 'installed'
+                        else
+                            handleError null, null, "Install home failed"
+                    return
+
+            handleError null, null, "Install home failed"
+
+    , 240000
+
+    socket.on 'application.update', (id) ->
+        clearTimeout timeoutId
+        socket.close()
+
+        dSclient = new Client dataSystemUrl
+        dSclient.get "data/#{id}/", (err, response, body) ->
+            callback err, body
 
 token = getToken()
 client = new ControllerClient
@@ -136,27 +173,11 @@ program
             if err or body.error
                 handleError err, body, "Install home failed"
             else
-                console.log "install started"
-                clientRedis = redis.createClient()
-                clientRedis.psubscribe 'application.update'
-                timeoutId = setTimeout () =>
-                    clientRedis.quit()
-                    statusClient.host = body.host
-                    statusClient.get "api/applications/", (err, res) ->
-                        if not res? or
-                        (res.statusCode isnt 200 and res.statusCode isnt 403)
-                            console.log "Install failed"
-                        else
-                            console.log "#{app} successfully installed"
-                , 240000
-                clientRedis.on 'pmessage', (pat, ch, msg) =>
-                    dSclient = new Client dataSystemUrl
-                    dSclient.get "data/#{msg}/", (err, response, body) =>
-                        clientRedis.quit()
-                        if not err? and body.state is "installed"
-                            console.log "#{app} successfully installed"
-                        else
-                            handleError null, null, "Install home failed"
+                wait_install_complete body.app.slug, (err, appresult) ->
+                    if not err? and appresult.state is "installed"
+                        console.log "#{app} successfully installed"
+                    else
+                        handleError null, null, "Install home failed"
 
 
 program
@@ -325,7 +346,7 @@ program
         client = new Client dataSystemUrl
         data =
             docType: "Application"
-            status: "installed"
+            state: 'installed'
             slug: slug
             name: slug
             port: port

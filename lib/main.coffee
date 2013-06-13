@@ -17,6 +17,7 @@ redis = require 'redis'
 couchUrl = "http://localhost:5984/"
 dataSystemUrl = "http://localhost:9101/"
 indexerUrl = "http://localhost:9102/"
+controllerUrl = "http://localhost:9002/"
 homeUrl = "http://localhost:9103/"
 proxyUrl = "http://localhost:9104/"
 

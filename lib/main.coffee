@@ -413,6 +413,24 @@ program
 
 
 program
+    .command("module-status <module>")
+    .description("Give status of given in an easy to parse way.")
+    .action (module) ->
+        urls =
+            controller: controllerUrl
+            "data-system": dataSystemUrl
+            indexer: indexerUrl
+            home: homeUrl
+            proxy: proxyUrl
+        statusClient.host = urls[module]
+        statusClient.get '', (err, res) ->
+            if not res? or not res.statusCode in [200, 401, 403]
+                console.log "down"
+            else
+                console.log "up"
+
+
+program
     .command("status")
     .description("Give current state of cozy platform applications")
     .action ->
@@ -420,9 +438,7 @@ program
             (callback) ->
                 statusClient.host = host
                 statusClient.get path, (err, res) ->
-                    if not res? or
-                    (res.statusCode isnt 200 and res.statusCode isnt 403)
-
+                    if not res? or not res.statusCode in [200, 403]
                         console.log "#{app}: " + "down".red
                     else
                         console.log "#{app}: " + "up".green

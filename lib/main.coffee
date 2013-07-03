@@ -578,7 +578,7 @@ program
 
 program
     .command("reverse_backup <backup>")
-    .description("Start couchdb replication to the target")
+    .description("Start couchdb replication from target to cozy")
     .action (target) ->
         console.log "Reverse backup ..."
         client = new Client couchUrl
@@ -590,13 +590,16 @@ program
                 process.exit 1
             else
                 client.setBasicAuth username, password
+                # Remove cozy database
                 client.del "cozy", (err, res, body) ->
-                    client.put "cozy", data, (err, res, body) ->
+                    # Create new cozy database
+                    client.put "cozy", {}, (err, res, body) ->
+                        # Copy backup in cozy database
                         client.post "_replicate", data, (err, res, body) ->
                             if err
-                                handleError err, body, "Backup failed."
+                                handleError err, body, "Reverse backup failed."
                             else if not body.ok
-                                handleError err, body, "Backup failed."
+                                handleError err, body, "Reverse backup failed."
                             else
                                 console.log "Reverse backup succeeded"
                                 process.exit 0

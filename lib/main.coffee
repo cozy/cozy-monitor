@@ -614,6 +614,46 @@ program
 
 
 program
+    .command("reverse_backup <backup>")
+    .description("Start couchdb replication from target to cozy")
+    .action (target) ->
+        console.log "Reverse backup ..."
+        client = new Client couchUrl
+        getAuthCouchdb (err, username, password) ->
+            if err
+                process.exit 1
+            else
+                client.setBasicAuth username, password
+                # Remove cozy database
+                client.del "cozy", (err, res, body) ->
+                    # Create new cozy database
+                    client.put "cozy", {}, (err, res, body) ->
+                        # Copy backup in cozy database
+                        data =
+                            "admins":
+                                "names":[username]
+                                "roles":[]
+                            "readers":
+                                "names":[username]
+                                "roles":[]
+                        client.put 'cozy/_security', data, (err, res, body)->
+                            if err?
+                                console.log err
+                                process.exit 1
+                            data =
+                                target: "cozy"
+                                source: target
+                            client.post "_replicate", data, (err, res, body) ->
+                                if err
+                                    handleError err, body, "Backup failed."
+                                else if not body.ok
+                                    handleError err, body, "Backup failed."
+                                else
+                                    console.log "Reverse backup succeeded"
+                                    process.exit 0
+
+
+program
     .command("*")
     .description("Display error message for an unknown command.")
     .action ->

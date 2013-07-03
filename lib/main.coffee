@@ -125,6 +125,27 @@ wait_install_complete = (slug, callback) ->
         dSclient.get "data/#{id}/", (err, response, body) ->
             callback err, body
 
+prepare_cozy_database = (username, password, callback) ->
+    client.setBasicAuth username, password
+    # Remove cozy database
+    client.del "cozy", (err, res, body) ->
+        # Create new cozy database
+        client.put "cozy", {}, (err, res, body) ->
+            # Add member in cozy database
+            data =
+                "admins":
+                    "names":[username]
+                    "roles":[]
+                "readers":
+                    "names":[username]
+                    "roles":[]
+            client.put 'cozy/_security', data, (err, res, body)->
+                if err?
+                    console.log err
+                    process.exit 1
+                callback()
+
+
 token = getToken()
 client = new ControllerClient
     token: token
@@ -614,43 +635,43 @@ program
 
 
 program
-    .command("reverse_backup <backup>")
+    .command("reverse_backup <backup> <username> <password>")
     .description("Start couchdb replication from target to cozy")
-    .action (target) ->
+    .action (backup, usernameBackup, passwordBackup) ->
         console.log "Reverse backup ..."
         client = new Client couchUrl
         getAuthCouchdb (err, username, password) ->
             if err
                 process.exit 1
             else
-                client.setBasicAuth username, password
-                # Remove cozy database
-                client.del "cozy", (err, res, body) ->
-                    # Create new cozy database
-                    client.put "cozy", {}, (err, res, body) ->
-                        # Copy backup in cozy database
-                        data =
-                            "admins":
-                                "names":[username]
-                                "roles":[]
-                            "readers":
-                                "names":[username]
-                                "roles":[]
-                        client.put 'cozy/_security', data, (err, res, body)->
-                            if err?
-                                console.log err
-                                process.exit 1
-                            data =
-                                target: "cozy"
-                                source: target
-                            client.post "_replicate", data, (err, res, body) ->
-                                if err
-                                    handleError err, body, "Backup failed."
-                                else if not body.ok
-                                    handleError err, body, "Backup failed."
-                                else
-                                    console.log "Reverse backup succeeded"
-                                    process.exit 0
+                prepare_cozy_database username, password, () ->
+                    # Initialize creadentials for backup
+                    credentials = "#{usernameBackup}:#{passwordBackup}"
+                    basicCredentials = new Buffer(credentials).toString('base64')
+                    authBackup = "Basic #{basicCredentials}"
+                    # Initialize creadentials for cozy database
+                    credentials = "#{username}:#{password}"
+                    basicCredentials = new Buffer(credentials).toString('base64')
+                    authCozy = "Basic #{basicCredentials}"
+                    # Initialize data for replication
+                    data =
+                        source:
+                            url: backup
+                            headers:
+                                Authorization: authBackup
+                        target:
+                            url: "#{couchUrl}cozy"
+                            headers:
+                                Authorization: authCozy
+                    # Database replication
+                    client.post "_replicate", data, (err, res, body) ->
+                        if err
+                            handleError err, body, "Backup failed."
+                        else if not body.ok
+                            handleError err, body, "Backup failed."
+                        else
+                            console.log "Reverse backup succeeded"
+                            process.exit 0
 
 
 program

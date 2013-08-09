@@ -41,7 +41,6 @@ program
   .version('0.0.1')
   .usage('<action> <app>')
 
-
 program
     .command("install <app>")
     .description("Install application in haibu")
@@ -62,12 +61,16 @@ program
                         console.log "#{app} sucessfully installed"
 
 program
-    .command("install_home <app>")
+    .command("install_home <app> [repo]")
     .description("Install application via home app")
-    .action (app) ->
+    .action (app, repo) ->
+        unless repo?
+            manifest.git =
+                "https://github.com/mycozycloud/cozy-#{app}.git"
+        else
+            manifest.git = repo
+
         manifest.name = app
-        manifest.git =
-            "https://github.com/mycozycloud/cozy-#{app}.git"
         manifest.user = app
         console.log "Install started for #{app}..."
         path = "api/applications/install"

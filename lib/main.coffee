@@ -42,12 +42,16 @@ program
   .usage('<action> <app>')
 
 program
-    .command("install <app>")
+    .command("install <app> [repo]")
     .description("Install application in haibu")
-    .action (app) ->
+    .action (app, repo) ->
+        unless repo?
+            manifest.git =
+                "https://github.com/mycozycloud/cozy-#{app}.git"
+        else
+            manifest.git = repo
+
         manifest.name = app
-        manifest.repository.url =
-            "https://github.com/mycozycloud/cozy-#{app}.git"
         manifest.user = app
         console.log "Install started for #{app}..."
 

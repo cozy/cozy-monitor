@@ -163,12 +163,16 @@ program
   .usage('<action> <app>')
 
 program
-    .command("install <app>")
-    .description("Install application in controller")
-    .action (app) ->
+    .command("install <app> [repo]")
+    .description("Install application via the Cozy Controller")
+    .action (app, repo) ->
+        unless repo?
+            manifest.git =
+                "https://github.com/mycozycloud/cozy-#{app}.git"
+        else
+            manifest.git = repo
+
         manifest.name = app
-        manifest.repository.url =
-            "https://github.com/mycozycloud/cozy-#{app}.git"
         manifest.user = app
         console.log "Install started for #{app}..."
         client.clean manifest, (err, res, body) ->

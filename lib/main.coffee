@@ -167,10 +167,10 @@ program
     .description("Install application via the Cozy Controller")
     .action (app, repo) ->
         unless repo?
-            manifest.git =
+            manifest.repository.url =
                 "https://github.com/mycozycloud/cozy-#{app}.git"
         else
-            manifest.git = repo
+            manifest.repository.url = repo
 
         manifest.name = app
         manifest.user = app

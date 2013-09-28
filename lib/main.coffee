@@ -14,6 +14,9 @@ Client = require("request-json").JsonClient
 ControllerClient = require("cozy-clients").ControllerClient
 axon = require 'axon'
 
+pkg = require '../package.json'
+version = pkg.version
+
 couchUrl = "http://localhost:5984/"
 dataSystemUrl = "http://localhost:9101/"
 indexerUrl = "http://localhost:9102/"
@@ -159,7 +162,7 @@ manifest =
 
 
 program
-  .version('1.0.4')
+  .version(version)
   .usage('<action> <app>')
 
 program

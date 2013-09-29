@@ -125,6 +125,7 @@ wait_install_complete = (slug, callback) ->
         socket.close()
 
         dSclient = new Client dataSystemUrl
+        dSclient.setBasicAuth 'home', token if token = getToken()
         dSclient.get "data/#{id}/", (err, response, body) ->
             callback err, body
 
@@ -375,11 +376,29 @@ program
     .description("Create a route so we can access it by the proxy. ")
     .action (slug, port) ->
         client = new Client dataSystemUrl
+        client.setBasicAuth 'home', token if token = getToken()
+
+        packagePath = process.cwd() + '/package.json'
+        try
+            packageData = JSON.parse(fs.readFileSync(packagePath, 'utf8'))
+        catch e
+            console.log "Run this command in the package.json directory"
+            console.log e
+            return
+
+        perms = {}
+        for doctype, perm of packageData['cozy-permissions']
+            perms[doctype.toLowerCase()] = perm
+
         data =
             docType: "Application"
             state: 'installed'
+            isStoppable: false
             slug: slug
             name: slug
+            password: slug
+            permissions: perms
+            widget: packageData['cozy-widget']
             port: port
             devRoute: true
 
@@ -393,7 +412,8 @@ program
                         handleError err, body, "Reset routes failed"
                     else
                         console.log "route created"
-                        console.log "start your app on port #{port}"
+                        console.log "start your app with the following ENV"
+                        console.log "NAME=#{slug} TOKEN=#{slug} PORT=#{port}"
                         console.log "Use dev-route:stop #{slug} to remove it."
 
 
@@ -401,6 +421,7 @@ program
     .command("dev-route:stop <slug>")
     .action (slug) ->
         client = new Client dataSystemUrl
+        client.setBasicAuth 'home', token if token = getToken()
         appsQuery = 'request/application/all/'
 
         client.post appsQuery, null, (err, res, apps) ->

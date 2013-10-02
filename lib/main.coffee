@@ -191,6 +191,30 @@ program
                         console.log "#{app} successfully installed"
 
 program
+    .command("install-cozy")
+    .description("Install cozy via the Cozy Controller")
+    .action () ->
+        install_app = (name, callback) ->
+            manifest.repository.url =
+                    "https://github.com/mycozycloud/cozy-#{name}.git"
+            manifest.name = name
+            manifest.user = name
+            console.log "Install started for #{name}..."
+            client.clean manifest, (err, res, body) ->
+                client.start manifest, (err, res, body)  ->
+                    if err or body.error?
+                        handleError err, body, "Install failed"
+                    else
+                        client.brunch manifest, =>
+                            console.log "#{name} successfully installed"
+                            callback null
+
+        install_app 'data-system', () =>
+            install_app 'home', () =>
+                install_app 'proxy', () =>
+                    console.log 'Cozy stack successfully installed'
+
+program
     .command("install_home <app> [repo]")
     .description("Install application via home app")
     .action (app, repo) ->
@@ -317,6 +341,29 @@ program
                     else
                         console.log "#{app} sucessfully started"
 
+program
+    .command("restart-cozy")
+    .description("Restart cozy via the Cozy Controller")
+    .action () ->
+        restart_app = (name, callback) ->
+            manifest.repository.url =
+                    "https://github.com/mycozycloud/cozy-#{name}.git"
+            manifest.name = name
+            manifest.user = name
+            console.log "Restart started for #{name}..."
+            client.stop manifest, (err, res, body) ->
+                client.start manifest, (err, res, body)  ->
+                    if err or body.error?
+                        handleError err, body, "Start failed"
+                    else
+                        client.brunch manifest, =>
+                            console.log "#{name} successfully started"
+                            callback null
+
+        restart_app 'data-system', () =>
+            restart_app 'home', () =>
+                restart_app 'proxy', () =>
+                    console.log 'Cozy stack successfully restarted'
 
 program
     .command("light-update <app>")
@@ -335,6 +382,29 @@ program
                 client.brunch manifest, ->
                     console.log "#{app} successfully updated"
 
+program
+    .command("light-update-cozy")
+    .description(
+        "Update application (git + npm) and restart it through controller")
+    .action () ->
+        light_update_app = (name, callback) ->
+            manifest.repository.url =
+                    "https://github.com/mycozycloud/cozy-#{name}.git"
+            manifest.name = name
+            manifest.user = name
+            console.log "Light update #{name}..."
+            client.lightUpdate manifest, (err, res, body) ->
+                if err or body.error?
+                    handleError err, body, "Start failed"
+                else
+                    client.brunch manifest, =>
+                        console.log "#{name} successfully updated"
+                        callback null
+
+        light_update_app 'data-system', () =>
+            light_update_app 'home', () =>
+                light_update_app 'proxy', () =>
+                    console.log 'Cozy stack successfully updated'
 
 program
     .command("uninstall-all")

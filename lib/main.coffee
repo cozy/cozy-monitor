@@ -170,6 +170,9 @@ program
     .command("install <app> [repo]")
     .description("Install application via the Cozy Controller")
     .action (app, repo) ->
+        if !(app in ['data-system', 'home', 'proxy'])
+            console.log '[Warning]: if you are in production environment, ' +
+                'this application should be installed by home.'
         unless repo?
             manifest.repository.url =
                 "https://github.com/mycozycloud/cozy-#{app}.git"
@@ -244,6 +247,9 @@ program
     .command("start <app>")
     .description("Start application through controller")
     .action (app) ->
+        if !(app in ['data-system', 'home', 'proxy'])
+            console.log '[Warning]: if you are in production environment, ' +
+                'this application should be installed by home.'
         manifest.name = app
         manifest.repository.url =
             "https://github.com/mycozycloud/cozy-#{app}.git"
@@ -291,6 +297,9 @@ program
     .command("restart <app>")
     .description("Restart application trough controller")
     .action (app) ->
+        if !(app in ['data-system', 'home', 'proxy'])
+            console.log '[Warning]: if you are in production environment, ' +
+                'this application should be installed by home.'
         console.log "Stopping #{app}..."
         manifest.name = app
         manifest.repository.url =

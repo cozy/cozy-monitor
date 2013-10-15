@@ -641,6 +641,69 @@ program
 
 
 program
+    .command("update-all")
+    .description("Reinstall all user applications")
+    .action ->
+        startApp = (app, callback) ->
+            path = "api/applications/#{app.slug}/start"
+            homeClient.post path, app, (err, res, body) ->
+                if err or body.error
+                    callback(err)
+                else
+                    callback()
+
+        stopApp = (app, callback) ->
+            path = "api/applications/#{app.slug}/stop"
+            homeClient.post path, app, (err, res, body) ->
+                if err or body.error
+                    callback(err)
+                else
+                    callback()       
+
+        lightUpdateApp = (app, callback) ->
+            path = "api/applications/#{app.slug}/update"
+            homeClient.put path, app, (err, res, body) ->
+                if err or body.error
+                    callback(err)
+                else
+                    callback()
+
+        updateApp = (app) ->
+            (callback) ->
+                if app.state is 'broken'
+                    callback()
+                else if app.state is 'installed'
+                    lightUpdateApp app, (err) ->
+                        callback() 
+                else
+                    startApp app, (err) ->
+                        lightUpdateApp app, (err) ->
+                            stopApp app, (err) ->
+                                callback() 
+
+
+
+        homeClient.host = homeUrl
+        homeClient.get "api/applications/", (err, res, apps) ->
+            funcs = []
+            if apps? and apps.rows?
+                for app in apps.rows
+                    func = updateApp(app)
+                    funcs.push func
+
+                async.series funcs, ->
+                    console.log "All apps reinstalled."
+                    console.log "Reset proxy routes"
+
+                    statusClient.host = proxyUrl
+                    statusClient.get "routes/reset", (err, res, body) ->
+                        if err
+                            handleError err, body, "Cannot reset routes."
+                        else
+                            console.log "Reset proxy succeeded."
+
+
+program
     .command("compact <database>")
     .description("Start couchdb compaction")
     .action (database) ->

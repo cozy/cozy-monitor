@@ -652,6 +652,23 @@ program
                 else
                     callback()
 
+        removeApp = (app, callback) ->
+            path = "api/applications/#{app.slug}/uninstall"
+            homeClient.del path, (err, res, body) ->
+                if err or body.error
+                    callback(err)
+                else
+                    callback()
+
+        installApp = (app, callback) ->
+            path = "api/applications/install"
+            homeClient.post path, app, (err, res, body) -> 
+                wait_install_complete app.slug, (err, appresult) ->
+                    if err or body.error
+                        callback(err)
+                    else
+                        callback()
+
         stopApp = (app, callback) ->
             path = "api/applications/#{app.slug}/stop"
             homeClient.post path, app, (err, res, body) ->
@@ -670,15 +687,29 @@ program
 
         updateApp = (app) ->
             (callback) ->
+                console.log("\nUpdate " + app.name + "...")
                 if app.state is 'broken'
-                    callback()
+                    console.log(app.name + " is broken")
+                    removeApp app, (err) ->
+                        console.log("Remove " + app.name)
+                        installApp app, (err) ->
+                            console.log("Install " + app.name)
+                            stopApp app, (err) ->
+                                console.log("Stop " + app.name)
+                                callback()
                 else if app.state is 'installed'
+                    console.log(app.name + " is installed")
                     lightUpdateApp app, (err) ->
+                        console.log("Update " + app.name)
                         callback() 
                 else
+                    console.log(app.name + " is stopped")
                     startApp app, (err) ->
+                        console.log("Start " + app.name)
                         lightUpdateApp app, (err) ->
+                            console.log("Update " + app.name)
                             stopApp app, (err) ->
+                                console.log("Stop " + app.name)
                                 callback() 
 
 

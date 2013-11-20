@@ -60,8 +60,12 @@ handleError = (err, body, msg) ->
     if body?
         if body.msg?
            console.log body.msg
-        else if body.message?
-            console.log body.message
+        else if body.error?.message?
+            console.log "An error occured."
+            console.log body.error.message
+            console.log body.error.result
+            console.log body.error.code
+            console.log body.error.blame
         else console.log body
     process.exit 1
 
@@ -662,7 +666,7 @@ program
 
         installApp = (app, callback) ->
             path = "api/applications/install"
-            homeClient.post path, app, (err, res, body) -> 
+            homeClient.post path, app, (err, res, body) ->
                 wait_install_complete app.slug, (err, appresult) ->
                     if err or body.error
                         callback(err)
@@ -675,7 +679,7 @@ program
                 if err or body.error
                     callback(err)
                 else
-                    callback()       
+                    callback()
 
         lightUpdateApp = (app, callback) ->
             path = "api/applications/#{app.slug}/update"
@@ -701,7 +705,7 @@ program
                     console.log(app.name + " is installed")
                     lightUpdateApp app, (err) ->
                         console.log("Update " + app.name)
-                        callback() 
+                        callback()
                 else
                     console.log(app.name + " is stopped")
                     startApp app, (err) ->
@@ -710,7 +714,7 @@ program
                             console.log("Update " + app.name)
                             stopApp app, (err) ->
                                 console.log("Stop " + app.name)
-                                callback() 
+                                callback()
 
 
 

@@ -541,10 +541,10 @@ program
         statusClient.get "routes", (err, res, routes) ->
 
             if err
-                handleError err, body, "Cannot display routes."
+                handleError err, {}, "Cannot display routes."
             else if routes?
                 for route of routes
-                    console.log "#{route} => #{routes[route]}"
+                    console.log "#{route} => #{routes[route].port}"
 
 
 program

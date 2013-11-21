@@ -219,9 +219,9 @@ program
                     console.log 'Cozy stack successfully installed'
 
 program
-    .command("install_home <app> [repo]")
+    .command("install_home <app> [repo] [displayName]")
     .description("Install application via home app")
-    .action (app, repo) ->
+    .action (app, repo, displayName) ->
         unless repo?
             manifest.git =
                 "https://github.com/mycozycloud/cozy-#{app}.git"
@@ -229,6 +229,10 @@ program
             manifest.git = repo
 
         manifest.name = app
+        if displayName?
+            manifest.displayName = displayName
+        else
+            manifest.displayName = app
         manifest.user = app
         console.log "Install started for #{app}..."
         path = "api/applications/install"

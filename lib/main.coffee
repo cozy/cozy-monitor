@@ -334,8 +334,7 @@ program
                 'this application should be installed by home.'
         console.log "Stopping #{app}..."
         manifest.name = app
-        manifest.repository.url =
-            "https://github.com/mycozycloud/cozy-#{app}.git"
+        manifest.url = "https://github.com/mycozycloud/cozy-#{app}.git"
         manifest.user = app
         client.stop app, (err, res, body) ->
             if err or body.error?
@@ -348,6 +347,24 @@ program
                         handleError err, body, "Start failed"
                     else
                         console.log "#{app} sucessfully started"
+
+program
+    .command("restart_home <app>")
+    .description("Restart application trough Home")
+    .action (app) ->
+        homeClient.post "api/applications/#{app}/stop", {}, (err, res, body) ->
+            if err or body.error?
+                handleError err, body, "Stop failed"
+            else
+                console.log "#{app} successfully stopped"
+                console.log "Starting #{app}..."
+                path = "api/applications/#{app}/start"
+                homeClient.post path, {}, (err, res, body) ->
+                    if err
+                        handleError err, body, "Start failed"
+                    else
+                        console.log "#{app} sucessfully started"
+
 
 program
     .command("restart-cozy")

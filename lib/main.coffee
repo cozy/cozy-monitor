@@ -334,7 +334,8 @@ program
                 'this application should be installed by home.'
         console.log "Stopping #{app}..."
         manifest.name = app
-        manifest.url = "https://github.com/mycozycloud/cozy-#{app}.git"
+        manifest.repository.url =
+            "https://github.com/mycozycloud/cozy-#{app}.git"
         manifest.user = app
         client.stop app, (err, res, body) ->
             if err or body.error?

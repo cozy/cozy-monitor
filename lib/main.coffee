@@ -405,8 +405,29 @@ program
             if err or body.error?
                 handleError err, body, "Light update failed"
             else
-                client.brunch manifest, ->
-                    console.log "#{app} successfully updated"
+                console.log "#{app} successfully updated"
+
+program
+    .command("light-update-home <app>")
+    .description(
+        "Update application (git + npm) and restart it through home")
+    .action (name) ->     
+        find = false  
+        homeClient.get "api/applications/", (err, res, apps) ->
+            if apps? and apps.rows?
+                for app in apps.rows
+                    if app.name is name
+                        find = true
+                        path = "api/applications/#{app.slug}/update"
+                        homeClient.put path, app, (err, res, body) ->
+                            if err or body.error
+                                handleError err, body, "Light update failed"
+                            else
+                                console.log "#{name} successfully updated"
+                if not find
+                    console.log "Light update failed : application #{name} not found"
+            else
+                console.log "Light update failed : no applications installed"
 
 program
     .command("light-update-cozy")

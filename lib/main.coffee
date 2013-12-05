@@ -405,8 +405,7 @@ program
             if err or body.error?
                 handleError err, body, "Light update failed"
             else
-                client.brunch manifest, ->
-                    console.log "#{app} successfully updated"
+                console.log "#{app} successfully updated"
 
 program
     .command("light-update-cozy")

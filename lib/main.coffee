@@ -806,7 +806,6 @@ program
         console.log("Other applications: ".bold)
         homeClient.host = homeUrl
         homeClient.get "api/applications/", (err, res, apps) ->
-            funcs = []
             if apps? and apps.rows?
                 for app in apps.rows
                     getVersion(app.name)

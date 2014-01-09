@@ -26,7 +26,7 @@ proxyUrl = "http://localhost:9104/"
 
 homeClient = new Client homeUrl
 statusClient = new Client ''
-AppsPath = '/usr/local/cozy/apps'
+appsPath = '/usr/local/cozy/apps'
 
 
 
@@ -783,14 +783,14 @@ program
 
 
 program
-    .command("cozy_version")
+    .command("cozy-version")
     .description("Display applications versions")
     .action () ->
         getVersion = (name) =>           
             if name is "controller" 
                 path = "/usr/local/lib/node_modules/cozy-controller/package.json"
             else
-                path = "#{AppsPath}/#{name}/#{name}/cozy-#{name}/package.json"
+                path = "#{appsPath}/#{name}/#{name}/cozy-#{name}/package.json"
             if fs.existsSync path
                 data = fs.readFileSync path, 'utf8'
                 data = JSON.parse(data)

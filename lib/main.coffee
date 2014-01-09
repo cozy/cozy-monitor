@@ -598,10 +598,10 @@ program
         getVersion("home")
         getVersion('proxy')
         console.log "monitor: #{version}"
-        console.log("Other applications: ".bold)
         homeClient.host = homeUrl
         homeClient.get "api/applications/", (err, res, apps) ->
             if apps? and apps.rows?
+                console.log("Other applications: ".bold)
                 for app in apps.rows
                     getVersion(app.name)
 

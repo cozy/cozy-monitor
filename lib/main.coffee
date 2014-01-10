@@ -71,34 +71,34 @@ handleError = (err, body, msg) ->
     process.exit 1
 
 
-compact_views = (database, design_doc, callback) ->
+compactViews = (database, designDoc, callback) ->
     client = new Client couchUrl
     getAuthCouchdb (err, username, password) ->
         if err
             process.exit 1
         else
             client.setBasicAuth username, password
-            path = "#{database}/_compact/#{design_doc}"
+            path = "#{database}/_compact/#{designDoc}"
             client.post path, {}, (err, res, body) =>
                 if err
-                    handleError err, body, "compaction failed for #{design_doc}"
+                    handleError err, body, "compaction failed for #{designDoc}"
                 else if not body.ok
-                    handleError err, body, "compaction failed for #{design_doc}"
+                    handleError err, body, "compaction failed for #{designDoc}"
                 else
                     callback null
 
 
-compact_all_views = (database, designs, callback) ->
+compactAllViews = (database, designs, callback) ->
     if designs.length > 0
         design = designs.pop()
         console.log("views compaction for #{design}")
-        compact_views database, design, (err) =>
-            compact_all_views database, designs, callback
+        compactViews database, design, (err) =>
+            compactAllViews database, designs, callback
     else
         callback null
 
 
-wait_install_complete = (slug, callback) ->
+waitInstallComplete = (slug, callback) ->
     axon   = require 'axon'
     socket = axon.socket 'sub-emitter'
     socket.connect 9105
@@ -134,7 +134,7 @@ wait_install_complete = (slug, callback) ->
         dSclient.get "data/#{id}/", (err, response, body) ->
             callback err, body
 
-prepare_cozy_database = (username, password, callback) ->
+prepareCozyDatabase = (username, password, callback) ->
     client.setBasicAuth username, password
     # Remove cozy database
     client.del "cozy", (err, res, body) ->
@@ -217,7 +217,7 @@ program
                 if err or body.error
                     handleError err, body, "Install home failed"
                 else
-                    wait_install_complete body.app.slug, (err, appresult) ->
+                    waitInstallComplete body.app.slug, (err, appresult) ->
                         if not err? and appresult.state is "installed"
                             console.log "#{app} successfully installed"
                         else
@@ -227,7 +227,7 @@ program
     .command("install-cozy-stack")
     .description("Install cozy via the Cozy Controller")
     .action () ->
-        install_app = (name, callback) ->
+        installApp = (name, callback) ->
             manifest.repository.url =
                     "https://github.com/mycozycloud/cozy-#{name}.git"
             manifest.name = name
@@ -242,9 +242,9 @@ program
                             console.log "#{name} successfully installed"
                             callback null
 
-        install_app 'data-system', () =>
-            install_app 'home', () =>
-                install_app 'proxy', () =>
+        installApp 'data-system', () =>
+            installApp 'home', () =>
+                installApp 'proxy', () =>
                     console.log 'Cozy stack successfully installed'
 
 # Uninstall
@@ -390,7 +390,7 @@ program
     .command("restart-cozy-stack")
     .description("Restart cozy trough controller")
     .action () ->
-        restart_app = (name, callback) ->
+        restartApp = (name, callback) ->
             manifest.repository.url =
                     "https://github.com/mycozycloud/cozy-#{name}.git"
             manifest.name = name
@@ -405,9 +405,9 @@ program
                             console.log "#{name} successfully started"
                             callback null
 
-        restart_app 'data-system', () =>
-            restart_app 'home', () =>
-                restart_app 'proxy', () =>
+        restartApp 'data-system', () =>
+            restartApp 'home', () =>
+                restartApp 'proxy', () =>
                     console.log 'Cozy stack successfully restarted'
 
 # Brunch
@@ -466,7 +466,7 @@ program
     .description(
         "Update application (git + npm) and restart it through controller")
     .action () ->
-        light_update_app = (name, callback) ->
+        lightUpdateApp = (name, callback) ->
             manifest.repository.url =
                     "https://github.com/mycozycloud/cozy-#{name}.git"
             manifest.name = name
@@ -480,9 +480,9 @@ program
                         console.log "#{name} successfully updated"
                         callback null
 
-        light_update_app 'data-system', () =>
-            light_update_app 'home', () =>
-                light_update_app 'proxy', () =>
+        lightUpdateApp 'data-system', () =>
+            lightUpdateApp 'home', () =>
+                lighUpdateApp 'proxy', () =>
                     console.log 'Cozy stack successfully updated'
 
 program
@@ -508,7 +508,7 @@ program
         installApp = (app, callback) ->
             path = "api/applications/install"
             homeClient.post path, app, (err, res, body) ->
-                wait_install_complete app.slug, (err, appresult) ->
+                waitInstallComplete app.slug, (err, appresult) ->
                     if err or body.error
                         callback(err)
                     else
@@ -781,10 +781,10 @@ program
     .action (view, database) ->
         if not database?
             database = "cozy"
-        console.log "Start vews compaction on #{database} for #{design_doc} ..."
-        compact_views database, design_doc, (err) =>
+        console.log "Start vews compaction on #{database} for #{view} ..."
+        compactViews database, view, (err) =>
             if not err
-                console.log "#{database} compaction for #{design_doc}" +
+                console.log "#{database} compaction for #{view}" +
                             " succeeded"
                 process.exit 0
 
@@ -810,10 +810,10 @@ program
                     else
                         designs = []
                         (body.rows).forEach (design) ->
-                            design_id = design.id
-                            design_doc = design_id.substring 8, design_id.length
-                            designs.push design_doc
-                        compact_all_views database, designs, (err) =>
+                            designId = design.id
+                            designDoc = designId.substring 8, designId.length
+                            designs.push designDoc
+                        compactAllViews database, designs, (err) =>
                             if not err
                                 console.log "Views are successfully compacted"
 
@@ -866,7 +866,7 @@ program
 
 
 program
-    .command("reverse_backup <backup> <username> <password>")
+    .command("reverse-backup <backup> <username> <password>")
     .description("Start couchdb replication from target to cozy")
     .action (backup, usernameBackup, passwordBackup) ->
         console.log "Reverse backup ..."
@@ -875,7 +875,7 @@ program
             if err
                 process.exit 1
             else
-                prepare_cozy_database username, password, () ->
+                prepareCozyDatabase username, password, () ->
                     # Initialize creadentials for backup
                     credentials = "#{usernameBackup}:#{passwordBackup}"
                     basicCredentials = new Buffer(credentials).toString('base64')

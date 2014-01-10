@@ -26,6 +26,7 @@ proxyUrl = "http://localhost:9104/"
 
 homeClient = new Client homeUrl
 statusClient = new Client ''
+appsPath = '/usr/local/cozy/apps'
 
 
 
@@ -779,6 +780,37 @@ program
                             handleError err, body, "Cannot reset routes."
                         else
                             console.log "Reset proxy succeeded."
+
+
+program
+    .command("cozy-version")
+    .description("Display applications versions")
+    .action () ->
+        getVersion = (name) =>           
+            if name is "controller" 
+                path = "/usr/local/lib/node_modules/cozy-controller/package.json"
+            else
+                path = "#{appsPath}/#{name}/#{name}/cozy-#{name}/package.json"
+            if fs.existsSync path
+                data = fs.readFileSync path, 'utf8'
+                data = JSON.parse(data)
+                console.log "#{name}: #{data.version}"
+            else
+                console.log("#{name}: unknown")
+        console.log('Cozy Stack:'.bold)
+        getVersion("controller")
+        getVersion("data-system")
+        getVersion("home")
+        getVersion('proxy')
+        console.log "monitor: #{version}"
+        console.log("Other applications: ".bold)
+        homeClient.host = homeUrl
+        homeClient.get "api/applications/", (err, res, apps) ->
+            if apps? and apps.rows?
+                for app in apps.rows
+                    getVersion(app.name)
+
+
 
 
 program

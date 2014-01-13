@@ -9,6 +9,7 @@ program = require 'commander'
 async = require "async"
 fs = require "fs"
 exec = require('child_process').exec
+spawn = require('child_process').spawn
 
 Client = require("request-json").JsonClient
 ControllerClient = require("cozy-clients").ControllerClient
@@ -746,9 +747,39 @@ program
                 funcs = []
                 if apps? and apps.rows?
                     for app in apps.rows
-                        func = checkApp(app.name, "http://localhost:#{app.port}/")
-                        funcs.push func
+                        if app.state is 'stopped'
+                            console.log "#{app.name}: " + "stopped".red
+                        else
+                            func = checkApp(app.name, "http://localhost:#{app.port}/")
+                            funcs.push func
                     async.series funcs, ->
+
+
+program
+    .command("log <app> <type> [environment]")
+    .description("Display application log with cat or tail -f")
+    .action (app, type, environment) ->
+        env = "production"
+        if environment?
+            env = environment
+        path = "#{appsPath}/#{app}/#{app}/cozy-#{app}/log/#{env}.log"
+        if not fs.existsSync(path)
+            console.log("Log file doesn't exist")
+        else 
+            if type is "cat" 
+                console.log fs.readFileSync path, 'utf8'
+            else if type is "tail"
+                tail = spawn("tail", ["-f", path])
+
+                tail.stdout.setEncoding('utf8');
+                tail.stdout.on 'data', (data) =>
+                    console.log data
+
+                tail.on 'close', (code) =>
+                    console.log('ps process exited with code ' + code)
+            else
+                console.log("<type> should be 'cat' or 'tail'")
+
 
 ## Database ##
 

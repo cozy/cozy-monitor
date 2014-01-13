@@ -12,7 +12,7 @@ Run following command to see all available actions:
 
 # About Cozy
 
-Cozy is a private pesronal cloud solution that allows you to host all your
+Cozy is a private personal cloud solution that allows you to host all your
 personnal application in a single place you control.
 This way, you can manage your data from anywhere while protecting your privacy.
 

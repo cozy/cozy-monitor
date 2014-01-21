@@ -133,7 +133,12 @@ waitInstallComplete = (slug, callback) ->
         dSclient = new Client dataSystemUrl
         dSclient.setBasicAuth 'home', token if token = getToken()
         dSclient.get "data/#{id}/", (err, response, body) ->
-            callback err, body
+            if response.statusCode is 401
+                dSclient.setBasicAuth 'home', ''
+                dSclient.get "data/#{id}/", (err, response, body) ->
+                    callback err, body
+            else
+                callback err, body
 
 prepareCozyDatabase = (username, password, callback) ->
     client.setBasicAuth username, password

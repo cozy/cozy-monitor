@@ -185,8 +185,8 @@ program
     .command("install <app> ")
     .description("Install application")
     .option('-r, --repo <repo>', 'Use specific repo')
-    .option('-b, --branch <branch>', 'Use specific branch')   
-    .option('-d, --displayName <displayName>', 'Display specific name')       
+    .option('-b, --branch <branch>', 'Use specific branch')
+    .option('-d, --displayName <displayName>', 'Display specific name')
     .action (app, options) ->
         manifest.name = app
         if options.displayName?
@@ -257,8 +257,8 @@ program
 program
     .command("uninstall <app>")
     .description("Remove application")
-    .action (app) ->  
-        console.log "Uninstall started for #{app}..."      
+    .action (app) ->
+        console.log "Uninstall started for #{app}..."
         if app in ['data-system', 'home', 'proxy']
             manifest.name = app
             manifest.user = app
@@ -304,8 +304,8 @@ program
                         handleError err, body, "Start failed"
                     else
                         console.log "#{app} successfully started"
-        else  
-            find = false 
+        else
+            find = false
             homeClient.host = homeUrl
             homeClient.get "api/applications/", (err, res, apps) ->
                 if apps? and apps.rows?
@@ -337,8 +337,8 @@ program
                     handleError err, body, "Stop failed"
                 else
                     console.log "#{app} successfully stopped"
-        else  
-            find = false 
+        else
+            find = false
             homeClient.host = homeUrl
             homeClient.get "api/applications/", (err, res, apps) ->
                 if apps? and apps.rows?
@@ -378,7 +378,7 @@ program
                             handleError err, body, "Start failed"
                         else
                             console.log "#{app} sucessfully started"
-        else 
+        else
             homeClient.post "api/applications/#{app}/stop", {}, (err, res, body) ->
                 if err or body.error?
                     handleError err, body, "Stop failed"
@@ -450,7 +450,7 @@ program
                 else
                     console.log "#{app} successfully updated"
         else
-            find = false  
+            find = false
             homeClient.get "api/applications/", (err, res, apps) ->
                 if apps? and apps.rows?
                     for manifest in apps.rows
@@ -466,7 +466,7 @@ program
                         console.log "Update failed : application #{app} not found"
                 else
                     console.log "Update failed : no applications installed"
-        
+
 program
     .command("update-cozy-stack")
     .description(
@@ -587,8 +587,8 @@ program
     .command("versions")
     .description("Display applications versions")
     .action () ->
-        getVersion = (name) =>           
-            if name is "controller" 
+        getVersion = (name) =>
+            if name is "controller"
                 path = "/usr/local/lib/node_modules/cozy-controller/package.json"
             else
                 path = "#{appsPath}/#{name}/#{name}/cozy-#{name}/package.json"
@@ -609,8 +609,8 @@ program
     .command("versions-all")
     .description("Display applications versions")
     .action () ->
-        getVersion = (name) =>           
-            if name is "controller" 
+        getVersion = (name) =>
+            if name is "controller"
                 path = "/usr/local/lib/node_modules/cozy-controller/package.json"
             else
                 path = "#{appsPath}/#{name}/#{name}/cozy-#{name}/package.json"
@@ -637,8 +637,8 @@ program
     .command("versions-apps")
     .description("Display applications versions")
     .action () ->
-        getVersion = (name) =>           
-            if name is "controller" 
+        getVersion = (name) =>
+            if name is "controller"
                 path = "/usr/local/lib/node_modules/cozy-controller/package.json"
             else
                 path = "#{appsPath}/#{name}/#{name}/cozy-#{name}/package.json"
@@ -791,11 +791,11 @@ program
                 , false
 
         async.series [
-            checkApp("controller", controllerUrl, "version")
-            checkApp("data-system", dataSystemUrl)
-            checkApp("indexer", indexerUrl)
-            checkApp("home", homeUrl)
-            checkApp("proxy", proxyUrl, "routes")
+            checkApp "controller", controllerUrl, "version"
+            checkApp "data-system", dataSystemUrl
+            checkApp "indexer", indexerUrl
+            checkApp "home", homeUrl
+            checkApp "proxy", proxyUrl, "routes"
         ], ->
             statusClient.host = homeUrl
             statusClient.get "api/applications/", (err, res, apps) ->
@@ -805,7 +805,8 @@ program
                         if app.state is 'stopped'
                             console.log "#{app.name}: " + "stopped".red
                         else
-                            func = checkApp(app.name, "http://localhost:#{app.port}/")
+                            url = "http://localhost:#{app.port}/"
+                            func = checkApp app.name, url
                             funcs.push func
                     async.series funcs, ->
 
@@ -819,21 +820,21 @@ program
             env = environment
         path = "#{appsPath}/#{app}/#{app}/cozy-#{app}/log/#{env}.log"
         if not fs.existsSync(path)
-            console.log("Log file doesn't exist")
-        else 
-            if type is "cat" 
+            console.log "Log file doesn't exist"
+        else
+            if type is "cat"
                 console.log fs.readFileSync path, 'utf8'
             else if type is "tail"
-                tail = spawn("tail", ["-f", path])
+                tail = spawn "tail", ["-f", path]
 
-                tail.stdout.setEncoding('utf8');
+                tail.stdout.setEncoding 'utf8'
                 tail.stdout.on 'data', (data) =>
                     console.log data
 
                 tail.on 'close', (code) =>
                     console.log('ps process exited with code ' + code)
             else
-                console.log("<type> should be 'cat' or 'tail'")
+                console.log "<type> should be 'cat' or 'tail'"
 
 
 ## Database ##

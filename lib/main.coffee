@@ -803,7 +803,7 @@ program
                 if apps? and apps.rows?
                     for app in apps.rows
                         if app.state is 'stopped'
-                            console.log "#{app.name}: " + "stopped".red
+                            console.log "#{app.name}: " + "stopped".grey
                         else
                             url = "http://localhost:#{app.port}/"
                             func = checkApp app.name, url

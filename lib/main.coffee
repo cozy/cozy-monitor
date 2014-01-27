@@ -350,7 +350,7 @@ program
                                 if err or body.error
                                     handleError err, body, "Start failed"
                                 else
-                                    console.log "#{app} successfully started"
+                                    console.log "#{app} successfully stopperd"
                     if not find
                         console.log "Stop failed : application #{name} not found"
                 else

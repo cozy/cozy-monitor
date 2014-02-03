@@ -488,7 +488,7 @@ program
 
         lightUpdateApp 'data-system', () =>
             lightUpdateApp 'home', () =>
-                lighUpdateApp 'proxy', () =>
+                lightUpdateApp 'proxy', () =>
                     console.log 'Cozy stack successfully updated'
 
 program

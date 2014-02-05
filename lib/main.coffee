@@ -434,15 +434,19 @@ program
 
 # Update
 program
-    .command("update <app>")
+    .command("update <app> [repo]")
     .description(
-        "Update application (git + npm) and restart it")
-    .action (app) ->
+        "Update application (git + npm) and restart it. Option repo is usefull " +
+            "only if home, proxy or data-system comes from specific repo")
+    .action (app, repo) ->
         console.log "Update #{app}..."
         if app in ['data-system', 'home', 'proxy']
             manifest.name = app
-            manifest.repository.url =
-                "https ://github.com/mycozycloud/cozy-#{app}.git"
+            if repo?
+                manifest.repository.url = repo
+            else     
+                manifest.repository.url =
+                    "https ://github.com/mycozycloud/cozy-#{app}.git"
             manifest.user = app
             client.lightUpdate manifest, (err, res, body) ->
                 if err or body.error?

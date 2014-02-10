@@ -542,30 +542,46 @@ program
 
         updateApp = (app) ->
             (callback) ->
-                console.log("\nUpdate " + app.name + "...")
+                console.log("\nStarting update " + app.name + "...")
                 if app.state is 'broken'
-                    console.log(app.name + " is broken")
+                    console.log(" * Old status: broken")
                     removeApp app, (err) ->
-                        console.log("Remove " + app.name)
+                        console.log(" * Remove " + app.name)
                         installApp app, (err) ->
-                            console.log("Install " + app.name)
-                            stopApp app, (err) ->
-                                console.log("Stop " + app.name)
-                                callback()
+                            console.log(" * Install " + app.name)
+                            if err
+                                console.log(' * Error: ' + err)
+                                console.log(" * New status: broken")
+                                console.log(app.name + " updated")
+                            else
+                                stopApp app, (err) ->
+                                    console.log(" * Stop " + app.name)
+                                    console.log(" * New status: stopped")
+                                    console.log(app.name + " updated")
+                                    callback()
                 else if app.state is 'installed'
-                    console.log(app.name + " is installed")
+                    console.log(" * Old status: started")
                     lightUpdateApp app, (err) ->
-                        console.log("Update " + app.name)
+                        console.log(" * Update " + app.name)
+                        console.log(" * New status: started")
+                        console.log(app.name + " updated")
                         callback()
                 else
-                    console.log(app.name + " is stopped")
+                    console.log(" * Old status: stopped")
                     startApp app, (err) ->
-                        console.log("Start " + app.name)
-                        lightUpdateApp app, (err) ->
-                            console.log("Update " + app.name)
-                            stopApp app, (err) ->
-                                console.log("Stop " + app.name)
-                                callback()
+                        console.log(" * Start " + app.name)
+                        if err
+                            console.log(' * Error: ' + err)
+                            console.log(" * New status: broken")
+                            console.log(app.name + " updated")
+                        else
+                            lightUpdateApp app, (err) ->
+                                console.log(" * Update " + app.name)
+                                stopApp app, (err) ->
+                                    console.log(" * Stop " + app.name)
+                                    console.log(" * New status: stopped")
+                                    console.log(app.name + " updated")
+                                    callback()
 
         homeClient.host = homeUrl
         homeClient.get "api/applications/", (err, res, apps) ->
@@ -576,7 +592,7 @@ program
                     funcs.push func
 
                 async.series funcs, ->
-                    console.log "All apps reinstalled."
+                    console.log "\nAll apps reinstalled."
                     console.log "Reset proxy routes"
 
                     statusClient.host = proxyUrl

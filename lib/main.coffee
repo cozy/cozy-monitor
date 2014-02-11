@@ -540,48 +540,71 @@ program
                 else
                     callback()
 
+        endUpdate = (app, callback) ->            
+            homeClient.get "api/applications/byid/#{app.id}", (err, res, app) ->
+                if app.state is "installed"
+                    console.log(" * New status: " + "started".bold)
+                else
+                    console.log(" * New status: " + app.state.bold)                    
+                console.log("..." + app.name + " updated")
+                callback()
+
         updateApp = (app) ->
             (callback) ->
                 console.log("\nStarting update " + app.name + "...")
+                # When application is broken, try :
+                #   * remove application
+                #   * install application
+                #   * stop application
                 if app.state is 'broken'
-                    console.log(" * Old status: broken")
+                    console.log(" * Old status: " + "broken".bold)
+                    console.log(" * Remove " + app.name)
                     removeApp app, (err) ->
-                        console.log(" * Remove " + app.name)
-                        installApp app, (err) ->
-                            console.log(" * Install " + app.name)
-                            if err
-                                console.log(' * Error: ' + err)
-                                console.log(" * New status: broken")
-                                console.log(app.name + " updated")
-                            else
-                                stopApp app, (err) ->
-                                    console.log(" * Stop " + app.name)
-                                    console.log(" * New status: stopped")
-                                    console.log(app.name + " updated")
-                                    callback()
-                else if app.state is 'installed'
-                    console.log(" * Old status: started")
-                    lightUpdateApp app, (err) ->
-                        console.log(" * Update " + app.name)
-                        console.log(" * New status: started")
-                        console.log(app.name + " updated")
-                        callback()
-                else
-                    console.log(" * Old status: stopped")
-                    startApp app, (err) ->
-                        console.log(" * Start " + app.name)
                         if err
                             console.log(' * Error: ' + err)
-                            console.log(" * New status: broken")
-                            console.log(app.name + " updated")
-                        else
-                            lightUpdateApp app, (err) ->
-                                console.log(" * Update " + app.name)
+                        console.log(" * Install " + app.name)
+                        installApp app, (err) ->
+                            if err
+                                console.log(' * Error: ' + err)
+                                endUpdate(app, callback)
+                            else
+                                console.log(" * Stop " + app.name)
                                 stopApp app, (err) ->
-                                    console.log(" * Stop " + app.name)
-                                    console.log(" * New status: stopped")
-                                    console.log(app.name + " updated")
-                                    callback()
+                                    if err
+                                        console.log(' * Error: ' + err)
+                                    endUpdate(app, callback)
+
+                # When application is installed, try :
+                #   * update application
+                else if app.state is 'installed'
+                    console.log(" * Old status: " + "started".bold)
+                    console.log(" * Update " + app.name)
+                    lightUpdateApp app, (err) ->
+                        if err
+                            console.log(' * Error: ' + err)
+                        endUpdate(app, callback)
+
+                # When application is stopped, try :
+                #   * start application
+                #   * update application
+                #   * stop application
+                else
+                    console.log(" * Old status: " + "stopped".bold)
+                    console.log(" * Start " + app.name)
+                    startApp app, (err) ->
+                        if err
+                            console.log(' * Error: ' + err)
+                            endUpdate(app, callback)
+                        else
+                            console.log(" * Update " + app.name)
+                            lightUpdateApp app, (err) ->
+                                if err
+                                    console.log(' * Error: ' + err)                                
+                                console.log(" * Stop " + app.name)
+                                stopApp app, (err) ->
+                                    if err
+                                        console.log(' * Error: ' + err)
+                                    endUpdate(app, callback)
 
         homeClient.host = homeUrl
         homeClient.get "api/applications/", (err, res, apps) ->

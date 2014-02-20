@@ -352,7 +352,7 @@ program
                                 else
                                     console.log "#{app} successfully stopperd"
                     if not find
-                        console.log "Stop failed : application #{name} not found"
+                        console.log "Stop failed : application #{manifest.name} not found"
                 else
                     console.log "Stop failed : no applications installed"
 

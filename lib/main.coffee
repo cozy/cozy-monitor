@@ -319,7 +319,7 @@ program
                                 else
                                     console.log "#{app} successfully started"
                     if not find
-                        console.log "Start failed : application #{name} not found"
+                        console.log "Start failed : application #{app} not found"
                 else
                     console.log "Start failed : no applications installed"
 

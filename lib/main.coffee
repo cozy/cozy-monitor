@@ -41,6 +41,7 @@ getToken = () ->
             return token
         catch err
             console.log("Are you sure, you are root ?")
+            return null
     else
         return null
 

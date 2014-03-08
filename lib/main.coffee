@@ -320,7 +320,7 @@ program
                                 else
                                     console.log "#{app} successfully started"
                     if not find
-                        console.log "Start failed : application #{name} not found"
+                        console.log "Start failed : application #{app} not found"
                 else
                     console.log "Start failed : no applications installed"
 
@@ -353,7 +353,7 @@ program
                                 else
                                     console.log "#{app} successfully stopperd"
                     if not find
-                        console.log "Stop failed : application #{name} not found"
+                        console.log "Stop failed : application #{manifest.name} not found"
                 else
                     console.log "Stop failed : no applications installed"
 
@@ -435,15 +435,19 @@ program
 
 # Update
 program
-    .command("update <app>")
+    .command("update <app> [repo]")
     .description(
-        "Update application (git + npm) and restart it")
-    .action (app) ->
+        "Update application (git + npm) and restart it. Option repo is usefull " +
+            "only if home, proxy or data-system comes from specific repo")
+    .action (app, repo) ->
         console.log "Update #{app}..."
         if app in ['data-system', 'home', 'proxy']
             manifest.name = app
-            manifest.repository.url =
-                "https ://github.com/mycozycloud/cozy-#{app}.git"
+            if repo?
+                manifest.repository.url = repo
+            else     
+                manifest.repository.url =
+                    "https ://github.com/mycozycloud/cozy-#{app}.git"
             manifest.user = app
             client.lightUpdate manifest, (err, res, body) ->
                 if err or body.error?
@@ -489,7 +493,7 @@ program
 
         lightUpdateApp 'data-system', () =>
             lightUpdateApp 'home', () =>
-                lighUpdateApp 'proxy', () =>
+                lightUpdateApp 'proxy', () =>
                     console.log 'Cozy stack successfully updated'
 
 program
@@ -537,32 +541,71 @@ program
                 else
                     callback()
 
+        endUpdate = (app, callback) ->            
+            homeClient.get "api/applications/byid/#{app.id}", (err, res, app) ->
+                if app.state is "installed"
+                    console.log(" * New status: " + "started".bold)
+                else
+                    console.log(" * New status: " + app.state.bold)                    
+                console.log("..." + app.name + " updated")
+                callback()
+
         updateApp = (app) ->
             (callback) ->
-                console.log("\nUpdate " + app.name + "...")
+                console.log("\nStarting update " + app.name + "...")
+                # When application is broken, try :
+                #   * remove application
+                #   * install application
+                #   * stop application
                 if app.state is 'broken'
-                    console.log(app.name + " is broken")
+                    console.log(" * Old status: " + "broken".bold)
+                    console.log(" * Remove " + app.name)
                     removeApp app, (err) ->
-                        console.log("Remove " + app.name)
+                        if err
+                            console.log(' * Error: ' + err)
+                        console.log(" * Install " + app.name)
                         installApp app, (err) ->
-                            console.log("Install " + app.name)
-                            stopApp app, (err) ->
-                                console.log("Stop " + app.name)
-                                callback()
+                            if err
+                                console.log(' * Error: ' + err)
+                                endUpdate(app, callback)
+                            else
+                                console.log(" * Stop " + app.name)
+                                stopApp app, (err) ->
+                                    if err
+                                        console.log(' * Error: ' + err)
+                                    endUpdate(app, callback)
+
+                # When application is installed, try :
+                #   * update application
                 else if app.state is 'installed'
-                    console.log(app.name + " is installed")
+                    console.log(" * Old status: " + "started".bold)
+                    console.log(" * Update " + app.name)
                     lightUpdateApp app, (err) ->
-                        console.log("Update " + app.name)
-                        callback()
+                        if err
+                            console.log(' * Error: ' + err)
+                        endUpdate(app, callback)
+
+                # When application is stopped, try :
+                #   * start application
+                #   * update application
+                #   * stop application
                 else
-                    console.log(app.name + " is stopped")
+                    console.log(" * Old status: " + "stopped".bold)
+                    console.log(" * Start " + app.name)
                     startApp app, (err) ->
-                        console.log("Start " + app.name)
-                        lightUpdateApp app, (err) ->
-                            console.log("Update " + app.name)
-                            stopApp app, (err) ->
-                                console.log("Stop " + app.name)
-                                callback()
+                        if err
+                            console.log(' * Error: ' + err)
+                            endUpdate(app, callback)
+                        else
+                            console.log(" * Update " + app.name)
+                            lightUpdateApp app, (err) ->
+                                if err
+                                    console.log(' * Error: ' + err)                                
+                                console.log(" * Stop " + app.name)
+                                stopApp app, (err) ->
+                                    if err
+                                        console.log(' * Error: ' + err)
+                                    endUpdate(app, callback)
 
         homeClient.host = homeUrl
         homeClient.get "api/applications/", (err, res, apps) ->
@@ -573,7 +616,7 @@ program
                     funcs.push func
 
                 async.series funcs, ->
-                    console.log "All apps reinstalled."
+                    console.log "\nAll apps reinstalled."
                     console.log "Reset proxy routes"
 
                     statusClient.host = proxyUrl

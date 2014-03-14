@@ -541,12 +541,12 @@ program
                 else
                     callback()
 
-        endUpdate = (app, callback) ->            
+        endUpdate = (app, callback) ->
             homeClient.get "api/applications/byid/#{app.id}", (err, res, app) ->
                 if app.state is "installed"
                     console.log(" * New status: " + "started".bold)
                 else
-                    console.log(" * New status: " + app.state.bold)                    
+                    console.log(" * New status: " + app.state.bold)
                 console.log("..." + app.name + " updated")
                 callback()
 
@@ -600,7 +600,7 @@ program
                             console.log(" * Update " + app.name)
                             lightUpdateApp app, (err) ->
                                 if err
-                                    console.log(' * Error: ' + err)                                
+                                    console.log(' * Error: ' + err)
                                 console.log(" * Stop " + app.name)
                                 stopApp app, (err) ->
                                     if err

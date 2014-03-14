@@ -1,21 +1,10 @@
 # Cozy Monitor
 
-Cozy Monitor is a tool to manage your cozy instance from the inside.
-
-Installation:
-
-
-Run following command to see all available actions:
-
-    cozy-monitor --help
-
-# Cozy Monitor
-
 Cozy Monitor is a tool to manage your Cozy Platform from the command line.
 
 ## Install
 
-It requires Node.js to run.
+Install it via NPM
 
     npm install cozy-monitor -g
 
@@ -59,10 +48,6 @@ Status](https://travis-ci.org/mycozycloud/cozy-home.png?branch=master)
 To run tests type the following command into the Cozy Home folder:
 
     cake tests
-
-## Icons
-
-by [iconmonstr](http://iconmonstr.com/)
 
 ## License
 

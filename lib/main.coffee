@@ -351,9 +351,9 @@ program
                                 if err or body.error
                                     handleError err, body, "Start failed"
                                 else
-                                    console.log "#{app} successfully stopperd"
+                                    console.log "#{app} successfully stopped"
                     if not find
-                        console.log "Stop failed : application #{manifest.name} not found"
+                        console.log "Stop failed : application #{app} not found"
                 else
                     console.log "Stop failed : no applications installed"
 

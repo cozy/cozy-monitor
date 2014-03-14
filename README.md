@@ -32,6 +32,7 @@ Get sources:
     git clone https://github.com/mycozycloud/cozy-monitor.git
 
 Run:
+
     cd cozy-monitor
     chmod +x bin/cozy-monitor
     ./bin/cozy-monitor
@@ -51,7 +52,7 @@ To run tests type the following command into the Cozy Home folder:
 
 ## License
 
-Cozy Monitor is developed by Cozy Cloud and distributed under the GPL v3 license.
+Cozy Monitor is developed by Cozy Cloud and distributed under the LGPL v3 license.
 
 ## What is Cozy?
 

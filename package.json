@@ -1,8 +1,14 @@
 {
   "name": "cozy-monitor",
   "version": "1.1.18",
-  "description": "Tool to manage cozy instance internally",
-  "license": "GPL v3",
+  "description": "Tool to manage you Cozy Platform from the command line.",
+  "author": "Cozy Cloud <contact@cozycloud.cc> (http://cozycloud.cc)",
+  "licenses": [
+    {
+      "type": "LGPL v3",
+      "url": "http://www.gnu.org/licenses/lgpl-3.0.html"
+    }
+  ],
   "main": "./lib/main",
   "scripts": {
     "prepublish": "cake build"
@@ -18,6 +24,7 @@
     "deploy",
     "cozy",
     "web",
+    "paas",
     "application"
   ],
   "engines": {
@@ -32,6 +39,5 @@
     "axon": "~0.6.1",
     "cozy-clients": "=0.8.1"
   },
-  "devDependencies": {},
-  "author": "Cozy Cloud"
+  "devDependencies": {}
 }

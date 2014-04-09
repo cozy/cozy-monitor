@@ -100,6 +100,20 @@ compactAllViews = (database, designs, callback) ->
         callback null
 
 
+waitCompactComplete = (client, found, callback) ->
+    setTimeout ->
+        client.get '_active_tasks', (err, res, body) =>
+            exist = false
+            for task in body
+                if task.type is "database_compaction"
+                    exist = true
+            if (not exist) and found
+                callback true
+            else
+                waitCompactComplete(client, exist, callback)
+    , 500
+
+
 waitInstallComplete = (slug, callback) ->
     axon   = require 'axon'
     socket = axon.socket 'sub-emitter'
@@ -902,8 +916,9 @@ program
                     else if not body.ok
                         handleError err, body, "Compaction failed."
                     else
-                        console.log "#{database} compaction succeeded"
-                        process.exit 0
+                        waitCompactComplete client, false, (success) =>
+                            console.log "#{database} compaction succeeded"
+                            process.exit 0
 
 
 program

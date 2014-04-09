@@ -851,9 +851,9 @@ program
         async.series [
             checkApp "controller", controllerUrl, "version"
             checkApp "data-system", dataSystemUrl
-            checkApp "indexer", indexerUrl
             checkApp "home", homeUrl
             checkApp "proxy", proxyUrl, "routes"
+            checkApp "indexer", indexerUrl
         ], ->
             statusClient.host = homeUrl
             statusClient.get "api/applications/", (err, res, apps) ->

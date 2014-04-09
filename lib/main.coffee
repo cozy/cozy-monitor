@@ -656,12 +656,23 @@ program
                 console.log "#{name}: #{data.version}"
             else
                 console.log("#{name}: unknown")
+
+        getVersionIndexer = (callback) =>
+            client = new Client('http://localhost:9102')
+            client.get '', (err, res, body) =>
+                if body? and body.split('v')[1]?
+                    callback  body.split('v')[1]
+                else
+                    callback "unknown"
+
         console.log('Cozy Stack:'.bold)
         getVersion("controller")
         getVersion("data-system")
         getVersion("home")
         getVersion('proxy')
-        console.log "monitor: #{version}"
+        getVersionIndexer (version) =>            
+            console.log "indexer: #{version}"
+            console.log "monitor: #{version}"
 
 program
     .command("versions-all")
@@ -678,18 +689,29 @@ program
                 console.log "#{name}: #{data.version}"
             else
                 console.log("#{name}: unknown")
+
+        getVersionIndexer = (callback) =>
+            client = new Client('http://localhost:9102')
+            client.get '', (err, res, body) =>
+                if body? and body.split('v')[1]?
+                    callback  body.split('v')[1]
+                else
+                    callback "unknown"
+                    
         console.log('Cozy Stack:'.bold)
         getVersion("controller")
         getVersion("data-system")
         getVersion("home")
         getVersion('proxy')
-        console.log "monitor: #{version}"
-        console.log("Other applications: ".bold)
-        homeClient.host = homeUrl
-        homeClient.get "api/applications/", (err, res, apps) ->
-            if apps? and apps.rows?
-                for app in apps.rows
-                    getVersion(app.name)
+        getVersionIndexer (version) =>            
+            console.log "indexer: #{version}"
+            console.log "monitor: #{version}"
+            console.log("Other applications: ".bold)
+            homeClient.host = homeUrl
+            homeClient.get "api/applications/", (err, res, apps) ->
+                if apps? and apps.rows?
+                    for app in apps.rows
+                        getVersion(app.name)
 
 program
     .command("versions-apps")

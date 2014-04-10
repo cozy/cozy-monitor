@@ -100,6 +100,20 @@ compactAllViews = (database, designs, callback) ->
         callback null
 
 
+waitCompactComplete = (client, found, callback) ->
+    setTimeout ->
+        client.get '_active_tasks', (err, res, body) =>
+            exist = false
+            for task in body
+                if task.type is "database_compaction"
+                    exist = true
+            if (not exist) and found
+                callback true
+            else
+                waitCompactComplete(client, exist, callback)
+    , 500
+
+
 waitInstallComplete = (slug, callback) ->
     axon   = require 'axon'
     socket = axon.socket 'sub-emitter'
@@ -642,12 +656,23 @@ program
                 console.log "#{name}: #{data.version}"
             else
                 console.log("#{name}: unknown")
+
+        getVersionIndexer = (callback) =>
+            client = new Client('http://localhost:9102')
+            client.get '', (err, res, body) =>
+                if body? and body.split('v')[1]?
+                    callback  body.split('v')[1]
+                else
+                    callback "unknown"
+
         console.log('Cozy Stack:'.bold)
         getVersion("controller")
         getVersion("data-system")
         getVersion("home")
         getVersion('proxy')
-        console.log "monitor: #{version}"
+        getVersionIndexer (version) =>            
+            console.log "indexer: #{version}"
+            console.log "monitor: #{version}"
 
 program
     .command("versions-all")
@@ -664,18 +689,29 @@ program
                 console.log "#{name}: #{data.version}"
             else
                 console.log("#{name}: unknown")
+
+        getVersionIndexer = (callback) =>
+            client = new Client('http://localhost:9102')
+            client.get '', (err, res, body) =>
+                if body? and body.split('v')[1]?
+                    callback  body.split('v')[1]
+                else
+                    callback "unknown"
+                    
         console.log('Cozy Stack:'.bold)
         getVersion("controller")
         getVersion("data-system")
         getVersion("home")
         getVersion('proxy')
-        console.log "monitor: #{version}"
-        console.log("Other applications: ".bold)
-        homeClient.host = homeUrl
-        homeClient.get "api/applications/", (err, res, apps) ->
-            if apps? and apps.rows?
-                for app in apps.rows
-                    getVersion(app.name)
+        getVersionIndexer (version) =>            
+            console.log "indexer: #{version}"
+            console.log "monitor: #{version}"
+            console.log("Other applications: ".bold)
+            homeClient.host = homeUrl
+            homeClient.get "api/applications/", (err, res, apps) ->
+                if apps? and apps.rows?
+                    for app in apps.rows
+                        getVersion(app.name)
 
 program
     .command("versions-apps")
@@ -837,9 +873,9 @@ program
         async.series [
             checkApp "controller", controllerUrl, "version"
             checkApp "data-system", dataSystemUrl
-            checkApp "indexer", indexerUrl
             checkApp "home", homeUrl
             checkApp "proxy", proxyUrl, "routes"
+            checkApp "indexer", indexerUrl
         ], ->
             statusClient.host = homeUrl
             statusClient.get "api/applications/", (err, res, apps) ->
@@ -902,8 +938,9 @@ program
                     else if not body.ok
                         handleError err, body, "Compaction failed."
                     else
-                        console.log "#{database} compaction succeeded"
-                        process.exit 0
+                        waitCompactComplete client, false, (success) =>
+                            console.log "#{database} compaction succeeded"
+                            process.exit 0
 
 
 program

@@ -12,7 +12,7 @@ Install it via NPM
 
 Run following command to see all available actions:
 
-    cozy-monitor --help
+    cozy --help
 
 Or browse the online
 [documentation](http://cozy.io/host/manage.html##applications-management).
@@ -22,7 +22,7 @@ Or browse the online
 You can contribute to the Cozy Data System in many ways:
 
 * Pick up an [issue](https://github.com/mycozycloud/cozy-home/issues?state=open) and solve it.
-* Improve displayed messages. 
+* Improve displayed messages.
 * Write tests.
 
 ## Hack
@@ -34,8 +34,8 @@ Get sources:
 Run:
 
     cd cozy-monitor
-    chmod +x bin/cozy-monitor
-    ./bin/cozy-monitor
+    chmod +x bin/cozy
+    ./bin/cozy
 
 Each modification requires a new build, here is how to run a build:
 
@@ -61,9 +61,9 @@ Cozy Monitor is developed by Cozy Cloud and distributed under the LGPL v3 licens
 [Cozy](http://cozy.io) is a platform that brings all your web services in the
 same private space.  With it, your web apps and your devices can share data
 easily, providing you with a new experience. You can install Cozy on your own
-hardware where no one profiles you. 
+hardware where no one profiles you.
 
-## Community 
+## Community
 
 You can reach the Cozy Community by:
 

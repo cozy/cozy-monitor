@@ -459,7 +459,7 @@ program
             manifest.name = app
             if repo?
                 manifest.repository.url = repo
-            else     
+            else
                 manifest.repository.url =
                     "https ://github.com/mycozycloud/cozy-#{app}.git"
             manifest.user = app
@@ -555,12 +555,12 @@ program
                 else
                     callback()
 
-        endUpdate = (app, callback) ->            
+        endUpdate = (app, callback) ->
             homeClient.get "api/applications/byid/#{app.id}", (err, res, app) ->
                 if app.state is "installed"
                     console.log(" * New status: " + "started".bold)
                 else
-                    console.log(" * New status: " + app.state.bold)                    
+                    console.log(" * New status: " + app.state.bold)
                 console.log("..." + app.name + " updated")
                 callback()
 
@@ -614,7 +614,7 @@ program
                             console.log(" * Update " + app.name)
                             lightUpdateApp app, (err) ->
                                 if err
-                                    console.log(' * Error: ' + err)                                
+                                    console.log(' * Error: ' + err)
                                 console.log(" * Stop " + app.name)
                                 stopApp app, (err) ->
                                     if err
@@ -670,7 +670,7 @@ program
         getVersion("data-system")
         getVersion("home")
         getVersion('proxy')
-        getVersionIndexer (version) =>            
+        getVersionIndexer (version) =>
             console.log "indexer: #{version}"
             console.log "monitor: #{version}"
 
@@ -697,13 +697,13 @@ program
                     callback  body.split('v')[1]
                 else
                     callback "unknown"
-                    
+
         console.log('Cozy Stack:'.bold)
         getVersion("controller")
         getVersion("data-system")
         getVersion("home")
         getVersion('proxy')
-        getVersionIndexer (version) =>            
+        getVersionIndexer (version) =>
             console.log "indexer: #{version}"
             console.log "monitor: #{version}"
             console.log("Other applications: ".bold)
@@ -1103,6 +1103,16 @@ program
                 handleError err, body, "Reset routes failed"
             else
                 console.log "Reset proxy succeeded."
+
+
+program
+    .command("display-log <app>")
+    .description("Show logs for given app.")
+    .action (app) ->
+        console.log "Displaying logs for #{app}:"
+        require 'shelljs/global'
+        path = "/usr/local/cozy/apps/#{app}/#{app}/*/log/production.log"
+        console.log cat path
 
 
 program

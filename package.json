@@ -37,7 +37,8 @@
     "request-json": "=0.3.3",
     "colors": "=0.6.0-1",
     "axon": "~0.6.1",
-    "cozy-clients": "=0.8.1"
+    "cozy-clients": "=0.8.1",
+    "shelljs": "^0.3.0"
   },
   "devDependencies": {}
 }

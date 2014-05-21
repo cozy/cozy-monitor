@@ -1106,13 +1106,25 @@ program
 
 
 program
-    .command("display-log <app>")
+    .command("display-logs <app>")
     .description("Show logs for given app.")
     .action (app) ->
         console.log "Displaying logs for #{app}:"
         require 'shelljs/global'
         path = "/usr/local/cozy/apps/#{app}/#{app}/*/log/production.log"
         console.log cat path
+
+
+program
+    .command("tail-logs <app>")
+    .description("Show logs for given app (works only with cozy apps).")
+    .action (app) ->
+        console.log "Tailing logs for #{app}:"
+        Tail = require('always-tail')
+        path = "/usr/local/cozy/apps/#{app}/#{app}/cozy-#{app}/log/production.log"
+        tail = new Tail path, '\n'
+        tail.on "line", (data) ->
+            console.log data
 
 
 program

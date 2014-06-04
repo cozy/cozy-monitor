@@ -371,6 +371,40 @@ program
                 else
                     console.log "Stop failed : no applications installed"
 
+
+program
+    .command("stop-all")
+    .description("Stop all user applications")
+    .action ->
+
+        stopApp = (app) ->
+            (callback) ->
+                console.log("\nStop " + app.name + "...")
+                path = "api/applications/#{app.slug}/stop"
+                homeClient.post path, app, (err, res, body) ->
+                    if err or body.error
+                        console.log(' * Error: ' + err)
+                    callback()
+
+        homeClient.host = homeUrl
+        homeClient.get "api/applications/", (err, res, apps) ->
+            funcs = []
+            if apps? and apps.rows?
+                for app in apps.rows
+                    func = stopApp(app)
+                    funcs.push func
+
+                async.series funcs, ->
+                    console.log "\nAll apps reinstalled."
+                    console.log "Reset proxy routes"
+
+                    statusClient.host = proxyUrl
+                    statusClient.get "routes/reset", (err, res, body) ->
+                        if err
+                            handleError err, body, "Cannot reset routes."
+                        else
+                            console.log "Reset proxy succeeded."
+
 # Restart
 program
     .command("restart <app>")

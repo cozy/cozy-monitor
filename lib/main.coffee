@@ -395,7 +395,7 @@ program
                     funcs.push func
 
                 async.series funcs, ->
-                    console.log "\nAll apps reinstalled."
+                    console.log "\nAll apps stopped."
                     console.log "Reset proxy routes"
 
                     statusClient.host = proxyUrl
@@ -692,7 +692,7 @@ program
                 console.log("#{name}: unknown")
 
         getVersionIndexer = (callback) =>
-            client = new Client('http://localhost:9102')
+            client = new Client(indexerUrl)
             client.get '', (err, res, body) =>
                 if body? and body.split('v')[1]?
                     callback  body.split('v')[1]
@@ -704,8 +704,8 @@ program
         getVersion("data-system")
         getVersion("home")
         getVersion('proxy')
-        getVersionIndexer (version) =>            
-            console.log "indexer: #{version}"
+        getVersionIndexer (indexerVersion) =>            
+            console.log "indexer: #{indexerVersion}"
             console.log "monitor: #{version}"
 
 program

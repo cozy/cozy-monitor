@@ -905,6 +905,7 @@ program
                 , false
 
         async.series [
+            checkApp "couchdb", couchUrl
             checkApp "controller", controllerUrl, "version"
             checkApp "data-system", dataSystemUrl
             checkApp "home", homeUrl

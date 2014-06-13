@@ -24,6 +24,7 @@ indexerUrl = "http://localhost:9102/"
 controllerUrl = "http://localhost:9002/"
 homeUrl = "http://localhost:9103/"
 proxyUrl = "http://localhost:9104/"
+postfixUrl = "http://localhost:25/"
 
 homeClient = new Client homeUrl
 statusClient = new Client ''
@@ -897,7 +898,7 @@ program
             (callback) ->
                 statusClient.host = host
                 statusClient.get path, (err, res) ->
-                    if not res? or not res.statusCode in [200, 403]
+                    if err? and err.code is 'ECONNREFUSED'
                         console.log "#{app}: " + "down".red
                     else
                         console.log "#{app}: " + "up".green
@@ -905,6 +906,7 @@ program
                 , false
 
         async.series [
+            checkApp "postfix", postfixUrl
             checkApp "couchdb", couchUrl
             checkApp "controller", controllerUrl, "version"
             checkApp "data-system", dataSystemUrl

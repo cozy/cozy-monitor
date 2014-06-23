@@ -237,7 +237,11 @@ program
             path = "api/applications/install"
             homeClient.post path, manifest, (err, res, body) ->
                 if err or body.error
-                    handleError err, body, "Install home failed"
+                    if body.message? and body.message.indexOf('Not Found') isnt -1
+                        err = "Default git repo (#{manifest.git}) doesn't exist. You can use option -r to use a specific repo"
+                        handleError err, null, "Install home failed"
+                    else
+                        handleError err, body, "Install home failed"
                 else
                     waitInstallComplete body.app.slug, (err, appresult) ->
                         if not err? and appresult.state is "installed"

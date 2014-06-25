@@ -902,7 +902,7 @@ program
             (callback) ->
                 statusClient.host = host
                 statusClient.get path, (err, res) ->
-                    if err? and err.code is 'ECONNREFUSED'
+                    if (res? and not res.statusCode in [200,403]) or (err? and err.code is 'ECONNREFUSED')
                         console.log "#{app}: " + "down".red
                     else
                         console.log "#{app}: " + "up".green

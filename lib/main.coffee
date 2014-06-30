@@ -24,6 +24,7 @@ indexerUrl = "http://localhost:9102/"
 controllerUrl = "http://localhost:9002/"
 homeUrl = "http://localhost:9103/"
 proxyUrl = "http://localhost:9104/"
+postfixUrl = "http://localhost:25/"
 
 homeClient = new Client homeUrl
 statusClient = new Client ''
@@ -236,7 +237,11 @@ program
             path = "api/applications/install"
             homeClient.post path, manifest, (err, res, body) ->
                 if err or body.error
-                    handleError err, body, "Install home failed"
+                    if body.message? and body.message.indexOf('Not Found') isnt -1
+                        err = "Default git repo (#{manifest.git}) doesn't exist. You can use option -r to use a specific repo"
+                        handleError err, null, "Install home failed"
+                    else
+                        handleError err, body, "Install home failed"
                 else
                     waitInstallComplete body.app.slug, (err, appresult) ->
                         if not err? and appresult.state is "installed"
@@ -902,7 +907,7 @@ program
             (callback) ->
                 statusClient.host = host
                 statusClient.get path, (err, res) ->
-                    if not res? or not res.statusCode in [200, 403]
+                    if (res? and not res.statusCode in [200,403]) or (err? and err.code is 'ECONNREFUSED')
                         console.log "#{app}: " + "down".red
                     else
                         console.log "#{app}: " + "up".green
@@ -910,6 +915,8 @@ program
                 , false
 
         async.series [
+            checkApp "postfix", postfixUrl
+            checkApp "couchdb", couchUrl
             checkApp "controller", controllerUrl, "version"
             checkApp "data-system", dataSystemUrl
             checkApp "home", homeUrl

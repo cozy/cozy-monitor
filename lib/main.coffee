@@ -365,11 +365,45 @@ program
                                 if err or body.error
                                     handleError err, body, "Start failed"
                                 else
-                                    console.log "#{app} successfully stopperd"
+                                    console.log "#{app} successfully stopped"
                     if not find
-                        console.log "Stop failed : application #{manifest.name} not found"
+                        console.log "Stop failed : application #{app} not found"
                 else
                     console.log "Stop failed : no applications installed"
+
+
+program
+    .command("stop-all")
+    .description("Stop all user applications")
+    .action ->
+
+        stopApp = (app) ->
+            (callback) ->
+                console.log("\nStop " + app.name + "...")
+                path = "api/applications/#{app.slug}/stop"
+                homeClient.post path, app, (err, res, body) ->
+                    if err or body.error
+                        console.log(' * Error: ' + err)
+                    callback()
+
+        homeClient.host = homeUrl
+        homeClient.get "api/applications/", (err, res, apps) ->
+            funcs = []
+            if apps? and apps.rows?
+                for app in apps.rows
+                    func = stopApp(app)
+                    funcs.push func
+
+                async.series funcs, ->
+                    console.log "\nAll apps stopped."
+                    console.log "Reset proxy routes"
+
+                    statusClient.host = proxyUrl
+                    statusClient.get "routes/reset", (err, res, body) ->
+                        if err
+                            handleError err, body, "Cannot reset routes."
+                        else
+                            console.log "Reset proxy succeeded."
 
 # Restart
 program
@@ -658,7 +692,7 @@ program
                 console.log("#{name}: unknown")
 
         getVersionIndexer = (callback) =>
-            client = new Client('http://localhost:9102')
+            client = new Client(indexerUrl)
             client.get '', (err, res, body) =>
                 if body? and body.split('v')[1]?
                     callback  body.split('v')[1]
@@ -670,8 +704,13 @@ program
         getVersion("data-system")
         getVersion("home")
         getVersion('proxy')
+<<<<<<< HEAD
         getVersionIndexer (version) =>
             console.log "indexer: #{version}"
+=======
+        getVersionIndexer (indexerVersion) =>            
+            console.log "indexer: #{indexerVersion}"
+>>>>>>> df54f84d597459065aa23cde04c26c8694ad6d41
             console.log "monitor: #{version}"
 
 program

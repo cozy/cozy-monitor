@@ -410,6 +410,20 @@ program
                         else
                             console.log "Reset proxy succeeded."
 
+program
+    .command('stoppable-all')
+    .description("Put all applications stoppable (except pfm, emails, feeds, nirc and konnectors)")
+    .action ->
+        homeClient.host = homeUrl
+        homeClient.get "api/applications/", (err, res, apps) ->
+            if apps? and apps.rows?
+                for app in apps.rows
+                    if not(app.name in ['pfm', 'emails', 'feeds', 'nirc', 'sync', 'konnectors'])
+                        if not app.isStoppable
+                            app.isStoppable = true
+                            homeClient.put "api/applications/byid/#{app.id}", app, (err, res) ->
+                                console.log "Error : #{app.name} : #{err}"
+
 # Restart
 program
     .command("restart <app>")

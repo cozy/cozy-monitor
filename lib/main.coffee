@@ -34,17 +34,25 @@ appsPath = '/usr/local/cozy/apps'
 
 ## Helpers
 
-getToken = () ->
-    if fs.existsSync '/etc/cozy/controller.token'
-        try
-            token = fs.readFileSync '/etc/cozy/controller.token', 'utf8'
-            token = token.split('\n')[0]
-            return token
-        catch err
-            console.log("Are you sure, you are root ?")
-            return null
-    else
+readToken = (file) ->
+    try
+        token = fs.readFileSync '/etc/cozy/controller.token', 'utf8'
+        token = token.split('\n')[0]
+        return token
+    catch err
+        console.log("Are you sure, you are root ?")
         return null
+
+getToken = () ->
+    # New controller
+    if fs.existsSync '/etc/cozy/stack.token'
+        return readToken '/etc/cozy/stack.token'
+    else
+        # Old controller
+        if fs.existsSync '/etc/cozy/controller.token'
+            return readToken '/etc/cozy/controller.token'
+        else
+            return null
 
 
 getAuthCouchdb = (callback) ->
@@ -695,8 +703,8 @@ program
 
 # Versions
 program
-    .command("versions")
-    .description("Display applications versions")
+    .command("versions-stack")
+    .description("Display stack applications versions")
     .action () ->
         getVersion = (name) =>
             if name is "controller"
@@ -708,7 +716,13 @@ program
                 data = JSON.parse(data)
                 console.log "#{name}: #{data.version}"
             else
-                console.log("#{name}: unknown")
+                path = "#{appsPath}/#{name}/cozy-#{name}/package.json"
+                if fs.existsSync path
+                    data = fs.readFileSync path, 'utf8'
+                    data = JSON.parse(data)
+                    console.log "#{name}: #{data.version}"
+                else
+                    console.log("#{name}: unknown")
 
         getVersionIndexer = (callback) =>
             client = new Client(indexerUrl)
@@ -728,7 +742,7 @@ program
             console.log "monitor: #{version}"
 
 program
-    .command("versions-all")
+    .command("versions")
     .description("Display applications versions")
     .action () ->
         getVersion = (name) =>
@@ -741,7 +755,13 @@ program
                 data = JSON.parse(data)
                 console.log "#{name}: #{data.version}"
             else
-                console.log("#{name}: unknown")
+                path = "#{appsPath}/#{name}/cozy-#{name}/package.json"
+                if fs.existsSync path
+                    data = fs.readFileSync path, 'utf8'
+                    data = JSON.parse(data)
+                    console.log "#{name}: #{data.version}"
+                else
+                    console.log("#{name}: unknown")
 
         getVersionIndexer = (callback) =>
             client = new Client('http://localhost:9102')
@@ -756,43 +776,15 @@ program
         getVersion("data-system")
         getVersion("home")
         getVersion('proxy')
-        getVersionIndexer (version) =>            
-            console.log "indexer: #{version}"
+        getVersionIndexer (indexerVersion) =>
+            console.log "indexer: #{indexerVersion}"
             console.log "monitor: #{version}"
             console.log("Other applications: ".bold)
             homeClient.host = homeUrl
             homeClient.get "api/applications/", (err, res, apps) ->
                 if apps? and apps.rows?
                     for app in apps.rows
-                        getVersion(app.name)
-
-program
-    .command("versions-apps")
-    .description("Display applications versions")
-    .action () ->
-        getVersion = (name) =>
-            if name is "controller"
-                path = "/usr/local/lib/node_modules/cozy-controller/package.json"
-            else
-                path = "#{appsPath}/#{name}/#{name}/cozy-#{name}/package.json"
-            if fs.existsSync path
-                data = fs.readFileSync path, 'utf8'
-                data = JSON.parse(data)
-                console.log "#{name}: #{data.version}"
-            else
-                console.log("#{name}: unknown")
-        console.log('Cozy Stack:'.bold)
-        getVersion("controller")
-        getVersion("data-system")
-        getVersion("home")
-        getVersion('proxy')
-        console.log "monitor: #{version}"
-        console.log("Other applications: ".bold)
-        homeClient.host = homeUrl
-        homeClient.get "api/applications/", (err, res, apps) ->
-            if apps? and apps.rows?
-                for app in apps.rows
-                    getVersion(app.name)
+                        console.log "#{app.name}: #{app.version}"
 
 
 ## Monitoring ###

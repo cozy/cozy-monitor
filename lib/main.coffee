@@ -185,6 +185,33 @@ prepareCozyDatabase = (username, password, callback) ->
                 callback()
 
 
+getVersion = (name) =>
+    if name is "controller"
+        path = "/usr/local/lib/node_modules/cozy-controller/package.json"
+    else
+        path = "#{appsPath}/#{name}/#{name}/cozy-#{name}/package.json"
+    if fs.existsSync path
+        data = fs.readFileSync path, 'utf8'
+        data = JSON.parse(data)
+        console.log "#{name}: #{data.version}"
+    else
+        path = "#{appsPath}/#{name}/cozy-#{name}/package.json"
+        if fs.existsSync path
+            data = fs.readFileSync path, 'utf8'
+            data = JSON.parse(data)
+            console.log "#{name}: #{data.version}"
+        else
+            console.log("#{name}: unknown")
+
+getVersionIndexer = (callback) =>
+    client = new Client('http://localhost:9102')
+    client.get '', (err, res, body) =>
+        if body? and body.split('v')[1]?
+            callback  body.split('v')[1]
+        else
+            callback "unknown"
+
+
 token = getToken()
 client = new ControllerClient
     token: token
@@ -222,7 +249,7 @@ program
         if app in ['data-system', 'home', 'proxy']
             unless options.repo?
                 manifest.repository.url =
-                    "https://github.com/mycozycloud/cozy-#{app}.git"
+                    "https://github.com/cozy/cozy-#{app}.git"
             else
                 manifest.repository.url = options.repo
             if options.branch?
@@ -237,7 +264,7 @@ program
         else
             unless options.repo?
                 manifest.git =
-                    "https://github.com/mycozycloud/cozy-#{app}.git"
+                    "https://github.com/cozy/cozy-#{app}.git"
             else
                 manifest.git = options.repo
             if options.branch?
@@ -263,7 +290,7 @@ program
     .action () ->
         installApp = (name, callback) ->
             manifest.repository.url =
-                    "https://github.com/mycozycloud/cozy-#{name}.git"
+                    "https://github.com/cozy/cozy-#{name}.git"
             manifest.name = name
             manifest.user = name
             console.log "Install started for #{name}..."
@@ -324,7 +351,7 @@ program
         if app in ['data-system', 'home', 'proxy']
             manifest.name = app
             manifest.repository.url =
-                "https://github.com/mycozycloud/cozy-#{app}.git"
+                "https://github.com/cozy/cozy-#{app}.git"
             manifest.user = app
             client.stop app, (err, res, body) ->
                 client.start manifest, (err, res, body) ->
@@ -447,7 +474,7 @@ program
                     console.log "Starting #{app}..."
                     manifest.name = app
                     manifest.repository.url =
-                        "https://github.com/mycozycloud/cozy-#{app}.git"
+                        "https://github.com/cozy/cozy-#{app}.git"
                     manifest.user = app
                     client.start manifest, (err, res, body) ->
                         if err
@@ -474,7 +501,7 @@ program
     .action () ->
         restartApp = (name, callback) ->
             manifest.repository.url =
-                    "https://github.com/mycozycloud/cozy-#{name}.git"
+                    "https://github.com/cozy/cozy-#{name}.git"
             manifest.name = name
             manifest.user = name
             console.log "Restart started for #{name}..."
@@ -500,7 +527,7 @@ program
         console.log "Brunch build #{app}..."
         manifest.name = app
         manifest.repository.url =
-            "https ://github.com/mycozycloud/cozy-#{app}.git"
+            "https ://github.com/cozy/cozy-#{app}.git"
         manifest.user = app
         client.brunch manifest, (err, res, body) ->
             if err or body.error?
@@ -520,9 +547,9 @@ program
             manifest.name = app
             if repo?
                 manifest.repository.url = repo
-            else     
+            else
                 manifest.repository.url =
-                    "https ://github.com/mycozycloud/cozy-#{app}.git"
+                    "https ://github.com/cozy/cozy-#{app}.git"
             manifest.user = app
             client.lightUpdate manifest, (err, res, body) ->
                 if err or body.error?
@@ -554,7 +581,7 @@ program
     .action () ->
         lightUpdateApp = (name, callback) ->
             manifest.repository.url =
-                    "https://github.com/mycozycloud/cozy-#{name}.git"
+                    "https://github.com/cozy/cozy-#{name}.git"
             manifest.name = name
             manifest.user = name
             console.log "Light update #{name}..."
@@ -706,38 +733,12 @@ program
     .command("versions-stack")
     .description("Display stack applications versions")
     .action () ->
-        getVersion = (name) =>
-            if name is "controller"
-                path = "/usr/local/lib/node_modules/cozy-controller/package.json"
-            else
-                path = "#{appsPath}/#{name}/#{name}/cozy-#{name}/package.json"
-            if fs.existsSync path
-                data = fs.readFileSync path, 'utf8'
-                data = JSON.parse(data)
-                console.log "#{name}: #{data.version}"
-            else
-                path = "#{appsPath}/#{name}/cozy-#{name}/package.json"
-                if fs.existsSync path
-                    data = fs.readFileSync path, 'utf8'
-                    data = JSON.parse(data)
-                    console.log "#{name}: #{data.version}"
-                else
-                    console.log("#{name}: unknown")
-
-        getVersionIndexer = (callback) =>
-            client = new Client(indexerUrl)
-            client.get '', (err, res, body) =>
-                if body? and body.split('v')[1]?
-                    callback  body.split('v')[1]
-                else
-                    callback "unknown"
-
         console.log('Cozy Stack:'.bold)
         getVersion("controller")
         getVersion("data-system")
         getVersion("home")
         getVersion('proxy')
-        getVersionIndexer (indexerVersion) =>            
+        getVersionIndexer (indexerVersion) =>
             console.log "indexer: #{indexerVersion}"
             console.log "monitor: #{version}"
 
@@ -745,32 +746,6 @@ program
     .command("versions")
     .description("Display applications versions")
     .action () ->
-        getVersion = (name) =>
-            if name is "controller"
-                path = "/usr/local/lib/node_modules/cozy-controller/package.json"
-            else
-                path = "#{appsPath}/#{name}/#{name}/cozy-#{name}/package.json"
-            if fs.existsSync path
-                data = fs.readFileSync path, 'utf8'
-                data = JSON.parse(data)
-                console.log "#{name}: #{data.version}"
-            else
-                path = "#{appsPath}/#{name}/cozy-#{name}/package.json"
-                if fs.existsSync path
-                    data = fs.readFileSync path, 'utf8'
-                    data = JSON.parse(data)
-                    console.log "#{name}: #{data.version}"
-                else
-                    console.log("#{name}: unknown")
-
-        getVersionIndexer = (callback) =>
-            client = new Client('http://localhost:9102')
-            client.get '', (err, res, body) =>
-                if body? and body.split('v')[1]?
-                    callback  body.split('v')[1]
-                else
-                    callback "unknown"
-                    
         console.log('Cozy Stack:'.bold)
         getVersion("controller")
         getVersion("data-system")
@@ -785,6 +760,7 @@ program
                 if apps? and apps.rows?
                     for app in apps.rows
                         console.log "#{app.name}: #{app.version}"
+
 
 
 ## Monitoring ###
@@ -1150,6 +1126,28 @@ program
                 handleError err, body, "Reset routes failed"
             else
                 console.log "Reset proxy succeeded."
+
+
+program
+    .command("display-logs <app>")
+    .description("Show logs for given app.")
+    .action (app) ->
+        console.log "Displaying logs for #{app}:"
+        require 'shelljs/global'
+        path = "/usr/local/cozy/apps/#{app}/#{app}/*/log/production.log"
+        console.log cat path
+
+
+program
+    .command("tail-logs <app>")
+    .description("Show logs for given app (works only with cozy apps).")
+    .action (app) ->
+        console.log "Tailing logs for #{app}:"
+        Tail = require 'always-tail'
+        path = "/usr/local/cozy/apps/#{app}/#{app}/cozy-#{app}/log/production.log"
+        tail = new Tail path, '\n'
+        tail.on "line", (data) ->
+            console.log data
 
 
 program

@@ -447,8 +447,8 @@ program
                             console.log "Reset proxy succeeded."
 
 program
-    .command('stoppable-all')
-    .description("Put all applications stoppable" + 
+    .command('autostop-all')
+    .description("Put all applications in autostop mode" + 
         "(except pfm, emails, feeds, nirc and konnectors)")
     .action ->
         unStoppable = ['pfm', 'emails', 'feeds', 'nirc', 'sync', 'konnectors']

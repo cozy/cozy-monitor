@@ -36,7 +36,7 @@ appsPath = '/usr/local/cozy/apps'
 
 readToken = (file) ->
     try
-        token = fs.readFileSync '/etc/cozy/controller.token', 'utf8'
+        token = fs.readFileSync file, 'utf8'
         token = token.split('\n')[0]
         return token
     catch err
@@ -273,7 +273,8 @@ program
             homeClient.post path, manifest, (err, res, body) ->
                 if err or body.error
                     if body.message? and body.message.indexOf('Not Found') isnt -1
-                        err = "Default git repo (#{manifest.git}) doesn't exist. You can use option -r to use a specific repo"
+                        err = "Default git repo #{manifest.git} doesn't exist." +
+                            " You can use option -r to use a specific repo"
                         handleError err, null, "Install home failed"
                     else
                         handleError err, body, "Install home failed"
@@ -447,17 +448,20 @@ program
 
 program
     .command('stoppable-all')
-    .description("Put all applications stoppable (except pfm, emails, feeds, nirc and konnectors)")
+    .description("Put all applications stoppable" + 
+        "(except pfm, emails, feeds, nirc and konnectors)")
     .action ->
+        unStoppable = ['pfm', 'emails', 'feeds', 'nirc', 'sync', 'konnectors']
         homeClient.host = homeUrl
         homeClient.get "api/applications/", (err, res, apps) ->
             if apps? and apps.rows?
                 for app in apps.rows
-                    if not(app.name in ['pfm', 'emails', 'feeds', 'nirc', 'sync', 'konnectors'])
+                    if not(app.name in unStoppable)
                         if not app.isStoppable
                             app.isStoppable = true
-                            homeClient.put "api/applications/byid/#{app.id}", app, (err, res) ->
-                                console.log "Error : #{app.name} : #{err}"
+                            homeClient.put "api/applications/byid/#{app.id}", 
+                                app, (err, res) ->
+                                    console.log "Error : #{app.name} : #{err}"
 
 # Restart
 program
@@ -884,8 +888,9 @@ program
             (callback) ->
                 statusClient.host = host
                 statusClient.get path, (err, res) ->
-                    if (res? and not res.statusCode in [200,403]) or (err? and err.code is 'ECONNREFUSED')
-                        console.log "#{app}: " + "down".red
+                    if (res? and not res.statusCode in [200,403]) or (err? and 
+                        err.code is 'ECONNREFUSED')
+                            console.log "#{app}: " + "down".red
                     else
                         console.log "#{app}: " + "up".green
                     callback()

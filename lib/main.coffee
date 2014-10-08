@@ -34,17 +34,25 @@ appsPath = '/usr/local/cozy/apps'
 
 ## Helpers
 
-getToken = () ->
-    if fs.existsSync '/etc/cozy/controller.token'
-        try
-            token = fs.readFileSync '/etc/cozy/controller.token', 'utf8'
-            token = token.split('\n')[0]
-            return token
-        catch err
-            console.log("Are you sure, you are root ?")
-            return null
-    else
+readToken = (file) ->
+    try
+        token = fs.readFileSync file, 'utf8'
+        token = token.split('\n')[0]
+        return token
+    catch err
+        console.log("Are you sure, you are root ?")
         return null
+
+getToken = () ->
+    # New controller
+    if fs.existsSync '/etc/cozy/stack.token'
+        return readToken '/etc/cozy/stack.token'
+    else
+        # Old controller
+        if fs.existsSync '/etc/cozy/controller.token'
+            return readToken '/etc/cozy/controller.token'
+        else
+            return null
 
 
 getAuthCouchdb = (callback) ->
@@ -187,8 +195,13 @@ getVersion = (name) =>
         data = JSON.parse(data)
         console.log "#{name}: #{data.version}"
     else
-        console.log("#{name}: unknown")
-
+        path = "#{appsPath}/#{name}/cozy-#{name}/package.json"
+        if fs.existsSync path
+            data = fs.readFileSync path, 'utf8'
+            data = JSON.parse(data)
+            console.log "#{name}: #{data.version}"
+        else
+            console.log("#{name}: unknown")
 
 getVersionIndexer = (callback) =>
     client = new Client('http://localhost:9102')
@@ -260,7 +273,8 @@ program
             homeClient.post path, manifest, (err, res, body) ->
                 if err or body.error
                     if body.message? and body.message.indexOf('Not Found') isnt -1
-                        err = "Default git repo (#{manifest.git}) doesn't exist. You can use option -r to use a specific repo"
+                        err = "Default git repo #{manifest.git} doesn't exist." +
+                            " You can use option -r to use a specific repo"
                         handleError err, null, "Install home failed"
                     else
                         handleError err, body, "Install home failed"
@@ -431,6 +445,23 @@ program
                             handleError err, body, "Cannot reset routes."
                         else
                             console.log "Reset proxy succeeded."
+
+program
+    .command('autostop-all')
+    .description("Put all applications in autostop mode" + 
+        "(except pfm, emails, feeds, nirc and konnectors)")
+    .action ->
+        unStoppable = ['pfm', 'emails', 'feeds', 'nirc', 'sync', 'konnectors']
+        homeClient.host = homeUrl
+        homeClient.get "api/applications/", (err, res, apps) ->
+            if apps? and apps.rows?
+                for app in apps.rows
+                    if not(app.name in unStoppable)
+                        if not app.isStoppable
+                            app.isStoppable = true
+                            homeClient.put "api/applications/byid/#{app.id}", 
+                                app, (err, res) ->
+                                    console.log "Error : #{app.name} : #{err}"
 
 # Restart
 program
@@ -703,8 +734,8 @@ program
 
 # Versions
 program
-    .command("versions")
-    .description("Display applications versions")
+    .command("versions-stack")
+    .description("Display stack applications versions")
     .action () ->
         console.log('Cozy Stack:'.bold)
         getVersion("controller")
@@ -716,7 +747,7 @@ program
             console.log "monitor: #{version}"
 
 program
-    .command("versions-all")
+    .command("versions")
     .description("Display applications versions")
     .action () ->
         console.log('Cozy Stack:'.bold)
@@ -724,32 +755,16 @@ program
         getVersion("data-system")
         getVersion("home")
         getVersion('proxy')
-        getVersionIndexer (version) =>
-            console.log "indexer: #{version}"
+        getVersionIndexer (indexerVersion) =>
+            console.log "indexer: #{indexerVersion}"
             console.log "monitor: #{version}"
             console.log("Other applications: ".bold)
             homeClient.host = homeUrl
             homeClient.get "api/applications/", (err, res, apps) ->
                 if apps? and apps.rows?
                     for app in apps.rows
-                        getVersion(app.name)
+                        console.log "#{app.name}: #{app.version}"
 
-program
-    .command("versions-apps")
-    .description("Display applications versions")
-    .action () ->
-        console.log('Cozy Stack:'.bold)
-        getVersion("controller")
-        getVersion("data-system")
-        getVersion("home")
-        getVersion('proxy')
-        console.log "monitor: #{version}"
-        console.log("Other applications: ".bold)
-        homeClient.host = homeUrl
-        homeClient.get "api/applications/", (err, res, apps) ->
-            if apps? and apps.rows?
-                for app in apps.rows
-                    getVersion(app.name)
 
 
 ## Monitoring ###
@@ -873,8 +888,9 @@ program
             (callback) ->
                 statusClient.host = host
                 statusClient.get path, (err, res) ->
-                    if (res? and not res.statusCode in [200,403]) or (err? and err.code is 'ECONNREFUSED')
-                        console.log "#{app}: " + "down".red
+                    if (res? and not res.statusCode in [200,403]) or (err? and 
+                        err.code is 'ECONNREFUSED')
+                            console.log "#{app}: " + "down".red
                     else
                         console.log "#{app}: " + "up".green
                     callback()
@@ -1123,7 +1139,7 @@ program
     .action (app) ->
         console.log "Displaying logs for #{app}:"
         require 'shelljs/global'
-        path = "/usr/local/cozy/apps/#{app}/#{app}/*/log/production.log"
+        path =  "/var/log/cozy/#{app}.log"
         console.log cat path
 
 
@@ -1133,7 +1149,7 @@ program
     .action (app) ->
         console.log "Tailing logs for #{app}:"
         Tail = require 'always-tail'
-        path = "/usr/local/cozy/apps/#{app}/#{app}/cozy-#{app}/log/production.log"
+        path = "/var/log/cozy/#{app}.log"
         tail = new Tail path, '\n'
         tail.on "line", (data) ->
             console.log data

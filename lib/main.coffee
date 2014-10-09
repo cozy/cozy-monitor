@@ -1139,7 +1139,7 @@ program
     .action (app) ->
         console.log "Displaying logs for #{app}:"
         require 'shelljs/global'
-        path =  "/var/log/cozy/#{app}.log"
+        path =  "/usr/local/var/log/cozy/#{app}.log"
         console.log cat path
 
 
@@ -1149,7 +1149,7 @@ program
     .action (app) ->
         console.log "Tailing logs for #{app}:"
         Tail = require 'always-tail'
-        path = "/var/log/cozy/#{app}.log"
+        path = "/usr/local/var/log/cozy/#{app}.log"
         tail = new Tail path, '\n'
         tail.on "line", (data) ->
             console.log data

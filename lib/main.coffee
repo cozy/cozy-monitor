@@ -63,17 +63,17 @@ getToken = ->
 
 
 getAuthCouchdb = (callback) ->
-    fs.readFile '/etc/cozy/couchdb.login', 'utf8', (err, data) =>
-        if err
-            log.error """
-Cannot read database credentials in /etc/cozy/couchdb.login
+    try
+        data = fs.readFileSync '/etc/cozy/couchdb.login', 'utf8', (err, data) =>
+        username = data.split('\n')[0]
+        password = data.split('\n')[1]
+        return [username, password]
+    catch err
+        console.log err
+        log.error """
+Cannot read database credentials in /etc/cozy/couchdb.login.
 """
-            callback err
-        else
-            username = data.split('\n')[0]
-            password = data.split('\n')[1]
-            callback null, username, password
-
+        process.exit 1
 
 handleError = (err, body, msg) ->
     log.error "An error occured:"
@@ -92,14 +92,13 @@ handleError = (err, body, msg) ->
 
 
 compactViews = (database, designDoc, callback) ->
-    client = request.newClient couchUrl
     getAuthCouchdb (err, username, password) ->
         if err
             process.exit 1
         else
-            client.setBasicAuth username, password
+            couchClient.setBasicAuth username, password
             path = "#{database}/_compact/#{designDoc}"
-            client.post path, {}, (err, res, body) =>
+            couchClient.post path, {}, (err, res, body) =>
                 if err
                     handleError err, body, "compaction failed for #{designDoc}"
                 else if not body.ok
@@ -116,6 +115,11 @@ compactAllViews = (database, designs, callback) ->
             compactAllViews database, designs, callback
     else
         callback null
+
+
+configureCouchClient = (callback) ->
+    [username, password] = getAuthCouchdb()
+    couchClient.setBasicAuth username, password
 
 
 waitCompactComplete = (client, found, callback) ->
@@ -174,11 +178,12 @@ waitInstallComplete = (slug, callback) ->
                 callback err, body
 
 prepareCozyDatabase = (username, password, callback) ->
-    client.setBasicAuth username, password
+    couchClient.setBasicAuth username, password
+
     # Remove cozy database
-    client.del "cozy", (err, res, body) ->
+    couchClient.del "cozy", (err, res, body) ->
         # Create new cozy database
-        client.put "cozy", {}, (err, res, body) ->
+        couchClient.put "cozy", {}, (err, res, body) ->
             # Add member in cozy database
             data =
                 "admins":
@@ -187,7 +192,7 @@ prepareCozyDatabase = (username, password, callback) ->
                 "readers":
                     "names":[username]
                     "roles":[]
-            client.put 'cozy/_security', data, (err, res, body)->
+            couchClient.put 'cozy/_security', data, (err, res, body)->
                 if err?
                     console.log err
                     process.exit 1
@@ -290,13 +295,13 @@ program
 Default git repo #{manifest.git} doesn't exist.
 You can use option -r to use a specific repo.
 """
-                        handleError err, null, "Install home failed"
+                        handleError err, null, "Install home failed for #{app}."
                     else
-                        handleError err, body, "Install home failed"
+                        handleError err, body, "Install home failed for #{app}."
                 else
                     waitInstallComplete body.app.slug, (err, appresult) ->
                         if not err? and appresult.state is "installed"
-                            log.info "#{app} successfully installed"
+                            log.info "#{app} was successfully installed."
                         else
                             handleError null, null, "Install home failed"
 
@@ -310,20 +315,21 @@ program
                     "https://github.com/cozy/cozy-#{name}.git"
             manifest.name = name
             manifest.user = name
+
             log.info "Install started for #{name}..."
             client.clean manifest, (err, res, body) ->
                 client.start manifest, (err, res, body)  ->
                     if err or body.error?
-                        handleError err, body, "Install failed"
+                        handleError err, body, "Install failed for #{name}."
                     else
                         client.brunch manifest, =>
-                            log.info "#{name} successfully installed"
+                            log.info "#{name} was successfully installed."
                             callback null
 
         installApp 'data-system', () =>
             installApp 'home', () =>
                 installApp 'proxy', () =>
-                    log.info 'Cozy stack successfully installed'
+                    log.info 'Cozy stack successfully installed.'
 
 
 # Uninstall
@@ -337,16 +343,16 @@ program
             manifest.user = app
             client.clean manifest, (err, res, body) ->
                 if err or body.error?
-                    handleError err, body, "Uninstall failed"
+                    handleError err, body, "Uninstall failed for #{app}."
                 else
-                    log.info "#{app} successfully uninstalled"
+                    log.info "#{app} was successfully uninstalled."
         else
             path = "api/applications/#{app}/uninstall"
             homeClient.del path, (err, res, body) ->
                 if err or res.statusCode isnt 200
-                    handleError err, body, "Uninstall home failed"
+                    handleError err, body, "Uninstall home failed for #{app}."
                 else
-                    log.info "#{app} successfully uninstalled"
+                    log.info "#{app} was successfully uninstalled."
 
 
 program
@@ -377,27 +383,27 @@ program
             client.stop app, (err, res, body) ->
                 client.start manifest, (err, res, body) ->
                     if err or body.error?
-                        handleError err, body, "Start failed"
+                        handleError err, body, "Start failed for #{app}."
                     else
-                        log.info "#{app} successfully started"
+                        log.info "#{app} was successfully started."
         else
             find = false
             homeClient.host = homeUrl
             homeClient.get "api/applications/", (err, res, apps) ->
                 if apps? and apps.rows?
-                    for manifest in apps.rows
-                        if manifest.name is app
-                            find = true
-                            path = "api/applications/#{manifest.slug}/start"
-                            homeClient.post path, manifest, (err, res, body) ->
-                                if err or body.error
-                                    handleError err, body, "Start failed"
-                                else
-                                    log.info "#{app} successfully started"
-                    if not find
-                        log.error "Start failed : application #{app} not found"
+                    for manifest in apps.rows when manifest.name is app
+                        find = true
+                        path = "api/applications/#{manifest.slug}/start"
+                        homeClient.post path, manifest, (err, res, body) ->
+                            if err or body.error
+                                msg = "Start failed for #{app}."
+                                handleError err, body, msg
+                            else
+                                log.info "#{app} was successfully started."
+                    unless find
+                        log.error "Start failed : application #{app} not found."
                 else
-                    log.error "Start failed : no applications installed"
+                    log.error "Start failed : no applications installed."
 
 
 # Stop
@@ -414,25 +420,25 @@ program
                 if err or body.error?
                     handleError err, body, "Stop failed"
                 else
-                    log.info "#{app} successfully stopped"
+                    log.info "#{app} was successfully stopped."
         else
             find = false
             homeClient.host = homeUrl
             homeClient.get "api/applications/", (err, res, apps) ->
-                if apps? and apps.rows?
-                    for manifest in apps.rows
-                        if manifest.name is app
-                            find = true
-                            path = "api/applications/#{manifest.slug}/stop"
-                            homeClient.post path, manifest, (err, res, body) ->
-                                if err or body.error
-                                    handleError err, body, "Start failed"
-                                else
-                                    log.info "#{app} successfully stopped"
-                    if not find
-                        log.error "Stop failed : application #{app} not found"
+                if apps?.rows?
+                    for manifest in apps.rows when manifest.name is app
+                        find = true
+                        path = "api/applications/#{manifest.slug}/stop"
+                        homeClient.post path, manifest, (err, res, body) ->
+                            if err or body.error
+                                msg = "Stop failed for #{app}."
+                                handleError err, body, msg
+                            else
+                                log.info "#{app} was successfully stopped."
+                    unless find
+                        log.error "Stop failed: application #{app} not found"
                 else
-                    log.error "Stop failed : no applications installed"
+                    log.error "Stop failed: no applications installed."
 
 
 program
@@ -447,7 +453,7 @@ program
                 homeClient.post path, app, (err, res, body) ->
                     if err or body.error
                         log.error "\nStopping #{app.name} failed."
-                        if err
+                        if er
                             log.raw err
                         else
                             log.raw body.error
@@ -501,9 +507,9 @@ program
         if app in ['data-system', 'home', 'proxy']
             client.stop app, (err, res, body) ->
                 if err or body.error?
-                    handleError err, body, "Stop failed"
+                    handleError err, body, "Stop failed."
                 else
-                    log.info "#{app} successfully stopped"
+                    log.info "#{app} successfully stopped."
                     log.info "Starting #{app}..."
                     manifest.name = app
                     manifest.repository.url =
@@ -511,9 +517,9 @@ program
                     manifest.user = app
                     client.start manifest, (err, res, body) ->
                         if err
-                            handleError err, body, "Start failed"
+                            handleError err, body, "Start failed for #{app}"
                         else
-                            log.info "#{app} sucessfully started"
+                            log.info "#{app} sucessfully started."
         else
             path = "api/applications/#{app}/stop"
             homeClient.post path, {}, (err, res, body) ->
@@ -525,9 +531,9 @@ program
                     path = "api/applications/#{app}/start"
                     homeClient.post path, {}, (err, res, body) ->
                         if err
-                            handleError err, body, "Start failed"
+                            handleError err, body, "Start failed for #{app}."
                         else
-                            log.info "#{app} sucessfully started"
+                            log.info "#{app} was sucessfully started."
 
 
 program
@@ -543,16 +549,16 @@ program
             client.stop manifest, (err, res, body) ->
                 client.start manifest, (err, res, body)  ->
                     if err or body.error?
-                        handleError err, body, "Start failed"
+                        handleError err, body, "Start failed for #{name}."
                     else
                         client.brunch manifest, =>
-                            log.info "#{name} successfully started"
+                            log.info "#{name} was successfully started."
                             callback null
 
         restartApp 'data-system', () =>
             restartApp 'home', () =>
                 restartApp 'proxy', () =>
-                    log.info 'Cozy stack successfully restarted'
+                    log.info 'Cozy stack successfully restarted.'
 
 
 # Brunch
@@ -561,14 +567,16 @@ program
     .command("brunch <app>")
     .description("Build brunch client for given application.")
     .action (app) ->
-        log.info "Brunch build #{app}..."
+
+        log.info "Brunch building #{app}..."
         manifest.name = app
         manifest.repository.url =
             "https ://github.com/cozy/cozy-#{app}.git"
         manifest.user = app
+
         client.brunch manifest, (err, res, body) ->
             if err or body.error?
-                handleError err, body, "Brunch build failed"
+                handleError err, body, "Brunch build failed."
             else
                 log.info "#{app} client successfully built."
 
@@ -581,7 +589,8 @@ program
         "Update application (git + npm) and restart it. Option repo " +
         "is usefull only if app comes from a specific repo")
     .action (app, repo) ->
-        log.info "Update #{app}..."
+
+        log.info "Updating #{app}..."
         if app in ['data-system', 'home', 'proxy']
             manifest.name = app
             if repo?
@@ -592,9 +601,9 @@ program
             manifest.user = app
             client.lightUpdate manifest, (err, res, body) ->
                 if err or body.error?
-                    handleError err, body, "Update failed"
+                    handleError err, body, "Update failed."
                 else
-                    log.info "#{app} successfully updated"
+                    log.info "#{app} was successfully updated."
         else
             find = false
             homeClient.get "api/applications/", (err, res, apps) ->
@@ -605,13 +614,13 @@ program
                             path = "api/applications/#{manifest.slug}/update"
                             homeClient.put path, manifest, (err, res, body) ->
                                 if err or body.error
-                                    handleError err, body, "Update failed"
+                                    handleError err, body, "Update failed."
                                 else
-                                    log.info "#{app} successfully updated"
+                                    log.info "#{app} was successfully updated"
                     if not find
-                        log.error "Update failed : application #{app} not found"
+                        log.error "Update failed: #{app} was not found."
                 else
-                    log.error "Update failed : no applications installed"
+                    log.error "Update failed: no application installed"
 
 
 program
@@ -624,13 +633,14 @@ program
                     "https://github.com/cozy/cozy-#{name}.git"
             manifest.name = name
             manifest.user = name
+
             log.info "Light update #{name}..."
             client.lightUpdate manifest, (err, res, body) ->
                 if err or body.error?
-                    handleError err, body, "Start failed"
+                    handleError err, body, "Light update failed."
                 else
                     client.brunch manifest, =>
-                        log.info "#{name} successfully updated"
+                        log.info "#{name} was successfully updated."
                         callback null
 
         lightUpdateApp 'data-system', () =>
@@ -816,9 +826,8 @@ program
             log.raw "Other applications: ".bold
             homeClient.host = homeUrl
             homeClient.get "api/applications/", (err, res, apps) ->
-                if apps? and apps.rows?
-                    for app in apps.rows
-                        log.raw "#{app.name}: #{app.version}"
+                if apps?.rows?
+                    log.raw "#{app.name}: #{app.version}" for app in apps.rows
 
 
 ## Monitoring ###
@@ -864,8 +873,8 @@ program
                     if err
                         handleError err, body, "Reset routes failed"
                     else
-                        log.info "route created"
-                        log.info "start your app with the following ENV"
+                        log.info "Route was successfully created."
+                        log.info "Start your app with the following ENV vars:"
                         log.info "NAME=#{slug} TOKEN=#{slug} PORT=#{port}"
                         log.info "Use dev-route:stop #{slug} to remove it."
 
@@ -877,29 +886,28 @@ program
         client.setBasicAuth 'home', token if token = getToken()
         appsQuery = 'request/application/all/'
 
+        stopRoute = (app) ->
+            isSlug = (app.key is slug or slug is 'all')
+            if isSlug and app.value.devRoute
+                client.del "data/#{app.id}/", (err, res, body) ->
+                    if err
+                        handleError err, body, "Unable to delete route."
+                    else
+                        log.info "Route deleted."
+                        client.host = proxyUrl
+                        client.get 'routes/reset', (err, res, body) ->
+                            if err
+                                msg = "Stop reseting proxy routes."
+                                handleError err, body, msg
+                            else
+                                log.info "Reseting proxy routes succeeded."
+
+
         client.post appsQuery, null, (err, res, apps) ->
             if err or not apps?
                 handleError err, apps, "Unable to retrieve apps data."
             else
-                for app in apps
-                    isSlug = (app.key is slug or slug is 'all')
-                    if isSlug and app.value.devRoute
-                        delQuery = "data/#{app.id}/"
-                        client.del delQuery, (err, res, body) ->
-                            if err
-                                handleError(
-                                    err, body, "Unable to delete route.")
-                            else
-                                log.info "Route deleted"
-                                client.host = proxyUrl
-                                client.get 'routes/reset', (err, res, body) ->
-                                    if err
-                                        handleError err, body, \
-                                            "Reset routes failed"
-                                    else
-                                        log.info "Proxy routes reset"
-                        return
-
+                apps.forEach stopRoute
             console.log "There is no dev route with this slug"
 
 
@@ -982,25 +990,24 @@ program
     .action (app, type, environment) ->
         path = "/usr/local/var/log/cozy/#{app}.log"
 
-        if not fs.existsSync(path)
+        if not fs.existsSync path
             log.error "Log file doesn't exist (#{path})."
+
+        else if type is "cat"
+            log.raw fs.readFileSync path, 'utf8'
+
+        else if type is "tail"
+            tail = spawn "tail", ["-f", path]
+
+            tail.stdout.setEncoding 'utf8'
+            tail.stdout.on 'data', (data) =>
+                log.raw data
+
+            tail.on 'close', (code) =>
+                log.info "ps process exited with code #{code}"
+
         else
-
-            if type is "cat"
-                log.raw fs.readFileSync path, 'utf8'
-
-            else if type is "tail"
-                tail = spawn "tail", ["-f", path]
-
-                tail.stdout.setEncoding 'utf8'
-                tail.stdout.on 'data', (data) =>
-                    log.raw data
-
-                tail.on 'close', (code) =>
-                    log.info "ps process exited with code #{code}"
-
-            else
-                log.info "<type> should be 'cat' or 'tail'"
+            log.info "<type> should be 'cat' or 'tail'"
 
 
 ## Database ##
@@ -1010,20 +1017,16 @@ program
     .description("Start couchdb compaction")
     .action (database) ->
         database ?= "cozy"
+        configureCouchClient()
 
         log.info "Start couchdb compaction on #{database} ..."
-        getAuthCouchdb (err, username, password) ->
-            if err
-                process.exit 1
+        couchClient.post "#{database}/_compact", {}, (err, res, body) ->
+            if err or not body.ok
+                handleError err, body, "Compaction failed."
             else
-                couchClient.setBasicAuth username, password
-                couchClient.post "#{database}/_compact", {}, (err, res, body) ->
-                    if err or not body.ok
-                        handleError err, body, "Compaction failed."
-                    else
-                        waitCompactComplete couchClient, false, (success) =>
-                            log.info "#{database} compaction succeeded"
-                            process.exit 0
+                waitCompactComplete couchClient, false, (success) =>
+                    log.info "#{database} compaction succeeded"
+                    process.exit 0
 
 
 program
@@ -1035,8 +1038,7 @@ program
         log.info "Start vews compaction on #{database} for #{view} ..."
         compactViews database, view, (err) =>
             if not err
-                log.info "#{database} compaction for #{view}" +
-                            " succeeded"
+                log.info "#{database} compaction for #{view} succeeded"
                 process.exit 0
 
 
@@ -1045,30 +1047,26 @@ program
     .description("Start couchdb compaction")
     .action (database) ->
         database ?= "cozy"
+        configureCouchClient()
 
         log.info "Start vews compaction on #{database} ..."
-        getAuthCouchdb (err, username, password) ->
+        path = "#{database}/_all_docs?startkey=\"_design/\"&endkey=" +
+            "\"_design0\"&include_docs=true"
+
+        couchClient.get path, (err, res, body) =>
             if err
-                process.exit 1
+                handleError err, body, "Views compaction failed. " +
+                    "Cannot recover all design documents"
             else
-                couchClient.setBasicAuth username, password
-                path = "#{database}/_all_docs?startkey=\"_design/\"&endkey=" +
-                    "\"_design0\"&include_docs=true"
+                designs = []
+                body.rows.forEach (design) ->
+                    designId = design.id
+                    designDoc = designId.substring 8, designId.length
+                    designs.push designDoc
 
-                couchClient.get path, (err, res, body) =>
-                    if err
-                        handleError err, body, "Views compaction failed. " +
-                            "Cannot recover all design documents"
-                    else
-                        designs = []
-                        body.rows.forEach (design) ->
-                            designId = design.id
-                            designDoc = designId.substring 8, designId.length
-                            designs.push designDoc
-
-                        compactAllViews database, designs, (err) =>
-                            if not err
-                                log.info "Views are successfully compacted"
+                compactAllViews database, designs, (err) =>
+                    if not err
+                        log.info "Views are successfully compacted"
 
 
 program
@@ -1078,18 +1076,13 @@ program
         database ?= "cozy"
 
         log.info "Start couchdb cleanup on #{database}..."
-        getAuthCouchdb (err, username, password) ->
-            if err
-                process.exit 1
+        configureCouchClient()
+        couchClient.post "#{database}/_view_cleanup", {}, (err, res, body) ->
+            if err or not body.ok
+                handleError err, body, "Cleanup failed."
             else
-                couchClient.setBasicAuth username, password
-                path = "#{database}/_view_cleanup"
-                couchClient.post path, {}, (err, res, body) ->
-                    if err or not body.ok
-                        handleError err, body, "Cleanup failed."
-                    else
-                        log.info "#{database} cleanup succeeded"
-                        process.exit 0
+                log.info "#{database} cleanup succeeded"
+                process.exit 0
 
 ## Backup ##
 
@@ -1101,17 +1094,13 @@ program
             source: "cozy"
             target: target
 
-        getAuthCouchdb (err, username, password) ->
-            if err
-                process.exit 1
+        configureCouchClient()
+        couchClient.post "_replicate", data, (err, res, body) ->
+            if err or not body.og
+                handleError err, body, "Backup failed."
             else
-                couchClient.setBasicAuth username, password
-                couchClient.post "_replicate", data, (err, res, body) ->
-                    if err or not body.og
-                        handleError err, body, "Backup failed."
-                    else
-                        log.info "Backup succeeded"
-                        process.exit 0
+                log.info "Backup succeeded"
+                process.exit 0
 
 
 program
@@ -1120,42 +1109,41 @@ program
     .action (backup, usernameBackup, passwordBackup) ->
         log.info "Reverse backup..."
 
-        getAuthCouchdb (err, username, password) ->
-            if err
-                process.exit 1
-            else
-                prepareCozyDatabase username, password, ->
-                    toBase64 = (str) ->
-                        new Buffer(str).toString('base64')
 
-                    # Initialize creadentials for backup
-                    credentials = "#{usernameBackup}:#{passwordBackup}"
-                    basicCredentials = toBase64 credentials
-                    authBackup = "Basic #{basicCredentials}"
+        [username, password] = getAuthCouchdb()
 
-                    # Initialize creadentials for cozy database
-                    credentials = "#{username}:#{password}"
-                    basicCredentials = toBase64 credentials
-                    authCozy = "Basic #{basicCredentials}"
+        prepareCozyDatabase username, password, ->
+            toBase64 = (str) ->
+                new Buffer(str).toString('base64')
 
-                    # Initialize data for replication
-                    data =
-                        source:
-                            url: backup
-                            headers:
-                                Authorization: authBackup
-                        target:
-                            url: "#{couchUrl}cozy"
-                            headers:
-                                Authorization: authCozy
+            # Initialize creadentials for backup
+            credentials = "#{usernameBackup}:#{passwordBackup}"
+            basicCredentials = toBase64 credentials
+            authBackup = "Basic #{basicCredentials}"
 
-                    # Database replication
-                    couchClient.post "_replicate", data, (err, res, body) ->
-                        if err or not body.ok
-                            handleError err, body, "Backup failed."
-                        else
-                            log.info "Reverse backup succeeded"
-                            process.exit 0
+            # Initialize creadentials for cozy database
+            credentials = "#{username}:#{password}"
+            basicCredentials = toBase64 credentials
+            authCozy = "Basic #{basicCredentials}"
+
+            # Initialize data for replication
+            data =
+                source:
+                    url: backup
+                    headers:
+                        Authorization: authBackup
+                target:
+                    url: "#{couchUrl}cozy"
+                    headers:
+                        Authorization: authCozy
+
+            # Database replication
+            couchClient.post "_replicate", data, (err, res, body) ->
+                if err or not body.ok
+                    handleError err, body, "Backup failed."
+                else
+                    log.info "Reverse backup succeeded"
+                    process.exit 0
 
 ## Others ##
 

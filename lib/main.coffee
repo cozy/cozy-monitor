@@ -802,6 +802,7 @@ program
     .command("versions")
     .description("Display applications versions")
     .action () ->
+        log.raw ''
         log.raw 'Cozy Stack:'.bold
         getVersion "controller"
         getVersion "data-system"

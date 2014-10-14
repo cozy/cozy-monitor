@@ -200,16 +200,16 @@ getVersion = (name) =>
         path = "#{appsPath}/#{name}/#{name}/cozy-#{name}/package.json"
     if fs.existsSync path
         data = fs.readFileSync path, 'utf8'
-        data = JSON.parse(data)
-        log.info "#{name}: #{data.version}"
+        data = JSON.parse data
+        log.raw "#{name}: #{data.version}"
     else
         path = "#{appsPath}/#{name}/cozy-#{name}/package.json"
         if fs.existsSync path
             data = fs.readFileSync path, 'utf8'
-            data = JSON.parse(data)
-            log.info "#{name}: #{data.version}"
+            data = JSON.parse data
+            log.raw "#{name}: #{data.version}"
         else
-            log.info "#{name}: unknown"
+            log.raw "#{name}: unknown"
 
 
 getVersionIndexer = (callback) =>
@@ -787,11 +787,11 @@ program
     .command("versions-stack")
     .description("Display stack applications versions")
     .action () ->
-        log.raw('Cozy Stack:'.bold)
-        getVersion("controller")
-        getVersion("data-system")
-        getVersion("home")
-        getVersion('proxy')
+        log.info 'Cozy Stack:'.bold
+        getVersion "controller"
+        getVersion "data-system"
+        getVersion "home"
+        getVersion 'proxy'
         getVersionIndexer (indexerVersion) =>
             log.raw "indexer: #{indexerVersion}"
             log.raw "monitor: #{version}"
@@ -801,15 +801,16 @@ program
     .command("versions")
     .description("Display applications versions")
     .action () ->
-        log.raw('Cozy Stack:'.bold)
-        getVersion("controller")
-        getVersion("data-system")
-        getVersion("home")
-        getVersion('proxy')
+        log.info 'Cozy Stack:'.bold
+        getVersion "controller"
+        getVersion "data-system"
+        getVersion "home"
+        getVersion 'proxy'
         getVersionIndexer (indexerVersion) =>
             log.raw "indexer: #{indexerVersion}"
             log.raw "monitor: #{version}"
-            log.raw("Other applications: ".bold)
+            log.raw ''
+            log.info "Other applications: ".bold
             homeClient.host = homeUrl
             homeClient.get "api/applications/", (err, res, apps) ->
                 if apps? and apps.rows?

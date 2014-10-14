@@ -787,7 +787,8 @@ program
     .command("versions-stack")
     .description("Display stack applications versions")
     .action () ->
-        log.info 'Cozy Stack:'.bold
+        log.raw ''
+        log.raw 'Cozy Stack:'.bold
         getVersion "controller"
         getVersion "data-system"
         getVersion "home"
@@ -801,7 +802,7 @@ program
     .command("versions")
     .description("Display applications versions")
     .action () ->
-        log.info 'Cozy Stack:'.bold
+        log.raw 'Cozy Stack:'.bold
         getVersion "controller"
         getVersion "data-system"
         getVersion "home"
@@ -810,7 +811,7 @@ program
             log.raw "indexer: #{indexerVersion}"
             log.raw "monitor: #{version}"
             log.raw ''
-            log.info "Other applications: ".bold
+            log.raw "Other applications: ".bold
             homeClient.host = homeUrl
             homeClient.get "api/applications/", (err, res, apps) ->
                 if apps? and apps.rows?

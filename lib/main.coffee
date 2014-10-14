@@ -111,7 +111,7 @@ compactViews = (database, designDoc, callback) ->
 compactAllViews = (database, designs, callback) ->
     if designs.length > 0
         design = designs.pop()
-        console.log("views compaction for #{design}")
+        log.info "Views compaction for #{design}"
         compactViews database, design, (err) =>
             compactAllViews database, designs, callback
     else
@@ -243,6 +243,7 @@ program
 ## Applications management ##
 
 # Install
+#
 program
     .command("install <app> ")
     .description("Install application")
@@ -296,6 +297,7 @@ program
                         else
                             handleError null, null, "Install home failed"
 
+
 program
     .command("install-cozy-stack")
     .description("Install cozy via the Cozy Controller")
@@ -320,6 +322,7 @@ program
                 installApp 'proxy', () =>
                     log.info 'Cozy stack successfully installed'
 
+
 # Uninstall
 program
     .command("uninstall <app>")
@@ -342,6 +345,7 @@ program
                 else
                     log.info "#{app} successfully uninstalled"
 
+
 program
     .command("uninstall-all")
     .description("Uninstall all apps from controller")
@@ -354,7 +358,9 @@ program
             else
                 log.info "All apps successfully uinstalled"
 
+
 # Start
+
 program
     .command("start <app>")
     .description("Start application")
@@ -390,7 +396,9 @@ program
                 else
                     log.error "Start failed : no applications installed"
 
+
 # Stop
+
 program
     .command("stop <app>")
     .description("Stop application")
@@ -461,6 +469,7 @@ program
                         else
                             log.info "Reset proxy succeeded."
 
+
 program
     .command('autostop-all')
     .description("Put all applications in autostop mode" +
@@ -480,6 +489,7 @@ program
                                    log.raw err
 
 # Restart
+
 program
     .command("restart <app>")
     .description("Restart application")
@@ -515,6 +525,7 @@ program
                         else
                             log.info "#{app} sucessfully started"
 
+
 program
     .command("restart-cozy-stack")
     .description("Restart cozy trough controller")
@@ -539,7 +550,9 @@ program
                 restartApp 'proxy', () =>
                     log.info 'Cozy stack successfully restarted'
 
+
 # Brunch
+
 program
     .command("brunch <app>")
     .description("Build brunch client for given application.")
@@ -555,7 +568,9 @@ program
             else
                 log.info "#{app} client successfully built."
 
+
 # Update
+
 program
     .command("update <app> [repo]")
     .description(
@@ -594,6 +609,7 @@ program
                 else
                     log.error "Update failed : no applications installed"
 
+
 program
     .command("update-cozy-stack")
     .description(
@@ -617,6 +633,7 @@ program
             lightUpdateApp 'home', () =>
                 lightUpdateApp 'proxy', () =>
                     log.info 'Cozy stack successfully updated'
+
 
 program
     .command("update-all")
@@ -758,7 +775,10 @@ program
                         else
                             log.info "Reset proxy succeeded."
 
+
 # Versions
+
+
 program
     .command("versions-stack")
     .description("Display stack applications versions")
@@ -771,6 +791,7 @@ program
         getVersionIndexer (indexerVersion) =>
             log.raw "indexer: #{indexerVersion}"
             log.raw "monitor: #{version}"
+
 
 program
     .command("versions")
@@ -792,8 +813,8 @@ program
                         log.raw "#{app.name}: #{app.version}"
 
 
-
 ## Monitoring ###
+
 
 program
     .command("dev-route:start <slug> <port>")
@@ -1007,6 +1028,7 @@ program
                             " succeeded"
                 process.exit 0
 
+
 program
     .command("compact-all-views [database]")
     .description("Start couchdb compaction")
@@ -1162,5 +1184,6 @@ program
     .action ->
         log.error 'Unknown command, run "cozy-monitor --help"' + \
                     ' to know the list of available commands.'
+
 
 program.parse process.argv

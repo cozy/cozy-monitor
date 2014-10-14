@@ -29,6 +29,7 @@ postfixUrl = "http://localhost:25/"
 
 homeClient = request.newClient homeUrl
 statusClient = request.newClient ''
+couchClient = request.newClient couchUrl
 appsPath = '/usr/local/cozy/apps'
 
 
@@ -980,11 +981,14 @@ program
     .description("Display application log with cat or tail -f")
     .action (app, type, environment) ->
         path = "/usr/local/var/log/cozy/#{app}.log"
+
         if not fs.existsSync(path)
-            log.error "Log file doesn't exist"
+            log.error "Log file doesn't exist (#{path})."
         else
+
             if type is "cat"
                 log.raw fs.readFileSync path, 'utf8'
+
             else if type is "tail"
                 tail = spawn "tail", ["-f", path]
 
@@ -994,6 +998,7 @@ program
 
                 tail.on 'close', (code) =>
                     log.info "ps process exited with code #{code}"
+
             else
                 log.info "<type> should be 'cat' or 'tail'"
 
@@ -1004,22 +1009,19 @@ program
     .command("compact [database]")
     .description("Start couchdb compaction")
     .action (database) ->
-        if not database?
-            database = "cozy"
+        database ?= "cozy"
+
         log.info "Start couchdb compaction on #{database} ..."
-        client = request.newClient couchUrl
         getAuthCouchdb (err, username, password) ->
             if err
                 process.exit 1
             else
-                client.setBasicAuth username, password
-                client.post "#{database}/_compact", {}, (err, res, body) ->
-                    if err
-                        handleError err, body, "Compaction failed."
-                    else if not body.ok
+                couchClient.setBasicAuth username, password
+                couchClient.post "#{database}/_compact", {}, (err, res, body) ->
+                    if err or not body.ok
                         handleError err, body, "Compaction failed."
                     else
-                        waitCompactComplete client, false, (success) =>
+                        waitCompactComplete couchClient, false, (success) =>
                             log.info "#{database} compaction succeeded"
                             process.exit 0
 
@@ -1028,8 +1030,8 @@ program
     .command("compact-views <view> [database]")
     .description("Start couchdb compaction")
     .action (view, database) ->
-        if not database?
-            database = "cozy"
+        database ?= "cozy"
+
         log.info "Start vews compaction on #{database} for #{view} ..."
         compactViews database, view, (err) =>
             if not err
@@ -1042,27 +1044,28 @@ program
     .command("compact-all-views [database]")
     .description("Start couchdb compaction")
     .action (database) ->
-        if not database?
-            database = "cozy"
+        database ?= "cozy"
+
         log.info "Start vews compaction on #{database} ..."
-        client = request.newClient couchUrl
         getAuthCouchdb (err, username, password) ->
             if err
                 process.exit 1
             else
-                client.setBasicAuth username, password
+                couchClient.setBasicAuth username, password
                 path = "#{database}/_all_docs?startkey=\"_design/\"&endkey=" +
                     "\"_design0\"&include_docs=true"
-                client.get path, (err, res, body) =>
+
+                couchClient.get path, (err, res, body) =>
                     if err
                         handleError err, body, "Views compaction failed. " +
                             "Cannot recover all design documents"
                     else
                         designs = []
-                        (body.rows).forEach (design) ->
+                        body.rows.forEach (design) ->
                             designId = design.id
                             designDoc = designId.substring 8, designId.length
                             designs.push designDoc
+
                         compactAllViews database, designs, (err) =>
                             if not err
                                 log.info "Views are successfully compacted"
@@ -1072,20 +1075,17 @@ program
     .command("cleanup [database]")
     .description("Start couchdb cleanup")
     .action (database) ->
-        if not database?
-            database = "cozy"
-        log.info "Start couchdb cleanup on #{database} ..."
-        client = request.newClient couchUrl
+        database ?= "cozy"
+
+        log.info "Start couchdb cleanup on #{database}..."
         getAuthCouchdb (err, username, password) ->
             if err
                 process.exit 1
             else
-                client.setBasicAuth username, password
+                couchClient.setBasicAuth username, password
                 path = "#{database}/_view_cleanup"
-                client.post path, {}, (err, res, body) ->
-                    if err
-                        handleError err, body, "Cleanup failed."
-                    else if not body.ok
+                couchClient.post path, {}, (err, res, body) ->
+                    if err or not body.ok
                         handleError err, body, "Cleanup failed."
                     else
                         log.info "#{database} cleanup succeeded"
@@ -1097,19 +1097,17 @@ program
     .command("backup <target>")
     .description("Start couchdb replication to the target")
     .action (target) ->
-        client = request.newClient couchUrl
         data =
             source: "cozy"
             target: target
+
         getAuthCouchdb (err, username, password) ->
             if err
                 process.exit 1
             else
-                client.setBasicAuth username, password
-                client.post "_replicate", data, (err, res, body) ->
-                    if err
-                        handleError err, body, "Backup failed."
-                    else if not body.ok
+                couchClient.setBasicAuth username, password
+                couchClient.post "_replicate", data, (err, res, body) ->
+                    if err or not body.og
                         handleError err, body, "Backup failed."
                     else
                         log.info "Backup succeeded"
@@ -1121,12 +1119,12 @@ program
     .description("Start couchdb replication from target to cozy")
     .action (backup, usernameBackup, passwordBackup) ->
         log.info "Reverse backup..."
-        client = request.newClient couchUrl
+
         getAuthCouchdb (err, username, password) ->
             if err
                 process.exit 1
             else
-                prepareCozyDatabase username, password, () ->
+                prepareCozyDatabase username, password, ->
                     toBase64 = (str) ->
                         new Buffer(str).toString('base64')
 
@@ -1134,10 +1132,12 @@ program
                     credentials = "#{usernameBackup}:#{passwordBackup}"
                     basicCredentials = toBase64 credentials
                     authBackup = "Basic #{basicCredentials}"
+
                     # Initialize creadentials for cozy database
                     credentials = "#{username}:#{password}"
                     basicCredentials = toBase64 credentials
                     authCozy = "Basic #{basicCredentials}"
+
                     # Initialize data for replication
                     data =
                         source:
@@ -1148,34 +1148,16 @@ program
                             url: "#{couchUrl}cozy"
                             headers:
                                 Authorization: authCozy
+
                     # Database replication
-                    client.post "_replicate", data, (err, res, body) ->
-                        if err
+                    couchClient.post "_replicate", data, (err, res, body) ->
+                        if err or not body.ok
                             handleError err, body, "Backup failed."
-                        else if not body.ok
-                           handleError err, body, "Backup failed."
                         else
                             log.info "Reverse backup succeeded"
                             process.exit 0
 
 ## Others ##
-
-program
-    .command("script <app> <script> [argument]")
-    .description("Launch script that comes with given application")
-    .action (app, script, argument) ->
-        argument ?= ''
-
-        log.info "Run script #{script} for #{app}..."
-        path = "/usr/local/cozy/apps/#{app}/"
-        exec "cd #{path}; compound database #{script} #{argument}", \
-                     (err, stdout, stderr) ->
-            log.info stdout
-            if err
-                handleError err, stdout, "Script execution failed"
-            else
-                log.info "Command successfully applied."
-
 
 program
     .command("reset-proxy")

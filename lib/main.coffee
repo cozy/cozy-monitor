@@ -284,9 +284,12 @@ program
             path = "api/applications/install"
             homeClient.post path, manifest, (err, res, body) ->
                 if err or body.error
-                    if body?.message? and body.message.indexOf('Not Found') isnt -1
-                        err = "Default git repo #{manifest.git} doesn't exist." +
-                            " You can use option -r to use a specific repo"
+                    isIndexOf = body.message.indexOf('Not Found')
+                    if body?.message? and  isIndexOf isnt -1
+                        err = """
+Default git repo #{manifest.git} doesn't exist.
+You can use option -r to use a specific repo.
+"""
                         handleError err, null, "Install home failed"
                     else
                         handleError err, body, "Install home failed"
@@ -512,7 +515,8 @@ program
                         else
                             log.info "#{app} sucessfully started"
         else
-            homeClient.post "api/applications/#{app}/stop", {}, (err, res, body) ->
+            path = "api/applications/#{app}/stop"
+            homeClient.post path, {}, (err, res, body) ->
                 if err or body.error?
                     handleError err, body, "Stop failed"
                 else
@@ -574,8 +578,8 @@ program
 program
     .command("update <app> [repo]")
     .description(
-        "Update application (git + npm) and restart it. Option repo is usefull " +
-            "only if home, proxy or data-system comes from specific repo")
+        "Update application (git + npm) and restart it. Option repo " +
+        "is usefull only if app comes from a specific repo")
     .action (app, repo) ->
         log.info "Update #{app}..."
         if app in ['data-system', 'home', 'proxy']
@@ -681,7 +685,8 @@ program
                     callback()
 
         endUpdate = (app, callback) ->
-            homeClient.get "api/applications/byid/#{app.id}", (err, res, app) ->
+            path = "api/applications/byid/#{app.id}"
+            homeClient.get path, (err, res, app) ->
                 if app.state is "installed"
                     log.info " * New status: " + "started".bold
                 else
@@ -874,11 +879,13 @@ program
                 handleError err, apps, "Unable to retrieve apps data."
             else
                 for app in apps
-                    if (app.key is slug or slug is 'all') and app.value.devRoute
+                    isSlug = (app.key is slug or slug is 'all')
+                    if isSlug and app.value.devRoute
                         delQuery = "data/#{app.id}/"
                         client.del delQuery, (err, res, body) ->
                             if err
-                                handleError err, body, "Unable to delete route."
+                                handleError(
+                                    err, body, "Unable to delete route.")
                             else
                                 log.info "Route deleted"
                                 client.host = proxyUrl
@@ -1072,7 +1079,8 @@ program
                 process.exit 1
             else
                 client.setBasicAuth username, password
-                client.post "#{database}/_view_cleanup", {}, (err, res, body) ->
+                path = "#{database}/_view_cleanup"
+                client.post path, {}, (err, res, body) ->
                     if err
                         handleError err, body, "Cleanup failed."
                     else if not body.ok
@@ -1117,13 +1125,16 @@ program
                 process.exit 1
             else
                 prepareCozyDatabase username, password, () ->
+                    toBase64 = (str) ->
+                        new Buffer(str).toString('base64')
+
                     # Initialize creadentials for backup
                     credentials = "#{usernameBackup}:#{passwordBackup}"
-                    basicCredentials = new Buffer(credentials).toString('base64')
+                    basicCredentials = toBase64 credentials
                     authBackup = "Basic #{basicCredentials}"
                     # Initialize creadentials for cozy database
                     credentials = "#{username}:#{password}"
-                    basicCredentials = new Buffer(credentials).toString('base64')
+                    basicCredentials = toBase64 credentials
                     authCozy = "Basic #{basicCredentials}"
                     # Initialize data for replication
                     data =
@@ -1140,7 +1151,7 @@ program
                         if err
                             handleError err, body, "Backup failed."
                         else if not body.ok
-                            handleError err, body, "Backup failed."
+                           handleError err, body, "Backup failed."
                         else
                             log.info "Reverse backup succeeded"
                             process.exit 0

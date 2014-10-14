@@ -76,17 +76,17 @@ Cannot read database credentials in /etc/cozy/couchdb.login
 
 handleError = (err, body, msg) ->
     log.error "An error occured:"
-    console.log err if err
-    console.log msg
+    log.raw err if err
+    log.raw msg
     if body?
         if body.msg?
-           console.log body.msg
-        else if body.error?.message?
-            console.log body.error.message
-            console.log body.error.result
-            console.log body.error.code
-            console.log body.error.blame
-        else console.log body
+            log.raw body.msg
+        else if body.error?
+            log.raw body.error.message if body.error.message?
+            log.raw body.error.result if body.error.result?
+            log.raw "Request error code #{body.error.code}" if body.error.code?
+            log.raw body.error.blame if body.error.blame?
+        else log.raw body
     process.exit 1
 
 

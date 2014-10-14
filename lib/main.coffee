@@ -203,7 +203,7 @@ getVersion = (name) =>
         data = JSON.parse data
         log.raw "#{name}: #{data.version}"
     else
-        path = "#{appsPath}/#{name}/cozy-#{name}/package.json"
+        path = "#{appsPath}/cozy-#{name}/package.json"
         if fs.existsSync path
             data = fs.readFileSync path, 'utf8'
             data = JSON.parse data

@@ -272,7 +272,7 @@ program
             path = "api/applications/install"
             homeClient.post path, manifest, (err, res, body) ->
                 if err or body.error
-                    if body.message? and body.message.indexOf('Not Found') isnt -1
+                    if body?.message? and body.message.indexOf('Not Found') isnt -1
                         err = "Default git repo #{manifest.git} doesn't exist." +
                             " You can use option -r to use a specific repo"
                         handleError err, null, "Install home failed"
@@ -920,13 +920,10 @@ program
 
 
 program
-    .command("log <app> <type> [environment]")
+    .command("log <app> <type>")
     .description("Display application log with cat or tail -f")
     .action (app, type, environment) ->
-        env = "production"
-        if environment?
-            env = environment
-        path = "#{appsPath}/#{app}/#{app}/cozy-#{app}/log/#{env}.log"
+        path = "/usr/local/var/log/cozy/#{app}.log"
         if not fs.existsSync(path)
             console.log "Log file doesn't exist"
         else
@@ -1109,7 +1106,7 @@ program
         argument ?= ''
 
         console.log "Run script #{script} for #{app}..."
-        path = "/usr/local/cozy/apps/#{app}/#{app}/cozy-#{app}/"
+        path = "/usr/local/cozy/apps/#{app}/"
         exec "cd #{path}; compound database #{script} #{argument}", \
                      (err, stdout, stderr) ->
             console.log stdout
@@ -1131,28 +1128,6 @@ program
                 handleError err, body, "Reset routes failed"
             else
                 console.log "Reset proxy succeeded."
-
-
-program
-    .command("display-logs <app>")
-    .description("Show logs for given app.")
-    .action (app) ->
-        console.log "Displaying logs for #{app}:"
-        require 'shelljs/global'
-        path =  "/usr/local/var/log/cozy/#{app}.log"
-        console.log cat path
-
-
-program
-    .command("tail-logs <app>")
-    .description("Show logs for given app (works only with cozy apps).")
-    .action (app) ->
-        console.log "Tailing logs for #{app}:"
-        Tail = require 'always-tail'
-        path = "/usr/local/var/log/cozy/#{app}.log"
-        tail = new Tail path, '\n'
-        tail.on "line", (data) ->
-            console.log data
 
 
 program

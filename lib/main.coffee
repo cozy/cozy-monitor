@@ -487,15 +487,14 @@ program
         unStoppable = ['pfm', 'emails', 'feeds', 'nirc', 'sync', 'konnectors']
         homeClient.host = homeUrl
         homeClient.get "api/applications/", (err, res, apps) ->
-            if apps? and apps.rows?
+            if apps?.rows?
                 for app in apps.rows
-                    if not(app.name in unStoppable)
-                        if not app.isStoppable
-                            app.isStoppable = true
-                            homeClient.put "api/applications/byid/#{app.id}",
-                                app, (err, res) ->
-                                   log.error app.name
-                                   log.raw err
+                    if not(app.name in unStoppable) and not app.isStoppable
+                        app.isStoppable = true
+                        homeClient.put "api/applications/byid/#{app.id}",
+                            app, (err, res) ->
+                               log.error app.name
+                               log.raw err
 
 # Restart
 

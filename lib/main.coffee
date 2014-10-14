@@ -12,7 +12,6 @@ axon = require 'axon'
 exec = require('child_process').exec
 spawn = require('child_process').spawn
 log = require('printit')
-    prefix: 'cozy-monitor'
 
 request = require("request-json-light")
 ControllerClient = require("cozy-clients").ControllerClient

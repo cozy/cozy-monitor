@@ -11,7 +11,7 @@ fs = require "fs"
 axon = require 'axon'
 exec = require('child_process').exec
 spawn = require('child_process').spawn
-log = require('printit')
+log = require('printit')()
 
 request = require("request-json-light")
 ControllerClient = require("cozy-clients").ControllerClient
@@ -1195,5 +1195,8 @@ program
         log.error 'Unknown command, run "cozy-monitor --help"' + \
                     ' to know the list of available commands.'
 
-
 program.parse process.argv
+
+unless process.argv.slice(2).length
+    program.outputHelp()
+

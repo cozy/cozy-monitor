@@ -8,12 +8,14 @@ require "colors"
 program = require 'commander'
 async = require "async"
 fs = require "fs"
+axon = require 'axon'
 exec = require('child_process').exec
 spawn = require('child_process').spawn
+log = require('printit')
+    prefix: 'cozy-monitor'
 
 request = require("request-json-light")
 ControllerClient = require("cozy-clients").ControllerClient
-axon = require 'axon'
 
 pkg = require '../package.json'
 version = pkg.version
@@ -34,14 +36,19 @@ appsPath = '/usr/local/cozy/apps'
 
 ## Helpers
 
+
 readToken = (file) ->
     try
         token = fs.readFileSync file, 'utf8'
         token = token.split('\n')[0]
         return token
     catch err
-        console.log("Are you sure, you are root ?")
+        log.info """
+Cannot get Cozy credentials. Are you sure you have the rights to access to:
+/etc/cozy/stack.token ?
+"""
         return null
+
 
 getToken = ->
     # New controller
@@ -58,7 +65,9 @@ getToken = ->
 getAuthCouchdb = (callback) ->
     fs.readFile '/etc/cozy/couchdb.login', 'utf8', (err, data) =>
         if err
-            console.log "Cannot read login in /etc/cozy/couchdb.login"
+            log.error """
+Cannot read database credentials in /etc/cozy/couchdb.login
+"""
             callback err
         else
             username = data.split('\n')[0]
@@ -67,13 +76,13 @@ getAuthCouchdb = (callback) ->
 
 
 handleError = (err, body, msg) ->
+    log.error "An error occured:"
     console.log err if err
     console.log msg
     if body?
         if body.msg?
            console.log body.msg
         else if body.error?.message?
-            console.log "An error occured."
             console.log body.error.message
             console.log body.error.result
             console.log body.error.code
@@ -193,15 +202,15 @@ getVersion = (name) =>
     if fs.existsSync path
         data = fs.readFileSync path, 'utf8'
         data = JSON.parse(data)
-        console.log "#{name}: #{data.version}"
+        log.info "#{name}: #{data.version}"
     else
         path = "#{appsPath}/#{name}/cozy-#{name}/package.json"
         if fs.existsSync path
             data = fs.readFileSync path, 'utf8'
             data = JSON.parse(data)
-            console.log "#{name}: #{data.version}"
+            log.info "#{name}: #{data.version}"
         else
-            console.log("#{name}: unknown")
+            log.info "#{name}: unknown"
 
 
 getVersionIndexer = (callback) =>
@@ -247,7 +256,7 @@ program
         else
             manifest.displayName = app
         manifest.user = app
-        console.log "Install started for #{app}..."
+        log.info "Install started for #{app}..."
         if app in ['data-system', 'home', 'proxy']
             unless options.repo?
                 manifest.repository.url =
@@ -262,7 +271,7 @@ program
                         handleError err, body, "Install failed"
                     else
                         client.brunch manifest, =>
-                            console.log "#{app} successfully installed"
+                            log.info "#{app} successfully installed"
         else
             unless options.repo?
                 manifest.git =
@@ -283,7 +292,7 @@ program
                 else
                     waitInstallComplete body.app.slug, (err, appresult) ->
                         if not err? and appresult.state is "installed"
-                            console.log "#{app} successfully installed"
+                            log.info "#{app} successfully installed"
                         else
                             handleError null, null, "Install home failed"
 
@@ -296,27 +305,27 @@ program
                     "https://github.com/cozy/cozy-#{name}.git"
             manifest.name = name
             manifest.user = name
-            console.log "Install started for #{name}..."
+            log.info "Install started for #{name}..."
             client.clean manifest, (err, res, body) ->
                 client.start manifest, (err, res, body)  ->
                     if err or body.error?
                         handleError err, body, "Install failed"
                     else
                         client.brunch manifest, =>
-                            console.log "#{name} successfully installed"
+                            log.info "#{name} successfully installed"
                             callback null
 
         installApp 'data-system', () =>
             installApp 'home', () =>
                 installApp 'proxy', () =>
-                    console.log 'Cozy stack successfully installed'
+                    log.info 'Cozy stack successfully installed'
 
 # Uninstall
 program
     .command("uninstall <app>")
     .description("Remove application")
     .action (app) ->
-        console.log "Uninstall started for #{app}..."
+        log.info "Uninstall started for #{app}..."
         if app in ['data-system', 'home', 'proxy']
             manifest.name = app
             manifest.user = app
@@ -324,33 +333,33 @@ program
                 if err or body.error?
                     handleError err, body, "Uninstall failed"
                 else
-                    console.log "#{app} successfully uninstalled"
+                    log.info "#{app} successfully uninstalled"
         else
             path = "api/applications/#{app}/uninstall"
             homeClient.del path, (err, res, body) ->
                 if err or res.statusCode isnt 200
                     handleError err, body, "Uninstall home failed"
                 else
-                    console.log "#{app} successfully uninstalled"
+                    log.info "#{app} successfully uninstalled"
 
 program
     .command("uninstall-all")
     .description("Uninstall all apps from controller")
     .action (app) ->
-        console.log "Uninstall all apps..."
+        log.info "Uninstall all apps..."
 
         client.cleanAll (err, res, body) ->
             if err  or body.error?
                 handleError err, body, "Uninstall all failed"
             else
-                console.log "All apps successfully uinstalled"
+                log.info "All apps successfully uinstalled"
 
 # Start
 program
     .command("start <app>")
     .description("Start application")
     .action (app) ->
-        console.log "Starting #{app}..."
+        log.info "Starting #{app}..."
         if app in ['data-system', 'home', 'proxy']
             manifest.name = app
             manifest.repository.url =
@@ -361,7 +370,7 @@ program
                     if err or body.error?
                         handleError err, body, "Start failed"
                     else
-                        console.log "#{app} successfully started"
+                        log.info "#{app} successfully started"
         else
             find = false
             homeClient.host = homeUrl
@@ -375,18 +384,18 @@ program
                                 if err or body.error
                                     handleError err, body, "Start failed"
                                 else
-                                    console.log "#{app} successfully started"
+                                    log.info "#{app} successfully started"
                     if not find
-                        console.log "Start failed : application #{app} not found"
+                        log.error "Start failed : application #{app} not found"
                 else
-                    console.log "Start failed : no applications installed"
+                    log.error "Start failed : no applications installed"
 
 # Stop
 program
     .command("stop <app>")
     .description("Stop application")
     .action (app) ->
-        console.log "Stopping #{app}..."
+        log.info "Stopping #{app}..."
         if app in ['data-system', 'home', 'proxy']
             manifest.name = app
             manifest.user = app
@@ -394,7 +403,7 @@ program
                 if err or body.error?
                     handleError err, body, "Stop failed"
                 else
-                    console.log "#{app} successfully stopped"
+                    log.info "#{app} successfully stopped"
         else
             find = false
             homeClient.host = homeUrl
@@ -408,11 +417,11 @@ program
                                 if err or body.error
                                     handleError err, body, "Start failed"
                                 else
-                                    console.log "#{app} successfully stopped"
+                                    log.info "#{app} successfully stopped"
                     if not find
-                        console.log "Stop failed : application #{app} not found"
+                        log.error "Stop failed : application #{app} not found"
                 else
-                    console.log "Stop failed : no applications installed"
+                    log.error "Stop failed : no applications installed"
 
 
 program
@@ -422,11 +431,15 @@ program
 
         stopApp = (app) ->
             (callback) ->
-                console.log("\nStop " + app.name + "...")
+                log.info "\nStop #{app.name}..."
                 path = "api/applications/#{app.slug}/stop"
                 homeClient.post path, app, (err, res, body) ->
                     if err or body.error
-                        console.log(' * Error: ' + err)
+                        log.error "\nStopping #{app.name} failed."
+                        if err
+                            log.raw err
+                        else
+                            log.raw body.error
                     callback()
 
         homeClient.host = homeUrl
@@ -438,15 +451,15 @@ program
                     funcs.push func
 
                 async.series funcs, ->
-                    console.log "\nAll apps stopped."
-                    console.log "Reset proxy routes"
+                    log.info "\nAll apps stopped."
+                    log.info "Reset proxy routes"
 
                     statusClient.host = proxyUrl
                     statusClient.get "routes/reset", (err, res, body) ->
                         if err
                             handleError err, body, "Cannot reset routes."
                         else
-                            console.log "Reset proxy succeeded."
+                            log.info "Reset proxy succeeded."
 
 program
     .command('autostop-all')
@@ -463,21 +476,22 @@ program
                             app.isStoppable = true
                             homeClient.put "api/applications/byid/#{app.id}",
                                 app, (err, res) ->
-                                    console.log "Error : #{app.name} : #{err}"
+                                   log.error app.name
+                                   log.raw err
 
 # Restart
 program
     .command("restart <app>")
     .description("Restart application")
     .action (app) ->
-        console.log "Stopping #{app}..."
+        log.info "Stopping #{app}..."
         if app in ['data-system', 'home', 'proxy']
             client.stop app, (err, res, body) ->
                 if err or body.error?
                     handleError err, body, "Stop failed"
                 else
-                    console.log "#{app} successfully stopped"
-                    console.log "Starting #{app}..."
+                    log.info "#{app} successfully stopped"
+                    log.info "Starting #{app}..."
                     manifest.name = app
                     manifest.repository.url =
                         "https://github.com/cozy/cozy-#{app}.git"
@@ -486,20 +500,20 @@ program
                         if err
                             handleError err, body, "Start failed"
                         else
-                            console.log "#{app} sucessfully started"
+                            log.info "#{app} sucessfully started"
         else
             homeClient.post "api/applications/#{app}/stop", {}, (err, res, body) ->
                 if err or body.error?
                     handleError err, body, "Stop failed"
                 else
-                    console.log "#{app} successfully stopped"
-                    console.log "Starting #{app}..."
+                    log.info "#{app} successfully stopped"
+                    log.info "Starting #{app}..."
                     path = "api/applications/#{app}/start"
                     homeClient.post path, {}, (err, res, body) ->
                         if err
                             handleError err, body, "Start failed"
                         else
-                            console.log "#{app} sucessfully started"
+                            log.info "#{app} sucessfully started"
 
 program
     .command("restart-cozy-stack")
@@ -510,27 +524,27 @@ program
                     "https://github.com/cozy/cozy-#{name}.git"
             manifest.name = name
             manifest.user = name
-            console.log "Restart started for #{name}..."
+            log.info "Restart started for #{name}..."
             client.stop manifest, (err, res, body) ->
                 client.start manifest, (err, res, body)  ->
                     if err or body.error?
                         handleError err, body, "Start failed"
                     else
                         client.brunch manifest, =>
-                            console.log "#{name} successfully started"
+                            log.info "#{name} successfully started"
                             callback null
 
         restartApp 'data-system', () =>
             restartApp 'home', () =>
                 restartApp 'proxy', () =>
-                    console.log 'Cozy stack successfully restarted'
+                    log.info 'Cozy stack successfully restarted'
 
 # Brunch
 program
     .command("brunch <app>")
     .description("Build brunch client for given application.")
     .action (app) ->
-        console.log "Brunch build #{app}..."
+        log.info "Brunch build #{app}..."
         manifest.name = app
         manifest.repository.url =
             "https ://github.com/cozy/cozy-#{app}.git"
@@ -539,7 +553,7 @@ program
             if err or body.error?
                 handleError err, body, "Brunch build failed"
             else
-                console.log "#{app} client successfully built."
+                log.info "#{app} client successfully built."
 
 # Update
 program
@@ -548,7 +562,7 @@ program
         "Update application (git + npm) and restart it. Option repo is usefull " +
             "only if home, proxy or data-system comes from specific repo")
     .action (app, repo) ->
-        console.log "Update #{app}..."
+        log.info "Update #{app}..."
         if app in ['data-system', 'home', 'proxy']
             manifest.name = app
             if repo?
@@ -561,7 +575,7 @@ program
                 if err or body.error?
                     handleError err, body, "Update failed"
                 else
-                    console.log "#{app} successfully updated"
+                    log.info "#{app} successfully updated"
         else
             find = false
             homeClient.get "api/applications/", (err, res, apps) ->
@@ -574,11 +588,11 @@ program
                                 if err or body.error
                                     handleError err, body, "Update failed"
                                 else
-                                    console.log "#{app} successfully updated"
+                                    log.info "#{app} successfully updated"
                     if not find
-                        console.log "Update failed : application #{app} not found"
+                        log.error "Update failed : application #{app} not found"
                 else
-                    console.log "Update failed : no applications installed"
+                    log.error "Update failed : no applications installed"
 
 program
     .command("update-cozy-stack")
@@ -590,19 +604,19 @@ program
                     "https://github.com/cozy/cozy-#{name}.git"
             manifest.name = name
             manifest.user = name
-            console.log "Light update #{name}..."
+            log.info "Light update #{name}..."
             client.lightUpdate manifest, (err, res, body) ->
                 if err or body.error?
                     handleError err, body, "Start failed"
                 else
                     client.brunch manifest, =>
-                        console.log "#{name} successfully updated"
+                        log.info "#{name} successfully updated"
                         callback null
 
         lightUpdateApp 'data-system', () =>
             lightUpdateApp 'home', () =>
                 lightUpdateApp 'proxy', () =>
-                    console.log 'Cozy stack successfully updated'
+                    log.info 'Cozy stack successfully updated'
 
 program
     .command("update-all")
@@ -652,68 +666,78 @@ program
         endUpdate = (app, callback) ->
             homeClient.get "api/applications/byid/#{app.id}", (err, res, app) ->
                 if app.state is "installed"
-                    console.log(" * New status: " + "started".bold)
+                    log.info " * New status: " + "started".bold
                 else
-                    console.log(" * New status: " + app.state.bold)
-                console.log("..." + app.name + " updated")
+                    log.info " * New status: " + app.state.bold
+                log.info app.name + " updated"
                 callback()
 
         updateApp = (app) ->
             (callback) ->
-                console.log("\nStarting update " + app.name + "...")
+                log.info "\nStarting update #{app.name}..."
                 # When application is broken, try :
                 #   * remove application
                 #   * install application
                 #   * stop application
                 if app.state is 'broken'
-                    console.log(" * Old status: " + "broken".bold)
-                    console.log(" * Remove " + app.name)
+                    log.info " * Old status: " + "broken".bold
+
+                    log.info " * Remove #{app.name}"
                     removeApp app, (err) ->
                         if err
-                            console.log(' * Error: ' + err)
-                        console.log(" * Install " + app.name)
+                            log.error 'An error occured: '
+                            log.raw err
+
+                        log.info " * Install #{app.name}"
                         installApp app, (err) ->
                             if err
-                                console.log(' * Error: ' + err)
-                                endUpdate(app, callback)
+                                log.error 'An error occured:'
+                                log.raw err
+                                endUpdate app, callback
                             else
-                                console.log(" * Stop " + app.name)
+
+                                log.info " * Stop #{app.name}"
                                 stopApp app, (err) ->
                                     if err
-                                        console.log(' * Error: ' + err)
-                                    endUpdate(app, callback)
+                                        log.error 'An error occured:'
+                                        log.raw err
+                                    endUpdate app, callback
 
                 # When application is installed, try :
                 #   * update application
                 else if app.state is 'installed'
-                    console.log(" * Old status: " + "started".bold)
-                    console.log(" * Update " + app.name)
+                    log.info " * Old status: " + "started".bold
+                    log.info " * Update " + app.name
                     lightUpdateApp app, (err) ->
                         if err
-                            console.log(' * Error: ' + err)
-                        endUpdate(app, callback)
+                            log.error 'An error occured:'
+                            log.raw err
+                        endUpdate app, callback
 
                 # When application is stopped, try :
                 #   * start application
                 #   * update application
                 #   * stop application
                 else
-                    console.log(" * Old status: " + "stopped".bold)
-                    console.log(" * Start " + app.name)
+                    log.info " * Old status: " + "stopped".bold
+                    log.info " * Start " + app.name
                     startApp app, (err) ->
                         if err
-                            console.log(' * Error: ' + err)
-                            endUpdate(app, callback)
+                            log.error 'An error occured:'
+                            log.raw err
+                            endUpdate app, callback
                         else
-                            console.log(" * Update " + app.name)
+                            log.info " * Update " + app.name
                             lightUpdateApp app, (err) ->
                                 if err
-                                    console.log(' * Error: ' + err)
-                                console.log(" * Stop " + app.name)
+                                    log.error 'An error occured:'
+                                    log.raw err
+                                log.info " * Stop " + app.name
                                 stopApp app, (err) ->
                                     if err
-                                        console.log(' * Error: ' + err)
-                                    endUpdate(app, callback)
+                                        log.error 'An error occured:'
+                                        log.raw err
+                                    endUpdate app, callback
 
         homeClient.host = homeUrl
         homeClient.get "api/applications/", (err, res, apps) ->
@@ -724,48 +748,48 @@ program
                     funcs.push func
 
                 async.series funcs, ->
-                    console.log "\nAll apps reinstalled."
-                    console.log "Reset proxy routes"
+                    log.info "\nAll apps reinstalled."
+                    log.info "Reset proxy routes"
 
                     statusClient.host = proxyUrl
                     statusClient.get "routes/reset", (err, res, body) ->
                         if err
                             handleError err, body, "Cannot reset routes."
                         else
-                            console.log "Reset proxy succeeded."
+                            log.info "Reset proxy succeeded."
 
 # Versions
 program
     .command("versions-stack")
     .description("Display stack applications versions")
     .action () ->
-        console.log('Cozy Stack:'.bold)
+        log.raw('Cozy Stack:'.bold)
         getVersion("controller")
         getVersion("data-system")
         getVersion("home")
         getVersion('proxy')
         getVersionIndexer (indexerVersion) =>
-            console.log "indexer: #{indexerVersion}"
-            console.log "monitor: #{version}"
+            log.raw "indexer: #{indexerVersion}"
+            log.raw "monitor: #{version}"
 
 program
     .command("versions")
     .description("Display applications versions")
     .action () ->
-        console.log('Cozy Stack:'.bold)
+        log.raw('Cozy Stack:'.bold)
         getVersion("controller")
         getVersion("data-system")
         getVersion("home")
         getVersion('proxy')
         getVersionIndexer (indexerVersion) =>
-            console.log "indexer: #{indexerVersion}"
-            console.log "monitor: #{version}"
-            console.log("Other applications: ".bold)
+            log.raw "indexer: #{indexerVersion}"
+            log.raw "monitor: #{version}"
+            log.raw("Other applications: ".bold)
             homeClient.host = homeUrl
             homeClient.get "api/applications/", (err, res, apps) ->
                 if apps? and apps.rows?
                     for app in apps.rows
-                        console.log "#{app.name}: #{app.version}"
+                        log.raw "#{app.name}: #{app.version}"
 
 
 
@@ -781,9 +805,9 @@ program
         packagePath = process.cwd() + '/package.json'
         try
             packageData = JSON.parse(fs.readFileSync(packagePath, 'utf8'))
-        catch e
-            console.log "Run this command in the package.json directory"
-            console.log e
+        catch err
+            log.error "Run this command in the package.json directory"
+            log.raw err
             return
 
         perms = {}
@@ -811,10 +835,10 @@ program
                     if err
                         handleError err, body, "Reset routes failed"
                     else
-                        console.log "route created"
-                        console.log "start your app with the following ENV"
-                        console.log "NAME=#{slug} TOKEN=#{slug} PORT=#{port}"
-                        console.log "Use dev-route:stop #{slug} to remove it."
+                        log.info "route created"
+                        log.info "start your app with the following ENV"
+                        log.info "NAME=#{slug} TOKEN=#{slug} PORT=#{port}"
+                        log.info "Use dev-route:stop #{slug} to remove it."
 
 
 program
@@ -835,14 +859,14 @@ program
                             if err
                                 handleError err, body, "Unable to delete route."
                             else
-                                console.log "Route deleted"
+                                log.info "Route deleted"
                                 client.host = proxyUrl
                                 client.get 'routes/reset', (err, res, body) ->
                                     if err
                                         handleError err, body, \
                                             "Reset routes failed"
                                     else
-                                        console.log "Proxy routes reset"
+                                        log.info "Proxy routes reset"
                         return
 
             console.log "There is no dev route with this slug"
@@ -852,7 +876,7 @@ program
     .command("routes")
     .description("Display routes currently configured inside proxy.")
     .action ->
-        console.log "Display proxy routes..."
+        log.info "Display proxy routes..."
 
         statusClient.host = proxyUrl
         statusClient.get "routes", (err, res, routes) ->
@@ -861,7 +885,7 @@ program
                 handleError err, {}, "Cannot display routes."
             else if routes?
                 for route of routes
-                    console.log "#{route} => #{routes[route].port}"
+                    log.raw "#{route} => #{routes[route].port}"
 
 
 program
@@ -892,9 +916,9 @@ program
                 statusClient.get path, (err, res) ->
                     if (res? and not res.statusCode in [200,403]) or (err? and
                         err.code is 'ECONNREFUSED')
-                            console.log "#{app}: " + "down".red
+                            log.raw "#{app}: " + "down".red
                     else
-                        console.log "#{app}: " + "up".green
+                        log.raw "#{app}: " + "up".green
                     callback()
                 , false
 
@@ -913,7 +937,7 @@ program
                 if apps? and apps.rows?
                     for app in apps.rows
                         if app.state is 'stopped'
-                            console.log "#{app.name}: " + "stopped".grey
+                            log.raw "#{app.name}: " + "stopped".grey
                         else
                             url = "http://localhost:#{app.port}/"
                             func = checkApp app.name, url
@@ -927,21 +951,21 @@ program
     .action (app, type, environment) ->
         path = "/usr/local/var/log/cozy/#{app}.log"
         if not fs.existsSync(path)
-            console.log "Log file doesn't exist"
+            log.error "Log file doesn't exist"
         else
             if type is "cat"
-                console.log fs.readFileSync path, 'utf8'
+                log.raw fs.readFileSync path, 'utf8'
             else if type is "tail"
                 tail = spawn "tail", ["-f", path]
 
                 tail.stdout.setEncoding 'utf8'
                 tail.stdout.on 'data', (data) =>
-                    console.log data
+                    log.raw data
 
                 tail.on 'close', (code) =>
-                    console.log('ps process exited with code ' + code)
+                    log.info "ps process exited with code #{code}"
             else
-                console.log "<type> should be 'cat' or 'tail'"
+                log.info "<type> should be 'cat' or 'tail'"
 
 
 ## Database ##
@@ -952,7 +976,7 @@ program
     .action (database) ->
         if not database?
             database = "cozy"
-        console.log "Start couchdb compaction on #{database} ..."
+        log.info "Start couchdb compaction on #{database} ..."
         client = request.newClient couchUrl
         getAuthCouchdb (err, username, password) ->
             if err
@@ -966,7 +990,7 @@ program
                         handleError err, body, "Compaction failed."
                     else
                         waitCompactComplete client, false, (success) =>
-                            console.log "#{database} compaction succeeded"
+                            log.info "#{database} compaction succeeded"
                             process.exit 0
 
 
@@ -976,10 +1000,10 @@ program
     .action (view, database) ->
         if not database?
             database = "cozy"
-        console.log "Start vews compaction on #{database} for #{view} ..."
+        log.info "Start vews compaction on #{database} for #{view} ..."
         compactViews database, view, (err) =>
             if not err
-                console.log "#{database} compaction for #{view}" +
+                log.info "#{database} compaction for #{view}" +
                             " succeeded"
                 process.exit 0
 
@@ -989,7 +1013,7 @@ program
     .action (database) ->
         if not database?
             database = "cozy"
-        console.log "Start vews compaction on #{database} ..."
+        log.info "Start vews compaction on #{database} ..."
         client = request.newClient couchUrl
         getAuthCouchdb (err, username, password) ->
             if err
@@ -1010,7 +1034,7 @@ program
                             designs.push designDoc
                         compactAllViews database, designs, (err) =>
                             if not err
-                                console.log "Views are successfully compacted"
+                                log.info "Views are successfully compacted"
 
 
 program
@@ -1019,7 +1043,7 @@ program
     .action (database) ->
         if not database?
             database = "cozy"
-        console.log "Start couchdb cleanup on #{database} ..."
+        log.info "Start couchdb cleanup on #{database} ..."
         client = request.newClient couchUrl
         getAuthCouchdb (err, username, password) ->
             if err
@@ -1032,7 +1056,7 @@ program
                     else if not body.ok
                         handleError err, body, "Cleanup failed."
                     else
-                        console.log "#{database} cleanup succeeded"
+                        log.info "#{database} cleanup succeeded"
                         process.exit 0
 
 ## Backup ##
@@ -1056,7 +1080,7 @@ program
                     else if not body.ok
                         handleError err, body, "Backup failed."
                     else
-                        console.log "Backup succeeded"
+                        log.info "Backup succeeded"
                         process.exit 0
 
 
@@ -1064,7 +1088,7 @@ program
     .command("reverse-backup <backup> <username> <password>")
     .description("Start couchdb replication from target to cozy")
     .action (backup, usernameBackup, passwordBackup) ->
-        console.log "Reverse backup ..."
+        log.info "Reverse backup..."
         client = request.newClient couchUrl
         getAuthCouchdb (err, username, password) ->
             if err
@@ -1096,7 +1120,7 @@ program
                         else if not body.ok
                             handleError err, body, "Backup failed."
                         else
-                            console.log "Reverse backup succeeded"
+                            log.info "Reverse backup succeeded"
                             process.exit 0
 
 ## Others ##
@@ -1107,36 +1131,36 @@ program
     .action (app, script, argument) ->
         argument ?= ''
 
-        console.log "Run script #{script} for #{app}..."
+        log.info "Run script #{script} for #{app}..."
         path = "/usr/local/cozy/apps/#{app}/"
         exec "cd #{path}; compound database #{script} #{argument}", \
                      (err, stdout, stderr) ->
-            console.log stdout
+            log.info stdout
             if err
                 handleError err, stdout, "Script execution failed"
             else
-                console.log "Command successfully applied."
+                log.info "Command successfully applied."
 
 
 program
     .command("reset-proxy")
     .description("Reset proxy routes list of applications given by home.")
     .action ->
-        console.log "Reset proxy routes"
+        log.info "Reset proxy routes"
 
         statusClient.host = proxyUrl
         statusClient.get "routes/reset", (err, res, body) ->
             if err
                 handleError err, body, "Reset routes failed"
             else
-                console.log "Reset proxy succeeded."
+                log.info "Reset proxy succeeded."
 
 
 program
     .command("*")
     .description("Display error message for an unknown command.")
     .action ->
-        console.log 'Unknown command, run "cozy-monitor --help"' + \
+        log.error 'Unknown command, run "cozy-monitor --help"' + \
                     ' to know the list of available commands.'
 
 program.parse process.argv

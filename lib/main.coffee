@@ -11,7 +11,7 @@ fs = require "fs"
 exec = require('child_process').exec
 spawn = require('child_process').spawn
 
-Client = require("request-json").JsonClient
+request = require("request-json-light")
 ControllerClient = require("cozy-clients").ControllerClient
 axon = require 'axon'
 
@@ -26,8 +26,8 @@ homeUrl = "http://localhost:9103/"
 proxyUrl = "http://localhost:9104/"
 postfixUrl = "http://localhost:25/"
 
-homeClient = new Client homeUrl
-statusClient = new Client ''
+homeClient = request.newClient homeUrl
+statusClient = request.newClient ''
 appsPath = '/usr/local/cozy/apps'
 
 
@@ -43,7 +43,7 @@ readToken = (file) ->
         console.log("Are you sure, you are root ?")
         return null
 
-getToken = () ->
+getToken = ->
     # New controller
     if fs.existsSync '/etc/cozy/stack.token'
         return readToken '/etc/cozy/stack.token'
@@ -83,7 +83,7 @@ handleError = (err, body, msg) ->
 
 
 compactViews = (database, designDoc, callback) ->
-    client = new Client couchUrl
+    client = request.newClient couchUrl
     getAuthCouchdb (err, username, password) ->
         if err
             process.exit 1
@@ -154,7 +154,7 @@ waitInstallComplete = (slug, callback) ->
         clearTimeout timeoutId
         socket.close()
 
-        dSclient = new Client dataSystemUrl
+        dSclient = request.newClient dataSystemUrl
         dSclient.setBasicAuth 'home', token if token = getToken()
         dSclient.get "data/#{id}/", (err, response, body) ->
             if response.statusCode is 401
@@ -203,8 +203,9 @@ getVersion = (name) =>
         else
             console.log("#{name}: unknown")
 
+
 getVersionIndexer = (callback) =>
-    client = new Client('http://localhost:9102')
+    client = request.newClient 'http://localhost:9102'
     client.get '', (err, res, body) =>
         if body? and body.split('v')[1]?
             callback  body.split('v')[1]
@@ -216,10 +217,11 @@ token = getToken()
 client = new ControllerClient
     token: token
 
+
 manifest =
    "domain": "localhost"
    "repository":
-       "type": "git",
+       "type": "git"
    "scripts":
        "start": "server.coffee"
 
@@ -448,7 +450,7 @@ program
 
 program
     .command('autostop-all')
-    .description("Put all applications in autostop mode" + 
+    .description("Put all applications in autostop mode" +
         "(except pfm, emails, feeds, nirc and konnectors)")
     .action ->
         unStoppable = ['pfm', 'emails', 'feeds', 'nirc', 'sync', 'konnectors']
@@ -459,7 +461,7 @@ program
                     if not(app.name in unStoppable)
                         if not app.isStoppable
                             app.isStoppable = true
-                            homeClient.put "api/applications/byid/#{app.id}", 
+                            homeClient.put "api/applications/byid/#{app.id}",
                                 app, (err, res) ->
                                     console.log "Error : #{app.name} : #{err}"
 
@@ -773,7 +775,7 @@ program
     .command("dev-route:start <slug> <port>")
     .description("Create a route so we can access it by the proxy. ")
     .action (slug, port) ->
-        client = new Client dataSystemUrl
+        client = request.newClient dataSystemUrl
         client.setBasicAuth 'home', token if token = getToken()
 
         packagePath = process.cwd() + '/package.json'
@@ -818,7 +820,7 @@ program
 program
     .command("dev-route:stop <slug>")
     .action (slug) ->
-        client = new Client dataSystemUrl
+        client = request.newClient dataSystemUrl
         client.setBasicAuth 'home', token if token = getToken()
         appsQuery = 'request/application/all/'
 
@@ -888,7 +890,7 @@ program
             (callback) ->
                 statusClient.host = host
                 statusClient.get path, (err, res) ->
-                    if (res? and not res.statusCode in [200,403]) or (err? and 
+                    if (res? and not res.statusCode in [200,403]) or (err? and
                         err.code is 'ECONNREFUSED')
                             console.log "#{app}: " + "down".red
                     else
@@ -951,7 +953,7 @@ program
         if not database?
             database = "cozy"
         console.log "Start couchdb compaction on #{database} ..."
-        client = new Client couchUrl
+        client = request.newClient couchUrl
         getAuthCouchdb (err, username, password) ->
             if err
                 process.exit 1
@@ -988,7 +990,7 @@ program
         if not database?
             database = "cozy"
         console.log "Start vews compaction on #{database} ..."
-        client = new Client couchUrl
+        client = request.newClient couchUrl
         getAuthCouchdb (err, username, password) ->
             if err
                 process.exit 1
@@ -1018,7 +1020,7 @@ program
         if not database?
             database = "cozy"
         console.log "Start couchdb cleanup on #{database} ..."
-        client = new Client couchUrl
+        client = request.newClient couchUrl
         getAuthCouchdb (err, username, password) ->
             if err
                 process.exit 1
@@ -1039,7 +1041,7 @@ program
     .command("backup <target>")
     .description("Start couchdb replication to the target")
     .action (target) ->
-        client = new Client couchUrl
+        client = request.newClient couchUrl
         data =
             source: "cozy"
             target: target
@@ -1063,7 +1065,7 @@ program
     .description("Start couchdb replication from target to cozy")
     .action (backup, usernameBackup, passwordBackup) ->
         console.log "Reverse backup ..."
-        client = new Client couchUrl
+        client = request.newClient couchUrl
         getAuthCouchdb (err, username, password) ->
             if err
                 process.exit 1

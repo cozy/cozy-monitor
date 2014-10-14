@@ -656,16 +656,20 @@ program
         startApp = (app, callback) ->
             path = "api/applications/#{app.slug}/start"
             homeClient.post path, app, (err, res, body) ->
-                if err or body.error
-                    callback(err)
+                if err
+                    callback err
+                else if body.error
+                    callback body.error
                 else
                     callback()
 
         removeApp = (app, callback) ->
             path = "api/applications/#{app.slug}/uninstall"
             homeClient.del path, (err, res, body) ->
-                if err or body.error
-                    callback(err)
+                if err
+                    callback err
+                else if body.error
+                    callback body.error
                 else
                     callback()
 
@@ -673,24 +677,30 @@ program
             path = "api/applications/install"
             homeClient.post path, app, (err, res, body) ->
                 waitInstallComplete app.slug, (err, appresult) ->
-                    if err or body.error
-                        callback(err)
+                    if err
+                        callback err
+                    else if body.error
+                        callback body.error
                     else
                         callback()
 
         stopApp = (app, callback) ->
             path = "api/applications/#{app.slug}/stop"
             homeClient.post path, app, (err, res, body) ->
-                if err or body.error
-                    callback(err)
+                if err
+                    callback err
+                else if body.error
+                    callback body.error
                 else
                     callback()
 
         lightUpdateApp = (app, callback) ->
             path = "api/applications/#{app.slug}/update"
             homeClient.put path, app, (err, res, body) ->
-                if err or body.error
-                    callback(err)
+                if err
+                    callback err
+                else if body.error
+                    callback body.error
                 else
                     callback()
 
@@ -776,7 +786,7 @@ program
             funcs = []
             if apps? and apps.rows?
                 for app in apps.rows
-                    func = updateApp(app)
+                    func = updateApp app
                     funcs.push func
 
                 async.series funcs, ->
@@ -786,9 +796,9 @@ program
                     statusClient.host = proxyUrl
                     statusClient.get "routes/reset", (err, res, body) ->
                         if err
-                            handleError err, body, "Cannot reset routes."
+                            handleError err, body, "Cannot reset proxy routes."
                         else
-                            log.info "Reset proxy succeeded."
+                            log.info "Resetting proxy routes succeeded."
 
 
 # Versions

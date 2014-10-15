@@ -99,11 +99,9 @@ compactViews = (database, designDoc, callback) ->
             couchClient.setBasicAuth username, password
             path = "#{database}/_compact/#{designDoc}"
             couchClient.post path, {}, (err, res, body) =>
-                if err
+                if err or not body.ok
                     handleError err, body, "compaction failed for #{designDoc}"
-                else if not body.ok
-                    handleError err, body, "compaction failed for #{designDoc}"
-                else
+                Else
                     callback null
 
 
@@ -219,7 +217,7 @@ getVersion = (name) =>
 
 
 getVersionIndexer = (callback) =>
-    client = request.newClient 'http://localhost:9102'
+    client = request.newClient indexerUrl
     client.get '', (err, res, body) =>
         if body? and body.split('v')[1]?
             callback  body.split('v')[1]
@@ -257,13 +255,17 @@ program
     .option('-d, --displayName <displayName>', 'Display specific name')
     .action (app, options) ->
         manifest.name = app
+
         if options.displayName?
             manifest.displayName = options.displayName
         else
             manifest.displayName = app
         manifest.user = app
+
         log.info "Install started for #{app}..."
+
         if app in ['data-system', 'home', 'proxy']
+
             unless options.repo?
                 manifest.repository.url =
                     "https://github.com/cozy/cozy-#{app}.git"
@@ -271,6 +273,7 @@ program
                 manifest.repository.url = options.repo
             if options.branch?
                 manifest.repository.branch = options.branch
+
             client.clean manifest, (err, res, body) ->
                 client.start manifest, (err, res, body)  ->
                     if err or body.error?
@@ -278,16 +281,22 @@ program
                     else
                         client.brunch manifest, =>
                             log.info "#{app} successfully installed"
+
         else
+
             unless options.repo?
                 manifest.git =
                     "https://github.com/cozy/cozy-#{app}.git"
+
             else
                 manifest.git = options.repo
+
             if options.branch?
                 manifest.branch = options.branch
+
             path = "api/applications/install"
             homeClient.post path, manifest, (err, res, body) ->
+
                 if err or body.error
                     isIndexOf = body.message.indexOf('Not Found')
                     if body?.message? and  isIndexOf isnt -1
@@ -298,6 +307,7 @@ You can use option -r to use a specific repo.
                         handleError err, null, "Install home failed for #{app}."
                     else
                         handleError err, body, "Install home failed for #{app}."
+
                 else
                     waitInstallComplete body.app.slug, (err, appresult) ->
                         if not err? and appresult.state is "installed"

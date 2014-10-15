@@ -101,7 +101,7 @@ compactViews = (database, designDoc, callback) ->
             couchClient.post path, {}, (err, res, body) =>
                 if err or not body.ok
                     handleError err, body, "compaction failed for #{designDoc}"
-                Else
+                else
                     callback null
 
 
@@ -279,8 +279,7 @@ program
                     if err or body.error?
                         handleError err, body, "Install failed"
                     else
-                        client.brunch manifest, =>
-                            log.info "#{app} successfully installed"
+                        log.info "#{app} successfully installed"
 
         else
 
@@ -293,10 +292,8 @@ program
 
             if options.branch?
                 manifest.branch = options.branch
-
             path = "api/applications/install"
             homeClient.post path, manifest, (err, res, body) ->
-
                 if err or body.error
                     isIndexOf = body.message.indexOf('Not Found')
                     if body?.message? and  isIndexOf isnt -1
@@ -310,7 +307,7 @@ You can use option -r to use a specific repo.
 
                 else
                     waitInstallComplete body.app.slug, (err, appresult) ->
-                        if not err? and appresult.state is "installed"
+                        if not err? and appresult.state in ['installed', 'installing']
                             log.info "#{app} was successfully installed."
                         else
                             handleError null, null, "Install home failed"
@@ -332,9 +329,8 @@ program
                     if err or body.error?
                         handleError err, body, "Install failed for #{name}."
                     else
-                        client.brunch manifest, =>
-                            log.info "#{name} was successfully installed."
-                            callback null
+                        log.info "#{name} was successfully installed."
+                        callback null
 
         installApp 'data-system', () =>
             installApp 'home', () =>
@@ -363,19 +359,6 @@ program
                     handleError err, body, "Uninstall home failed for #{app}."
                 else
                     log.info "#{app} was successfully uninstalled."
-
-
-program
-    .command("uninstall-all")
-    .description("Uninstall all apps from controller")
-    .action (app) ->
-        log.info "Uninstall all apps..."
-
-        client.cleanAll (err, res, body) ->
-            if err  or body.error?
-                handleError err, body, "Uninstall all failed"
-            else
-                log.info "All apps successfully uinstalled"
 
 
 # Start
@@ -463,7 +446,7 @@ program
                 homeClient.post path, app, (err, res, body) ->
                     if err or body.error
                         log.error "\nStopping #{app.name} failed."
-                        if er
+                        if err
                             log.raw err
                         else
                             log.raw body.error
@@ -555,39 +538,18 @@ program
             manifest.name = name
             manifest.user = name
             log.info "Restart started for #{name}..."
-            client.stop manifest, (err, res, body) ->
+            client.stop name, (err, res, body) ->
                 client.start manifest, (err, res, body)  ->
                     if err or body.error?
                         handleError err, body, "Start failed for #{name}."
                     else
-                        client.brunch manifest, =>
-                            log.info "#{name} was successfully started."
-                            callback null
+                        log.info "#{name} was successfully started."
+                        callback null
 
         restartApp 'data-system', () =>
             restartApp 'home', () =>
                 restartApp 'proxy', () =>
                     log.info 'Cozy stack successfully restarted.'
-
-
-# Brunch
-
-program
-    .command("brunch <app>")
-    .description("Build brunch client for given application.")
-    .action (app) ->
-
-        log.info "Brunch building #{app}..."
-        manifest.name = app
-        manifest.repository.url =
-            "https ://github.com/cozy/cozy-#{app}.git"
-        manifest.user = app
-
-        client.brunch manifest, (err, res, body) ->
-            if err or body.error?
-                handleError err, body, "Brunch build failed."
-            else
-                log.info "#{app} client successfully built."
 
 
 # Update
@@ -648,9 +610,8 @@ program
                 if err or body.error?
                     handleError err, body, "Light update failed."
                 else
-                    client.brunch manifest, =>
-                        log.info "#{name} was successfully updated."
-                        callback null
+                    log.info "#{name} was successfully updated."
+                    callback null
 
         lightUpdateApp 'data-system', () =>
             lightUpdateApp 'home', () =>

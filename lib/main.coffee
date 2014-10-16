@@ -151,9 +151,7 @@ waitInstallComplete = (slug, callback) ->
         statusClient.host = homeUrl
         statusClient.get "api/applications/", (err, res, apps) ->
             return unless apps?.rows?
-            console.log apps
             for app in apps.rows
-                console.log slug, app.slug, app.state, app.port
                 if app.slug is slug and app.state is 'installed' and app.port
                     statusClient.host = "http://localhost:#{app.port}/"
                     statusClient.get "", (err, res) ->

@@ -11,6 +11,7 @@ fs = require "fs"
 axon = require 'axon'
 exec = require('child_process').exec
 spawn = require('child_process').spawn
+path = require('path')
 log = require('printit')()
 
 request = require("request-json-light")
@@ -30,12 +31,17 @@ postfixUrl = "http://localhost:25/"
 homeClient = request.newClient homeUrl
 statusClient = request.newClient ''
 couchClient = request.newClient couchUrl
+dsClient = request.newClient dataSystemUrl
 appsPath = '/usr/local/cozy/apps'
 
 
 
 ## Helpers
 
+randomString = (length=32) ->
+    string = ""
+    string += Math.random().toString(36).substr(2) while string.length < length
+    string.substr 0, length
 
 readToken = (file) ->
     try
@@ -145,18 +151,18 @@ waitInstallComplete = (slug, callback) ->
         statusClient.host = homeUrl
         statusClient.get "api/applications/", (err, res, apps) ->
             return unless apps?.rows?
-
+            console.log apps
             for app in apps.rows
                 console.log slug, app.slug, app.state, app.port
                 if app.slug is slug and app.state is 'installed' and app.port
                     statusClient.host = "http://localhost:#{app.port}/"
                     statusClient.get "", (err, res) ->
+                        console.log res.statusCode
                         if res?.statusCode in [200, 403]
                             callback null, state: 'installed'
                         else
                             handleError null, null, "Install home failed"
                     return
-
             handleError null, null, "Install home failed"
 
     , 240000
@@ -397,6 +403,97 @@ program
                         log.error "Start failed : application #{app} not found."
                 else
                     log.error "Start failed : no applications installed."
+
+
+## Start applicationn without controller in a production environment.
+# * Add/Replace application in database (for home and proxy)
+# * Reset proxy
+# * Start application with environment variable
+# * When application is stopped : remove application in database and reset proxy
+program
+    .command("start-standalone")
+    .description("Start application without controller")
+    .action () ->
+        id = 0
+        process.on 'SIGINT', () ->
+            log.info "Remove application from database ..."
+            dsClient.del "data/#{id}/", (err, response, body) =>
+                statusClient.host = proxyUrl
+                statusClient.get "routes/reset", (err, res, body) ->
+                    if err
+                        handleError err, body, "Cannot reset routes."
+                    else
+                        log.info "Reset proxy succeeded."
+
+        removeApp = (apps, name, callback) ->
+            if apps.length > 0
+                app = apps.pop().value
+                if app.name is name
+                    dsClient.del "data/#{app.id}", (err, response, body) =>
+                        removeApp apps, name, callback
+                else
+                    removeApp apps, name, callback
+            else
+                callback()
+
+        log.info "Starting application..."
+        # Recover application manifest
+        unless fs.existsSync 'package.json'
+            log.error "Cannot read package.json. " +
+                "This function should be called in root application  folder"
+            return
+        try
+            path = path.relative __dirname, 'package.json'
+            manifest = require path
+        catch
+            log.error "Package.json isn't in a correct format"
+            return
+        manifest.permissions = manifest['cozy-permissions']
+        manifest.displayName = manifest['cozy-displayName']
+        manifest.password = randomString()
+        manifest.docType = "Application"
+        manifest.slug = manifest.name.replace 'cozy-', ''
+        if manifest.slug in ['home', 'proxy', 'data-system']
+            log.error 'Sorry, cannot start stack application without controller.'
+        else
+            # Add/Replace application in database
+            token = getToken()
+            unless token?
+                return
+            dsClient.setBasicAuth 'home', token
+            path = "request/application/all/"
+            dsClient.post path, {}, (err, response, apps) =>
+                if err
+                    log.error "Data-system doesn't respond"
+                    return
+                removeApp apps, manifest.name, () ->
+                    dsClient.post "data/", manifest, (err, response, body) =>
+                        id = body._id
+                        if err
+                            msg = "Cannot add application in database"
+                            handleError err, body, msg
+                            return
+                        # Reset proxy
+                        statusClient.host = proxyUrl
+                        statusClient.get "routes/reset", (err, res, body) ->
+                            if err
+                                handleError err, body, "Cannot reset routes."
+                            else
+                                # Add environment varaible.
+                                log.info "Reset proxy succeeded."
+                                process.env.TOKEN = manifest.password
+                                process.env.NAME = manifest.slug
+                                process.env.NODE_ENV = "production"
+
+                                # Start application
+                                server = spawn "npm",  ["start"]
+                                server.stdout.setEncoding 'utf8'
+                                server.stdout.on 'data', (data) =>
+                                    console.log data
+                                server.on 'error', (err) =>
+                                    console.log err
+                                server.on 'close', (code) =>
+                                    log.info "Process exited with code #{code}"
 
 
 # Stop

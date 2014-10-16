@@ -152,10 +152,10 @@ waitInstallComplete = (slug, callback) ->
         statusClient.get "api/applications/", (err, res, apps) ->
             return unless apps?.rows?
             for app in apps.rows
+                console.log slug, app.slug, app.state, app.port
                 if app.slug is slug and app.state is 'installed' and app.port
                     statusClient.host = "http://localhost:#{app.port}/"
                     statusClient.get "", (err, res) ->
-                        console.log res.statusCode
                         if res?.statusCode in [200, 403]
                             callback null, state: 'installed'
                         else

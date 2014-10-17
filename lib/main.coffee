@@ -443,7 +443,8 @@ program
         try
             path = path.relative __dirname, 'package.json'
             manifest = require path
-        catch
+        catch err
+            log.raw err
             log.error "Package.json isn't in a correct format"
             return
         manifest.permissions = manifest['cozy-permissions']

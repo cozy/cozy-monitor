@@ -449,7 +449,7 @@ program
             return
         manifest.name = manifest.name + "-test"
         manifest.permissions = manifest['cozy-permissions']
-        manifest.displayName = manifest['cozy-displayName']
+        manifest.displayName = manifest['cozy-displayName'] or manifest.name
         manifest.state = "installed"
         manifest.password = randomString()
         manifest.docType = "Application"

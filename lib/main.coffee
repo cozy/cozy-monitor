@@ -409,9 +409,9 @@ program
 # * Start application with environment variable
 # * When application is stopped : remove application in database and reset proxy
 program
-    .command("start-standalone")
+    .command("start-standalone <port>")
     .description("Start application without controller")
-    .action () ->
+    .action (port) ->
         id = 0
         process.on 'SIGINT', () ->
             log.info "Remove application from database ..."
@@ -447,12 +447,15 @@ program
             log.raw err
             log.error "Package.json isn't in a correct format"
             return
+        manifest.name = manifest.name + "-test"
         manifest.permissions = manifest['cozy-permissions']
-        manifest.displayName = manifest['cozy-displayName']
+        manifest.displayName = manifest['cozy-displayName'] or manifest.name
+        manifest.state = "installed"
         manifest.password = randomString()
         manifest.docType = "Application"
+        manifest.port = port
         manifest.slug = manifest.name.replace 'cozy-', ''
-        if manifest.slug in ['home', 'proxy', 'data-system']
+        if manifest.slug in ['home-test', 'proxy-test', 'data-system-test']
             log.error 'Sorry, cannot start stack application without controller.'
         else
             # Add/Replace application in database

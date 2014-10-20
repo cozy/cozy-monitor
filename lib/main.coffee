@@ -492,6 +492,10 @@ program
                                 server.stdout.setEncoding 'utf8'
                                 server.stdout.on 'data', (data) =>
                                     console.log data
+
+                                server.stderr.setEncoding 'utf8'
+                                server.stderr.on 'data', (data) =>
+                                    console.log data
                                 server.on 'error', (err) =>
                                     console.log err
                                 server.on 'close', (code) =>

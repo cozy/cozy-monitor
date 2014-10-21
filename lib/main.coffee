@@ -90,6 +90,7 @@ handleError = (err, body, msg) ->
             log.raw body.msg
         else if body.error?
             log.raw body.error.message if body.error.message?
+            log.raw body.message if body.message?
             log.raw body.error.result if body.error.result?
             log.raw "Request error code #{body.error.code}" if body.error.code?
             log.raw body.error.blame if body.error.blame?
@@ -303,8 +304,7 @@ program
                     if body?.message? and  isIndexOf isnt -1
                         err = """
 Default git repo #{manifest.git} doesn't exist.
-You can use option -r to use a specific repo.
-"""
+You can use option -r to use a specific repo."""
                         handleError err, null, "Install home failed for #{app}."
                     else
                         handleError err, body, "Install home failed for #{app}."
@@ -526,6 +526,8 @@ program
                         find = true
                         path = "api/applications/#{manifest.slug}/stop"
                         homeClient.post path, manifest, (err, res, body) ->
+                            console.log err
+                            console.log body
                             if err or body.error
                                 msg = "Stop failed for #{app}."
                                 handleError err, body, msg
@@ -702,7 +704,7 @@ program
     .description(
         "Update application (git + npm) and restart it through controller")
     .action () ->
-        lightUpdateApp = (name, callback) ->
+        updateApp = (name, callback) ->
             manifest.repository.url =
                     "https://github.com/cozy/cozy-#{name}.git"
             manifest.name = name
@@ -716,10 +718,54 @@ program
                     log.info "#{name} was successfully updated."
                     callback null
 
-        lightUpdateApp 'data-system', () =>
-            lightUpdateApp 'home', () =>
-                lightUpdateApp 'proxy', () =>
+        updateApp 'data-system', () =>
+            updateApp 'home', () =>
+                updateApp 'proxy', () =>
                     log.info 'Cozy stack successfully updated'
+
+program
+    .command("update-all-cozy-stack [token]")
+    .description(
+        "Update all cozy stack application (DS + proxy + home + controller)")
+    .action (token) ->
+        updateController = (callback) ->
+            log.info "Update controller ..."
+            exec "npm -g update cozy-controller", (err, stdout) ->
+                if err
+                    handleError err, null, "Light update failed."
+                else
+                    log.info "Controller was successfully updated."
+                    callback null
+        restartController = (callback) ->
+            log.info "Restart controller ..."
+            exec "supervisorctl restart cozy-controller", (err, stdout) ->
+                if err
+                    handleError err, null, "Light update failed."
+                else
+                    log.info "Controller was successfully restarted."
+                    callback null
+        updateApp = (name, callback) ->
+            manifest.repository.url =
+                    "https://github.com/cozy/cozy-#{name}.git"
+            manifest.name = name
+            manifest.user = name
+
+            log.info "Update #{name}..."
+            client.lightUpdate manifest, (err, res, body) ->
+                if err or body.error?
+                    handleError err, body, "Light update failed."
+                else
+                    log.info "#{name} was successfully updated."
+                    callback null
+        if token
+            client = new ControllerClient
+                token: token
+        updateController ->
+            updateApp 'data-system', ->
+                updateApp 'home', ->
+                    updateApp 'proxy', ->
+                        restartController ->
+                            log.info 'Cozy stack successfully updated'
 
 
 program

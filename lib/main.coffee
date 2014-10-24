@@ -90,9 +90,11 @@ handleError = (err, body, msg) ->
             log.raw body.msg
         else if body.error?
             log.raw body.error.message if body.error.message?
+            log.raw body.message if body.message?
             log.raw body.error.result if body.error.result?
             log.raw "Request error code #{body.error.code}" if body.error.code?
             log.raw body.error.blame if body.error.blame?
+            log.raw body.error if typeof body.error is String
         else log.raw body
     process.exit 1
 
@@ -303,8 +305,7 @@ program
                     if body?.message? and  isIndexOf isnt -1
                         err = """
 Default git repo #{manifest.git} doesn't exist.
-You can use option -r to use a specific repo.
-"""
+You can use option -r to use a specific repo."""
                         handleError err, null, "Install home failed for #{app}."
                     else
                         handleError err, body, "Install home failed for #{app}."
@@ -413,7 +414,9 @@ program
     .description("Start application without controller")
     .action (port) ->
         id = 0
-        process.on 'SIGINT', () ->
+
+        # Remove from database when process exit.
+        removeFromDatabase = ->
             log.info "Remove application from database ..."
             dsClient.del "data/#{id}/", (err, response, body) =>
                 statusClient.host = proxyUrl
@@ -422,32 +425,40 @@ program
                         handleError err, body, "Cannot reset routes."
                     else
                         log.info "Reset proxy succeeded."
+        process.on 'SIGINT', ->
+            removeFromDatabase()
+        process.on 'uncaughtException', (err) ->
+            log.error 'uncaughtException'
+            log.raw err
+            removeFromDatabase()
+
 
         removeApp = (apps, name, callback) ->
             if apps.length > 0
                 app = apps.pop().value
                 if app.name is name
-                    dsClient.del "data/#{app.id}", (err, response, body) =>
+                    dsClient.del "data/#{app._id}/", (err, response, body) =>
                         removeApp apps, name, callback
                 else
                     removeApp apps, name, callback
             else
                 callback()
 
-        log.info "Starting application..."
+        log.info "Retrieve application manifest..."
         # Recover application manifest
         unless fs.existsSync 'package.json'
             log.error "Cannot read package.json. " +
                 "This function should be called in root application  folder"
             return
         try
-            path = path.relative __dirname, 'package.json'
-            manifest = require path
+            packagePath = path.relative __dirname, 'package.json'
+            manifest = require packagePath
         catch err
             log.raw err
             log.error "Package.json isn't in a correct format"
             return
-        manifest.name = manifest.name + "-test"
+        # Retrieve manifest from package.json
+        manifest.name = manifest.name + "test"
         manifest.permissions = manifest['cozy-permissions']
         manifest.displayName = manifest['cozy-displayName'] or manifest.name
         manifest.state = "installed"
@@ -455,16 +466,17 @@ program
         manifest.docType = "Application"
         manifest.port = port
         manifest.slug = manifest.name.replace 'cozy-', ''
-        if manifest.slug in ['home-test', 'proxy-test', 'data-system-test']
+        if manifest.slug in ['hometest', 'proxytest', 'data-systemtest']
             log.error 'Sorry, cannot start stack application without controller.'
         else
             # Add/Replace application in database
+            log.info "Add/replace application in database ..."
             token = getToken()
             unless token?
                 return
             dsClient.setBasicAuth 'home', token
-            path = "request/application/all/"
-            dsClient.post path, {}, (err, response, apps) =>
+            requestPath = "request/application/all/"
+            dsClient.post requestPath, {}, (err, response, apps) =>
                 if err
                     log.error "Data-system doesn't respond"
                     return
@@ -476,13 +488,14 @@ program
                             handleError err, body, msg
                             return
                         # Reset proxy
+                        log.info "Reset proxy ..."
                         statusClient.host = proxyUrl
                         statusClient.get "routes/reset", (err, res, body) ->
                             if err
                                 handleError err, body, "Cannot reset routes."
                             else
                                 # Add environment varaible.
-                                log.info "Reset proxy succeeded."
+                                log.info "Start application ..."
                                 process.env.TOKEN = manifest.password
                                 process.env.NAME = manifest.slug
                                 process.env.NODE_ENV = "production"
@@ -491,16 +504,73 @@ program
                                 server = spawn "npm",  ["start"]
                                 server.stdout.setEncoding 'utf8'
                                 server.stdout.on 'data', (data) =>
-                                    console.log data
+                                    log.raw data
 
                                 server.stderr.setEncoding 'utf8'
                                 server.stderr.on 'data', (data) =>
-                                    console.log data
+                                    log.raw data
                                 server.on 'error', (err) =>
-                                    console.log err
+                                    log.raw err
                                 server.on 'close', (code) =>
                                     log.info "Process exited with code #{code}"
 
+
+## Stop applicationn without controller in a production environment.
+# * Remove application in database and reset proxy
+# * Usefull if start-standalone doesn't remove app
+program
+    .command("stop-standalone")
+    .description("Start application without controller")
+    .action () ->
+        removeApp = (apps, name, callback) ->
+            if apps.length > 0
+                app = apps.pop().value
+                if app.name is name
+                    dsClient.del "data/#{app._id}/", (err, response, body) =>
+                        removeApp apps, name, callback
+                else
+                    removeApp apps, name, callback
+            else
+                callback()
+
+        log.info "Retrieve application manifest ..."
+        # Recover application manifest
+        unless fs.existsSync 'package.json'
+            log.error "Cannot read package.json. " +
+                "This function should be called in root application  folder"
+            return
+        try
+            packagePath = path.relative __dirname, 'package.json'
+            manifest = require packagePath
+        catch err
+            log.raw err
+            log.error "Package.json isn't in a correct format"
+            return
+        # Retrieve manifest from package.json
+        manifest.name = manifest.name + "test"
+        manifest.slug = manifest.name.replace 'cozy-', ''
+        if manifest.slug in ['hometest', 'proxytest', 'data-systemtest']
+            log.error 'Sorry, cannot start stack application without controller.'
+        else
+            # Add/Replace application in database
+            token = getToken()
+            unless token?
+                return
+            log.info "Remove from database ..."
+            dsClient.setBasicAuth 'home', token
+            requestPath = "request/application/all/"
+            dsClient.post requestPath, {}, (err, response, apps) =>
+                if err
+                    log.error "Data-system doesn't respond"
+                    return
+                removeApp apps, manifest.name, () ->
+                    log.info "Reset proxy ..."
+                    statusClient.host = proxyUrl
+                    statusClient.get "routes/reset", (err, res, body) ->
+                        if err
+                            handleError err, body, "Cannot reset routes."
+                        else
+                            log.info "Stop standalone finished with success"
 
 # Stop
 
@@ -702,7 +772,7 @@ program
     .description(
         "Update application (git + npm) and restart it through controller")
     .action () ->
-        lightUpdateApp = (name, callback) ->
+        updateApp = (name, callback) ->
             manifest.repository.url =
                     "https://github.com/cozy/cozy-#{name}.git"
             manifest.name = name
@@ -716,10 +786,54 @@ program
                     log.info "#{name} was successfully updated."
                     callback null
 
-        lightUpdateApp 'data-system', () =>
-            lightUpdateApp 'home', () =>
-                lightUpdateApp 'proxy', () =>
+        updateApp 'data-system', () =>
+            updateApp 'home', () =>
+                updateApp 'proxy', () =>
                     log.info 'Cozy stack successfully updated'
+
+program
+    .command("update-all-cozy-stack [token]")
+    .description(
+        "Update all cozy stack application (DS + proxy + home + controller)")
+    .action (token) ->
+        updateController = (callback) ->
+            log.info "Update controller ..."
+            exec "npm -g update cozy-controller", (err, stdout) ->
+                if err
+                    handleError err, null, "Light update failed."
+                else
+                    log.info "Controller was successfully updated."
+                    callback null
+        restartController = (callback) ->
+            log.info "Restart controller ..."
+            exec "supervisorctl restart cozy-controller", (err, stdout) ->
+                if err
+                    handleError err, null, "Light update failed."
+                else
+                    log.info "Controller was successfully restarted."
+                    callback null
+        updateApp = (name, callback) ->
+            manifest.repository.url =
+                    "https://github.com/cozy/cozy-#{name}.git"
+            manifest.name = name
+            manifest.user = name
+
+            log.info "Update #{name}..."
+            client.lightUpdate manifest, (err, res, body) ->
+                if err or body.error?
+                    handleError err, body, "Light update failed."
+                else
+                    log.info "#{name} was successfully updated."
+                    callback null
+        if token
+            client = new ControllerClient
+                token: token
+        updateController ->
+            updateApp 'data-system', ->
+                updateApp 'home', ->
+                    updateApp 'proxy', ->
+                        restartController ->
+                            log.info 'Cozy stack successfully updated'
 
 
 program

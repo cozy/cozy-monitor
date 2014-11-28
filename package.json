@@ -14,7 +14,7 @@
     "prepublish": "cake build"
   },
   "bin": {
-    "cozy-monitor": "./bin/cozy-monitor"
+    "cozy": "./bin/cozy-monitor"
   },
   "repository": {
     "type": "git",

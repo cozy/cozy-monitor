@@ -249,21 +249,24 @@ removeApp = (app, callback) ->
             callback()
 
 installStackApp = (app, callback) ->
-    if app.name?
-        manifest = app
+    if typeof app is 'string'
+        manifest =
+            repository:
+                url: "https://github.com/cozy/cozy-#{app}.git"
+                type: "git"
+            "scripts":
+                "start": "build/server.js"
+            name: app
+            user: app
     else
-        manifest.repository.url =
-                "https://github.com/cozy/cozy-#{app}.git"
-        manifest.name = app
-        manifest.user = app
-
-    log.info "Install started for #{name}..."
+        manifest = app
+    log.info "Install started for #{manifest.name}..."
     client.clean manifest, (err, res, body) ->
         client.start manifest, (err, res, body)  ->
             if err or body.error?
-                handleError err, body, "Install failed for #{name}."
+                handleError err, body, "Install failed for #{manifest.name}."
             else
-                log.info "#{name} was successfully installed."
+                log.info "#{manifest.name} was successfully installed."
                 callback null
 
 installApp = (app, callback) ->
@@ -339,7 +342,6 @@ program
         manifest.user = app
 
         # Check if it is a stack or classic application
-        log.info "Install started for #{app}..."
         if app in ['data-system', 'home', 'proxy']
 
             unless options.repo?
@@ -349,7 +351,7 @@ program
                 manifest.repository.url = options.repo
             if options.branch?
                 manifest.repository.branch = options.branch
-            installStackApp manifest (err) ->
+            installStackApp manifest, (err) ->
                     if err
                         handleError err, null, "Install failed"
                     else
@@ -357,6 +359,7 @@ program
 
         else
 
+            log.info "Install started for #{app}..."
             unless options.repo?
                 manifest.git =
                     "https://github.com/cozy/cozy-#{app}.git"

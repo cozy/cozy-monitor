@@ -969,7 +969,10 @@ program
                 if app.state is "installed"
                     log.info " * New status: " + "started".bold
                 else
-                    log.info " * New status: " + app.state.bold
+                    if app?.state?
+                        log.info " * New status: " + app.state.bold
+                    else
+                        log.info " * New status: " + 'unknown'
                 log.info app.name + " updated"
                 callback()
 
@@ -980,65 +983,51 @@ program
                 #   * remove application
                 #   * install application
                 #   * stop application
-                if app.state is 'broken'
-                    log.info " * Old status: " + "broken".bold
-
-                    log.info " * Remove #{app.name}"
-                    removeApp app, (err) ->
-                        if err
-                            log.error 'An error occured: '
-                            log.raw err
-
-                        log.info " * Install #{app.name}"
-                        installApp app, (err) ->
+                switch app.state
+                    when 'broken'
+                        log.info " * Old status: " + "broken".bold
+                        log.info " * Remove #{app.name}"
+                        removeApp app, (err) ->
                             if err
-                                log.error 'An error occured:'
+                                log.error 'An error occured: '
                                 log.raw err
-                                endUpdate app, callback
-                            else
 
-                                log.info " * Stop #{app.name}"
-                                stopApp app, (err) ->
-                                    if err
-                                        log.error 'An error occured:'
-                                        log.raw err
-                                    endUpdate app, callback
-
-                # When application is installed, try :
-                #   * update application
-                else if app.state is 'installed'
-                    log.info " * Old status: " + "started".bold
-                    log.info " * Update " + app.name
-                    lightUpdateApp app, (err) ->
-                        if err
-                            log.error 'An error occured:'
-                            log.raw err
-                        endUpdate app, callback
-
-                # When application is stopped, try :
-                #   * start application
-                #   * update application
-                #   * stop application
-                else
-                    log.info " * Old status: " + "stopped".bold
-                    log.info " * Start " + app.name
-                    startApp app, (err) ->
-                        if err
-                            log.error 'An error occured:'
-                            log.raw err
-                            endUpdate app, callback
-                        else
-                            log.info " * Update " + app.name
-                            lightUpdateApp app, (err) ->
+                            log.info " * Install #{app.name}"
+                            installApp app, (err) ->
                                 if err
                                     log.error 'An error occured:'
                                     log.raw err
-                                log.info " * Stop " + app.name
-                                stopApp app, (err) ->
-                                    if err
-                                        log.error 'An error occured:'
-                                        log.raw err
                                     endUpdate app, callback
+                                else
+
+                                    log.info " * Stop #{app.name}"
+                                    stopApp app, (err) ->
+                                        if err
+                                            log.error 'An error occured:'
+                                            log.raw err
+                                        endUpdate app, callback
+
+                    # When application is installed, try :
+                    #   * update application
+                    when 'installed'
+                        log.info " * Old status: " + "started".bold
+                        log.info " * Update " + app.name
+                        lightUpdateApp app, (err) ->
+                            if err
+                                log.error 'An error occured:'
+                                log.raw err
+                            endUpdate app, callback
+
+                    # When application is stopped, try :
+                    #   * update application
+                    else
+                        log.info " * Old status: " + "stopped".bold
+                        log.info " * Update " + app.name
+                        lightUpdateApp app, (err) ->
+                            if err
+                                log.error 'An error occured:'
+                                log.raw err
+                            endUpdate app, callback
 
         homeClient.host = homeUrl
         homeClient.get "api/applications/", (err, res, apps) ->

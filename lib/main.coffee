@@ -432,6 +432,54 @@ program
             log.raw err
             removeFromDatabase()
 
+        recoverManifest = (callback) =>
+            unless fs.existsSync 'package.json'
+                log.error "Cannot read package.json. " +
+                    "This function should be called in root application  folder"
+            else
+                try
+                    packagePath = path.relative __dirname, 'package.json'
+                    manifest = require packagePath
+                catch err
+                    log.raw err
+                    log.error "Package.json isn't in a correct format"
+                    return
+                # Retrieve manifest from package.json
+                manifest.name = manifest.name + "test"
+                manifest.permissions = manifest['cozy-permissions']
+                manifest.displayName =
+                    manifest['cozy-displayName'] or manifest.name
+                manifest.state = "installed"
+                manifest.password = randomString()
+                manifest.docType = "Application"
+                manifest.port = port
+                manifest.slug = manifest.name.replace 'cozy-', ''
+                if manifest.slug in ['hometest', 'proxytest', 'data-systemtest']
+                    log.error 'Sorry, cannot start stack application without '
+                        + ' controller.'
+                else
+                    callback(manifest)
+
+
+        putInDatabase = (manifest, callback) ->
+            log.info "Add/replace application in database ..."
+            token = getToken()
+            if token?
+                dsClient.setBasicAuth 'home', token
+                requestPath = "request/application/all/"
+                dsClient.post requestPath, {}, (err, response, apps) =>
+                    if err
+                        log.error "Data-system doesn't respond"
+                    else
+                        removeApp apps, manifest.name, () ->
+                            dsClient.post "data/", manifest, (err, res, body) =>
+                                id = body._id
+                                if err
+                                    msg = "Cannot add application in database"
+                                    handleError err, body, msg
+                                else
+                                    callback()
+
 
         removeApp = (apps, name, callback) ->
             if apps.length > 0
@@ -446,73 +494,35 @@ program
 
         log.info "Retrieve application manifest..."
         # Recover application manifest
-        unless fs.existsSync 'package.json'
-            log.error "Cannot read package.json. " +
-                "This function should be called in root application  folder"
-            return
-        try
-            packagePath = path.relative __dirname, 'package.json'
-            manifest = require packagePath
-        catch err
-            log.raw err
-            log.error "Package.json isn't in a correct format"
-            return
-        # Retrieve manifest from package.json
-        manifest.name = manifest.name + "test"
-        manifest.permissions = manifest['cozy-permissions']
-        manifest.displayName = manifest['cozy-displayName'] or manifest.name
-        manifest.state = "installed"
-        manifest.password = randomString()
-        manifest.docType = "Application"
-        manifest.port = port
-        manifest.slug = manifest.name.replace 'cozy-', ''
-        if manifest.slug in ['hometest', 'proxytest', 'data-systemtest']
-            log.error 'Sorry, cannot start stack application without controller.'
-        else
+        recoverManifest (manifest) ->
             # Add/Replace application in database
-            log.info "Add/replace application in database ..."
-            token = getToken()
-            unless token?
-                return
-            dsClient.setBasicAuth 'home', token
-            requestPath = "request/application/all/"
-            dsClient.post requestPath, {}, (err, response, apps) =>
-                if err
-                    log.error "Data-system doesn't respond"
-                    return
-                removeApp apps, manifest.name, () ->
-                    dsClient.post "data/", manifest, (err, response, body) =>
-                        id = body._id
-                        if err
-                            msg = "Cannot add application in database"
-                            handleError err, body, msg
-                            return
-                        # Reset proxy
-                        log.info "Reset proxy ..."
-                        statusClient.host = proxyUrl
-                        statusClient.get "routes/reset", (err, res, body) ->
-                            if err
-                                handleError err, body, "Cannot reset routes."
-                            else
-                                # Add environment varaible.
-                                log.info "Start application ..."
-                                process.env.TOKEN = manifest.password
-                                process.env.NAME = manifest.slug
-                                process.env.NODE_ENV = "production"
+            putInDatabase manifest, () ->
+                # Reset proxy
+                log.info "Reset proxy ..."
+                statusClient.host = proxyUrl
+                statusClient.get "routes/reset", (err, res, body) ->
+                    if err
+                        handleError err, body, "Cannot reset routes."
+                    else
+                        # Add environment varaible.
+                        log.info "Start application ..."
+                        process.env.TOKEN = manifest.password
+                        process.env.NAME = manifest.slug
+                        process.env.NODE_ENV = "production"
 
-                                # Start application
-                                server = spawn "npm",  ["start"]
-                                server.stdout.setEncoding 'utf8'
-                                server.stdout.on 'data', (data) =>
-                                    log.raw data
+                        # Start application
+                        server = spawn "npm",  ["start"]
+                        server.stdout.setEncoding 'utf8'
+                        server.stdout.on 'data', (data) =>
+                            log.raw data
 
-                                server.stderr.setEncoding 'utf8'
-                                server.stderr.on 'data', (data) =>
-                                    log.raw data
-                                server.on 'error', (err) =>
-                                    log.raw err
-                                server.on 'close', (code) =>
-                                    log.info "Process exited with code #{code}"
+                        server.stderr.setEncoding 'utf8'
+                        server.stderr.on 'data', (data) =>
+                            log.raw data
+                        server.on 'error', (err) =>
+                            log.raw err
+                        server.on 'close', (code) =>
+                            log.info "Process exited with code #{code}"
 
 
 ## Stop applicationn without controller in a production environment.

@@ -386,8 +386,9 @@ You can use option -r to use a specific repo."""
 
                 else
                     waitInstallComplete body.app.slug, (err, appresult) ->
-                        if not err? and appresult.state in ['installed', 'installing']
-                            log.info "#{app} was successfully installed."
+                        if not err? and
+                            appresult.state in ['installed', 'installing']
+                                log.info "#{app} was successfully installed."
                         else
                             handleError null, null, "Install home failed"
 
@@ -396,9 +397,9 @@ program
     .command("install-cozy-stack")
     .description("Install cozy via the Cozy Controller")
     .action () ->
-        installStackApp 'data-system', () =>
-            installStackApp 'home', () =>
-                installStackApp 'proxy', () =>
+        installStackApp 'data-system', () ->
+            installStackApp 'home', () ->
+                installStackApp 'proxy', () ->
                     log.info 'Cozy stack successfully installed.'
 
 
@@ -531,7 +532,7 @@ program
         # Remove from database when process exit.
         removeFromDatabase = ->
             log.info "Remove application from database ..."
-            dsClient.del "data/#{id}/", (err, response, body) =>
+            dsClient.del "data/#{id}/", (err, response, body) ->
                 statusClient.host = proxyUrl
                 statusClient.get "routes/reset", (err, res, body) ->
                     if err
@@ -545,7 +546,7 @@ program
             log.raw err
             removeFromDatabase()
 
-        recoverManifest = (callback) =>
+        recoverManifest = (callback) ->
             unless fs.existsSync 'package.json'
                 log.error "Cannot read package.json. " +
                     "This function should be called in root application  folder"
@@ -580,12 +581,12 @@ program
             if token?
                 dsClient.setBasicAuth 'home', token
                 requestPath = "request/application/all/"
-                dsClient.post requestPath, {}, (err, response, apps) =>
+                dsClient.post requestPath, {}, (err, response, apps) ->
                     if err
                         log.error "Data-system doesn't respond"
                     else
                         removeApp apps, manifest.name, () ->
-                            dsClient.post "data/", manifest, (err, res, body) =>
+                            dsClient.post "data/", manifest, (err, res, body) ->
                                 id = body._id
                                 if err
                                     msg = "Cannot add application in database"
@@ -598,7 +599,7 @@ program
             if apps.length > 0
                 app = apps.pop().value
                 if app.name is name
-                    dsClient.del "data/#{app._id}/", (err, response, body) =>
+                    dsClient.del "data/#{app._id}/", (err, response, body) ->
                         removeApp apps, name, callback
                 else
                     removeApp apps, name, callback
@@ -626,15 +627,15 @@ program
                         # Start application
                         server = spawn "npm",  ["start"]
                         server.stdout.setEncoding 'utf8'
-                        server.stdout.on 'data', (data) =>
+                        server.stdout.on 'data', (data) ->
                             log.raw data
 
                         server.stderr.setEncoding 'utf8'
-                        server.stderr.on 'data', (data) =>
+                        server.stderr.on 'data', (data) ->
                             log.raw data
-                        server.on 'error', (err) =>
+                        server.on 'error', (err) ->
                             log.raw err
-                        server.on 'close', (code) =>
+                        server.on 'close', (code) ->
                             log.info "Process exited with code #{code}"
 
 

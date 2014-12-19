@@ -213,7 +213,10 @@ getVersion = (name) =>
         data = JSON.parse data
         log.raw "#{name}: #{data.version}"
     else
-        path = "#{appsPath}/#{name}/package.json"
+        if name is 'controller'
+            path = "/usr/lib/node_modules/cozy-controller/package.json"
+        else
+            path = "#{appsPath}/#{name}/package.json"
         if fs.existsSync path
             data = fs.readFileSync path, 'utf8'
             data = JSON.parse data

@@ -81,6 +81,7 @@ Cannot read database credentials in /etc/cozy/couchdb.login.
 """
         process.exit 1
 
+
 handleError = (err, body, msg) ->
     log.error "An error occured:"
     log.raw err if err
@@ -179,6 +180,7 @@ waitInstallComplete = (slug, callback) ->
             else
                 callback err, body
 
+
 prepareCozyDatabase = (username, password, callback) ->
     couchClient.setBasicAuth username, password
 
@@ -231,6 +233,7 @@ getVersionIndexer = (callback) =>
         else
             callback "unknown"
 
+
 startApp = (app, callback) ->
     path = "api/applications/#{app.slug}/start"
     homeClient.post path, app, (err, res, body) ->
@@ -241,6 +244,7 @@ startApp = (app, callback) ->
         else
             callback()
 
+
 removeApp = (app, callback) ->
     path = "api/applications/#{app.slug}/uninstall"
     homeClient.del path, (err, res, body) ->
@@ -250,6 +254,7 @@ removeApp = (app, callback) ->
             callback body.error
         else
             callback()
+
 
 installStackApp = (app, callback) ->
     if typeof app is 'string'
@@ -271,6 +276,7 @@ installStackApp = (app, callback) ->
             else
                 log.info "#{manifest.name} was successfully installed."
                 callback null
+
 
 installApp = (app, callback) ->
     manifest =
@@ -295,6 +301,7 @@ installApp = (app, callback) ->
                 callback body.error
             else
                 callback()
+
 
 stopApp = (app, callback) ->
     path = "api/applications/#{app.slug}/stop"
@@ -503,16 +510,16 @@ program
                 async.forEachSeries apps.rows, (app, callback) ->
                     switch app.state
                         when 'installed'
-                            log.info "Restart #{app.slug} ..."
+                            log.info "Restart #{app.slug}..."
                             restart app, callback
                         when 'stopped'
-                            log.info "Restop #{app.slug} ..."
+                            log.info "Restop #{app.slug}..."
                             restop app, callback
                         when 'installing'
-                            log.info "Reinstall #{app.slug} ..."
+                            log.info "Reinstall #{app.slug}..."
                             reinstall app, callback
                         when 'broken'
-                            log.info "Reinstall #{app.slug} ..."
+                            log.info "Reinstall #{app.slug}..."
                             reinstall app, callback
                         else
                             callback()
@@ -549,17 +556,18 @@ program
         recoverManifest = (callback) ->
             unless fs.existsSync 'package.json'
                 log.error "Cannot read package.json. " +
-                    "This function should be called in root application  folder"
+                    "This function should be called in root application folder."
             else
                 try
                     packagePath = path.relative __dirname, 'package.json'
                     manifest = require packagePath
                 catch err
                     log.raw err
-                    log.error "Package.json isn't in a correct format"
+                    log.error "Package.json isn't correctly formatted."
                     return
+
                 # Retrieve manifest from package.json
-                manifest.name = manifest.name + "test"
+                manifest.name = "#{manifest.name}test"
                 manifest.permissions = manifest['cozy-permissions']
                 manifest.displayName =
                     manifest['cozy-displayName'] or manifest.name
@@ -568,28 +576,30 @@ program
                 manifest.docType = "Application"
                 manifest.port = port
                 manifest.slug = manifest.name.replace 'cozy-', ''
+
                 if manifest.slug in ['hometest', 'proxytest', 'data-systemtest']
-                    log.error 'Sorry, cannot start stack application without ' +
-                        ' controller.'
+                    log.error(
+                        'Sorry, cannot start stack application without ' +
+                        ' controller.')
                 else
                     callback(manifest)
 
 
         putInDatabase = (manifest, callback) ->
-            log.info "Add/replace application in database ..."
+            log.info "Add/replace application in database..."
             token = getToken()
             if token?
                 dsClient.setBasicAuth 'home', token
                 requestPath = "request/application/all/"
                 dsClient.post requestPath, {}, (err, response, apps) ->
                     if err
-                        log.error "Data-system doesn't respond"
+                        log.error "Data-system looks down (not responding)."
                     else
                         removeApp apps, manifest.name, () ->
                             dsClient.post "data/", manifest, (err, res, body) ->
                                 id = body._id
                                 if err
-                                    msg = "Cannot add application in database"
+                                    msg = "Cannot add application in database."
                                     handleError err, body, msg
                                 else
                                     callback()
@@ -612,14 +622,14 @@ program
             # Add/Replace application in database
             putInDatabase manifest, () ->
                 # Reset proxy
-                log.info "Reset proxy ..."
+                log.info "Reset proxy..."
                 statusClient.host = proxyUrl
                 statusClient.get "routes/reset", (err, res, body) ->
                     if err
                         handleError err, body, "Cannot reset routes."
                     else
                         # Add environment varaible.
-                        log.info "Start application ..."
+                        log.info "Start application..."
                         process.env.TOKEN = manifest.password
                         process.env.NAME = manifest.slug
                         process.env.NODE_ENV = "production"
@@ -912,6 +922,7 @@ program
     .description(
         "Update all cozy stack application (DS + proxy + home + controller)")
     .action (token) ->
+
         updateController = (callback) ->
             log.info "Update controller ..."
             exec "npm -g update cozy-controller", (err, stdout) ->
@@ -920,6 +931,7 @@ program
                 else
                     log.info "Controller was successfully updated."
                     callback null
+
         restartController = (callback) ->
             log.info "Restart controller ..."
             exec "supervisorctl restart cozy-controller", (err, stdout) ->
@@ -928,6 +940,7 @@ program
                 else
                     log.info "Controller was successfully restarted."
                     callback null
+
         updateApp = (name, callback) ->
             manifest.repository.url =
                     "https://github.com/cozy/cozy-#{name}.git"
@@ -941,9 +954,11 @@ program
                 else
                     log.info "#{name} was successfully updated."
                     callback null
+
         if token
             client = new ControllerClient
                 token: token
+
         updateController ->
             updateApp 'data-system', ->
                 updateApp 'home', ->
@@ -976,8 +991,8 @@ program
                     if app?.state?
                         log.info " * New status: " + app.state.bold
                     else
-                        log.info " * New status: " + 'unknown'
-                log.info app.name + " updated"
+                        log.info " * New status: unknown"
+                log.info "#{app.name} updated"
                 callback()
 
         updateApp = (app) ->
@@ -1015,7 +1030,7 @@ program
                     #   * update application
                     when 'installed'
                         log.info " * Old status: " + "started".bold
-                        log.info " * Update " + app.name
+                        log.info " * Update #{app.name}"
                         lightUpdateApp app, (err) ->
                             if err
                                 log.error 'An error occured:'
@@ -1026,7 +1041,7 @@ program
                     #   * update application
                     else
                         log.info " * Old status: " + "stopped".bold
-                        log.info " * Update " + app.name
+                        log.info " * Update #{app.name}"
                         lightUpdateApp app, (err) ->
                             if err
                                 log.error 'An error occured:'

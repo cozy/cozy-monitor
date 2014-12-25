@@ -94,23 +94,21 @@ handleError = (err, body, msg) ->
             log.raw body.error.result if body.error.result?
             log.raw "Request error code #{body.error.code}" if body.error.code?
             log.raw body.error.blame if body.error.blame?
-            log.raw body.error if typeof body.error is String
+            log.raw body.error if typeof body.error is "string"
         else log.raw body
     process.exit 1
 
 
 compactViews = (database, designDoc, callback) ->
-    getAuthCouchdb (err, username, password) ->
-        if err
-            process.exit 1
+    [username, password] = getAuthCouchdb()
+    couchClient.setBasicAuth username, password
+    path = "#{database}/_compact/#{designDoc}"
+    couchClient.headers['content-type'] = 'application/json'
+    couchClient.post path, {}, (err, res, body) =>
+        if err or not body.ok
+            handleError err, body, "compaction failed for #{designDoc}"
         else
-            couchClient.setBasicAuth username, password
-            path = "#{database}/_compact/#{designDoc}"
-            couchClient.post path, {}, (err, res, body) =>
-                if err or not body.ok
-                    handleError err, body, "compaction failed for #{designDoc}"
-                else
-                    callback null
+            callback null
 
 
 compactAllViews = (database, designs, callback) ->
@@ -233,6 +231,81 @@ getVersionIndexer = (callback) =>
         else
             callback "unknown"
 
+startApp = (app, callback) ->
+    path = "api/applications/#{app.slug}/start"
+    homeClient.post path, app, (err, res, body) ->
+        if err
+            callback err
+        else if body.error
+            callback body.error
+        else
+            callback()
+
+removeApp = (app, callback) ->
+    path = "api/applications/#{app.slug}/uninstall"
+    homeClient.del path, (err, res, body) ->
+        if err
+            callback err
+        else if body.error
+            callback body.error
+        else
+            callback()
+
+installStackApp = (app, callback) ->
+    if typeof app is 'string'
+        manifest =
+            repository:
+                url: "https://github.com/cozy/cozy-#{app}.git"
+                type: "git"
+            "scripts":
+                "start": "build/server.js"
+            name: app
+            user: app
+    else
+        manifest = app
+    log.info "Install started for #{manifest.name}..."
+    client.clean manifest, (err, res, body) ->
+        client.start manifest, (err, res, body)  ->
+            if err or body.error?
+                handleError err, body, "Install failed for #{manifest.name}."
+            else
+                log.info "#{manifest.name} was successfully installed."
+                callback null
+
+installApp = (app, callback) ->
+    manifest =
+        "domain": "localhost"
+        "repository":
+            "type": "git"
+        "scripts":
+            "start": "server.coffee"
+        "name": app.name
+        "displayName":  app.displayName
+        "user": app.name
+        "git": app.git
+    if app.branch?
+        manifest.repository.branch = app.branch
+    path = "api/applications/install"
+    homeClient.headers['content-type'] = 'application/json'
+    homeClient.post path, manifest, (err, res, body) ->
+        waitInstallComplete app.slug, (err, appresult) ->
+            if err
+                callback err
+            else if body.error
+                callback body.error
+            else
+                callback()
+
+stopApp = (app, callback) ->
+    path = "api/applications/#{app.slug}/stop"
+    homeClient.post path, app, (err, res, body) ->
+        if err
+            callback err
+        else if body.error
+            callback body.error
+        else
+            callback()
+
 
 token = getToken()
 client = new ControllerClient
@@ -263,16 +336,15 @@ program
     .option('-b, --branch <branch>', 'Use specific branch')
     .option('-d, --displayName <displayName>', 'Display specific name')
     .action (app, options) ->
+        # Create manifest
         manifest.name = app
-
         if options.displayName?
             manifest.displayName = options.displayName
         else
             manifest.displayName = app
         manifest.user = app
 
-        log.info "Install started for #{app}..."
-
+        # Check if it is a stack or classic application
         if app in ['data-system', 'home', 'proxy']
 
             unless options.repo?
@@ -282,16 +354,15 @@ program
                 manifest.repository.url = options.repo
             if options.branch?
                 manifest.repository.branch = options.branch
-
-            client.clean manifest, (err, res, body) ->
-                client.start manifest, (err, res, body)  ->
-                    if err or body.error?
-                        handleError err, body, "Install failed"
+            installStackApp manifest, (err) ->
+                    if err
+                        handleError err, null, "Install failed"
                     else
                         log.info "#{app} successfully installed"
 
         else
 
+            log.info "Install started for #{app}..."
             unless options.repo?
                 manifest.git =
                     "https://github.com/cozy/cozy-#{app}.git"
@@ -315,34 +386,20 @@ You can use option -r to use a specific repo."""
 
                 else
                     waitInstallComplete body.app.slug, (err, appresult) ->
-                        if not err? and appresult.state in ['installed', 'installing']
-                            log.info "#{app} was successfully installed."
+                        if not err? and
+                            appresult.state in ['installed', 'installing']
+                                log.info "#{app} was successfully installed."
                         else
                             handleError null, null, "Install home failed"
 
-
+# Install cozy stack (home, ds, proxy)
 program
     .command("install-cozy-stack")
     .description("Install cozy via the Cozy Controller")
     .action () ->
-        installApp = (name, callback) ->
-            manifest.repository.url =
-                    "https://github.com/cozy/cozy-#{name}.git"
-            manifest.name = name
-            manifest.user = name
-
-            log.info "Install started for #{name}..."
-            client.clean manifest, (err, res, body) ->
-                client.start manifest, (err, res, body)  ->
-                    if err or body.error?
-                        handleError err, body, "Install failed for #{name}."
-                    else
-                        log.info "#{name} was successfully installed."
-                        callback null
-
-        installApp 'data-system', () =>
-            installApp 'home', () =>
-                installApp 'proxy', () =>
+        installStackApp 'data-system', () ->
+            installStackApp 'home', () ->
+                installStackApp 'proxy', () ->
                     log.info 'Cozy stack successfully installed.'
 
 
@@ -361,16 +418,14 @@ program
                 else
                     log.info "#{app} was successfully uninstalled."
         else
-            path = "api/applications/#{app}/uninstall"
-            homeClient.del path, (err, res, body) ->
-                if err or res.statusCode isnt 200
-                    handleError err, body, "Uninstall home failed for #{app}."
+            removeApp "name": app, (err)->
+                if err
+                    handleError err, null, "Uninstall home failed for #{app}."
                 else
                     log.info "#{app} was successfully uninstalled."
 
 
 # Start
-
 program
     .command("start <app>")
     .description("Start application")
@@ -394,17 +449,73 @@ program
                 if apps? and apps.rows?
                     for manifest in apps.rows when manifest.name is app
                         find = true
-                        path = "api/applications/#{manifest.slug}/start"
-                        homeClient.post path, manifest, (err, res, body) ->
-                            if err or body.error
-                                msg = "Start failed for #{app}."
-                                handleError err, body, msg
+                        startApp manifest, (err) ->
+                            if err
+                                handleError err, null, "Start failed for #{app}."
                             else
                                 log.info "#{app} was successfully started."
                     unless find
                         log.error "Start failed : application #{app} not found."
                 else
                     log.error "Start failed : no applications installed."
+
+
+program
+    .command("force-restart")
+    .description("Force application restart - usefull for relocation")
+    .action () ->
+        restart = (app, callback) ->
+            # Start function in home restart application
+            startApp app, (err) ->
+                if err
+                    log.error "Restart failed"
+                else
+                    log.info "... successfully"
+                callback()
+
+        restop = (app, callback) ->
+            startApp app, (err) ->
+                if err
+                    log.error "Stop failed for #{app}."
+                else
+                    stopApp app, (err) ->
+                        if err
+                            log.error "Start failed for #{app}."
+                        else
+                            log.info "... successfully"
+                            callback()
+
+        reinstall = (app, callback) ->
+            removeApp app, (err) ->
+                if err
+                    msg = "Uninstall failed for #{app}."
+                else
+                    installApp app, (err) ->
+                        if err
+                            msg = "Install failed for #{app}."
+                        else
+                            log.info "... successfully"
+                            callback()
+
+        homeClient.get "api/applications/", (err, res, apps) ->
+            funcs = []
+            if apps? and apps.rows?
+                async.forEachSeries apps.rows, (app, callback) ->
+                    switch app.state
+                        when 'installed'
+                            log.info "Restart #{app.slug} ..."
+                            restart app, callback
+                        when 'stopped'
+                            log.info "Restop #{app.slug} ..."
+                            restop app, callback
+                        when 'installing'
+                            log.info "Reinstall #{app.slug} ..."
+                            reinstall app, callback
+                        when 'broken'
+                            log.info "Reinstall #{app.slug} ..."
+                            reinstall app, callback
+                        else
+                            callback()
 
 
 ## Start applicationn without controller in a production environment.
@@ -421,7 +532,7 @@ program
         # Remove from database when process exit.
         removeFromDatabase = ->
             log.info "Remove application from database ..."
-            dsClient.del "data/#{id}/", (err, response, body) =>
+            dsClient.del "data/#{id}/", (err, response, body) ->
                 statusClient.host = proxyUrl
                 statusClient.get "routes/reset", (err, res, body) ->
                     if err
@@ -435,12 +546,60 @@ program
             log.raw err
             removeFromDatabase()
 
+        recoverManifest = (callback) ->
+            unless fs.existsSync 'package.json'
+                log.error "Cannot read package.json. " +
+                    "This function should be called in root application  folder"
+            else
+                try
+                    packagePath = path.relative __dirname, 'package.json'
+                    manifest = require packagePath
+                catch err
+                    log.raw err
+                    log.error "Package.json isn't in a correct format"
+                    return
+                # Retrieve manifest from package.json
+                manifest.name = manifest.name + "test"
+                manifest.permissions = manifest['cozy-permissions']
+                manifest.displayName =
+                    manifest['cozy-displayName'] or manifest.name
+                manifest.state = "installed"
+                manifest.password = randomString()
+                manifest.docType = "Application"
+                manifest.port = port
+                manifest.slug = manifest.name.replace 'cozy-', ''
+                if manifest.slug in ['hometest', 'proxytest', 'data-systemtest']
+                    log.error 'Sorry, cannot start stack application without ' +
+                        ' controller.'
+                else
+                    callback(manifest)
+
+
+        putInDatabase = (manifest, callback) ->
+            log.info "Add/replace application in database ..."
+            token = getToken()
+            if token?
+                dsClient.setBasicAuth 'home', token
+                requestPath = "request/application/all/"
+                dsClient.post requestPath, {}, (err, response, apps) ->
+                    if err
+                        log.error "Data-system doesn't respond"
+                    else
+                        removeApp apps, manifest.name, () ->
+                            dsClient.post "data/", manifest, (err, res, body) ->
+                                id = body._id
+                                if err
+                                    msg = "Cannot add application in database"
+                                    handleError err, body, msg
+                                else
+                                    callback()
+
 
         removeApp = (apps, name, callback) ->
             if apps.length > 0
                 app = apps.pop().value
                 if app.name is name
-                    dsClient.del "data/#{app._id}/", (err, response, body) =>
+                    dsClient.del "data/#{app._id}/", (err, response, body) ->
                         removeApp apps, name, callback
                 else
                     removeApp apps, name, callback
@@ -449,73 +608,35 @@ program
 
         log.info "Retrieve application manifest..."
         # Recover application manifest
-        unless fs.existsSync 'package.json'
-            log.error "Cannot read package.json. " +
-                "This function should be called in root application  folder"
-            return
-        try
-            packagePath = path.relative __dirname, 'package.json'
-            manifest = require packagePath
-        catch err
-            log.raw err
-            log.error "Package.json isn't in a correct format"
-            return
-        # Retrieve manifest from package.json
-        manifest.name = manifest.name + "test"
-        manifest.permissions = manifest['cozy-permissions']
-        manifest.displayName = manifest['cozy-displayName'] or manifest.name
-        manifest.state = "installed"
-        manifest.password = randomString()
-        manifest.docType = "Application"
-        manifest.port = port
-        manifest.slug = manifest.name.replace 'cozy-', ''
-        if manifest.slug in ['hometest', 'proxytest', 'data-systemtest']
-            log.error 'Sorry, cannot start stack application without controller.'
-        else
+        recoverManifest (manifest) ->
             # Add/Replace application in database
-            log.info "Add/replace application in database ..."
-            token = getToken()
-            unless token?
-                return
-            dsClient.setBasicAuth 'home', token
-            requestPath = "request/application/all/"
-            dsClient.post requestPath, {}, (err, response, apps) =>
-                if err
-                    log.error "Data-system doesn't respond"
-                    return
-                removeApp apps, manifest.name, () ->
-                    dsClient.post "data/", manifest, (err, response, body) =>
-                        id = body._id
-                        if err
-                            msg = "Cannot add application in database"
-                            handleError err, body, msg
-                            return
-                        # Reset proxy
-                        log.info "Reset proxy ..."
-                        statusClient.host = proxyUrl
-                        statusClient.get "routes/reset", (err, res, body) ->
-                            if err
-                                handleError err, body, "Cannot reset routes."
-                            else
-                                # Add environment varaible.
-                                log.info "Start application ..."
-                                process.env.TOKEN = manifest.password
-                                process.env.NAME = manifest.slug
-                                process.env.NODE_ENV = "production"
+            putInDatabase manifest, () ->
+                # Reset proxy
+                log.info "Reset proxy ..."
+                statusClient.host = proxyUrl
+                statusClient.get "routes/reset", (err, res, body) ->
+                    if err
+                        handleError err, body, "Cannot reset routes."
+                    else
+                        # Add environment varaible.
+                        log.info "Start application ..."
+                        process.env.TOKEN = manifest.password
+                        process.env.NAME = manifest.slug
+                        process.env.NODE_ENV = "production"
 
-                                # Start application
-                                server = spawn "npm",  ["start"]
-                                server.stdout.setEncoding 'utf8'
-                                server.stdout.on 'data', (data) =>
-                                    log.raw data
+                        # Start application
+                        server = spawn "npm",  ["start"]
+                        server.stdout.setEncoding 'utf8'
+                        server.stdout.on 'data', (data) ->
+                            log.raw data
 
-                                server.stderr.setEncoding 'utf8'
-                                server.stderr.on 'data', (data) =>
-                                    log.raw data
-                                server.on 'error', (err) =>
-                                    log.raw err
-                                server.on 'close', (code) =>
-                                    log.info "Process exited with code #{code}"
+                        server.stderr.setEncoding 'utf8'
+                        server.stderr.on 'data', (data) ->
+                            log.raw data
+                        server.on 'error', (err) ->
+                            log.raw err
+                        server.on 'close', (code) ->
+                            log.info "Process exited with code #{code}"
 
 
 ## Stop applicationn without controller in a production environment.
@@ -597,11 +718,9 @@ program
                 if apps?.rows?
                     for manifest in apps.rows when manifest.name is app
                         find = true
-                        path = "api/applications/#{manifest.slug}/stop"
-                        homeClient.post path, manifest, (err, res, body) ->
-                            if err or body.error
-                                msg = "Stop failed for #{app}."
-                                handleError err, body, msg
+                        stopApp manifest, (err) ->
+                            if err
+                                handleError err, null, "Stop failed for #{app}."
                             else
                                 log.info "#{app} was successfully stopped."
                     unless find
@@ -615,17 +734,13 @@ program
     .description("Stop all user applications")
     .action ->
 
-        stopApp = (app) ->
+        stopApps = (app) ->
             (callback) ->
                 log.info "\nStop #{app.name}..."
-                path = "api/applications/#{app.slug}/stop"
-                homeClient.post path, app, (err, res, body) ->
-                    if err or body.error
+                stopApp app, (err) ->
+                    if err
                         log.error "\nStopping #{app.name} failed."
-                        if err
-                            log.raw err
-                        else
-                            log.raw body.error
+                        log.raw err
                     callback()
 
         homeClient.host = homeUrl
@@ -633,7 +748,7 @@ program
             funcs = []
             if apps? and apps.rows?
                 for app in apps.rows
-                    func = stopApp(app)
+                    func = stopApps(app)
                     funcs.push func
 
                 async.series funcs, ->
@@ -689,17 +804,15 @@ program
                         else
                             log.info "#{app} sucessfully started."
         else
-            path = "api/applications/#{app}/stop"
-            homeClient.post path, {}, (err, res, body) ->
-                if err or body.error?
-                    handleError err, body, "Stop failed"
+            stopApp slug: app, (err) ->
+                if err
+                    handleError err, null, "Stop failed"
                 else
                     log.info "#{app} successfully stopped"
                     log.info "Starting #{app}..."
-                    path = "api/applications/#{app}/start"
-                    homeClient.post path, {}, (err, res, body) ->
+                    startApp slug: app, (err) ->
                         if err
-                            handleError err, body, "Start failed for #{app}."
+                            handleError err, null, "Start failed for #{app}."
                         else
                             log.info "#{app} was sucessfully started."
 
@@ -843,46 +956,6 @@ program
     .command("update-all")
     .description("Reinstall all user applications")
     .action ->
-        startApp = (app, callback) ->
-            path = "api/applications/#{app.slug}/start"
-            homeClient.post path, app, (err, res, body) ->
-                if err
-                    callback err
-                else if body.error
-                    callback body.error
-                else
-                    callback()
-
-        removeApp = (app, callback) ->
-            path = "api/applications/#{app.slug}/uninstall"
-            homeClient.del path, (err, res, body) ->
-                if err
-                    callback err
-                else if body.error
-                    callback body.error
-                else
-                    callback()
-
-        installApp = (app, callback) ->
-            path = "api/applications/install"
-            homeClient.post path, app, (err, res, body) ->
-                waitInstallComplete app.slug, (err, appresult) ->
-                    if err
-                        callback err
-                    else if body.error
-                        callback body.error
-                    else
-                        callback()
-
-        stopApp = (app, callback) ->
-            path = "api/applications/#{app.slug}/stop"
-            homeClient.post path, app, (err, res, body) ->
-                if err
-                    callback err
-                else if body.error
-                    callback body.error
-                else
-                    callback()
 
         lightUpdateApp = (app, callback) ->
             path = "api/applications/#{app.slug}/update"
@@ -900,7 +973,10 @@ program
                 if app.state is "installed"
                     log.info " * New status: " + "started".bold
                 else
-                    log.info " * New status: " + app.state.bold
+                    if app?.state?
+                        log.info " * New status: " + app.state.bold
+                    else
+                        log.info " * New status: " + 'unknown'
                 log.info app.name + " updated"
                 callback()
 
@@ -911,65 +987,51 @@ program
                 #   * remove application
                 #   * install application
                 #   * stop application
-                if app.state is 'broken'
-                    log.info " * Old status: " + "broken".bold
-
-                    log.info " * Remove #{app.name}"
-                    removeApp app, (err) ->
-                        if err
-                            log.error 'An error occured: '
-                            log.raw err
-
-                        log.info " * Install #{app.name}"
-                        installApp app, (err) ->
+                switch app.state
+                    when 'broken'
+                        log.info " * Old status: " + "broken".bold
+                        log.info " * Remove #{app.name}"
+                        removeApp app, (err) ->
                             if err
-                                log.error 'An error occured:'
+                                log.error 'An error occured: '
                                 log.raw err
-                                endUpdate app, callback
-                            else
 
-                                log.info " * Stop #{app.name}"
-                                stopApp app, (err) ->
-                                    if err
-                                        log.error 'An error occured:'
-                                        log.raw err
-                                    endUpdate app, callback
-
-                # When application is installed, try :
-                #   * update application
-                else if app.state is 'installed'
-                    log.info " * Old status: " + "started".bold
-                    log.info " * Update " + app.name
-                    lightUpdateApp app, (err) ->
-                        if err
-                            log.error 'An error occured:'
-                            log.raw err
-                        endUpdate app, callback
-
-                # When application is stopped, try :
-                #   * start application
-                #   * update application
-                #   * stop application
-                else
-                    log.info " * Old status: " + "stopped".bold
-                    log.info " * Start " + app.name
-                    startApp app, (err) ->
-                        if err
-                            log.error 'An error occured:'
-                            log.raw err
-                            endUpdate app, callback
-                        else
-                            log.info " * Update " + app.name
-                            lightUpdateApp app, (err) ->
+                            log.info " * Install #{app.name}"
+                            installApp app, (err) ->
                                 if err
                                     log.error 'An error occured:'
                                     log.raw err
-                                log.info " * Stop " + app.name
-                                stopApp app, (err) ->
-                                    if err
-                                        log.error 'An error occured:'
-                                        log.raw err
                                     endUpdate app, callback
+                                else
+
+                                    log.info " * Stop #{app.name}"
+                                    stopApp app, (err) ->
+                                        if err
+                                            log.error 'An error occured:'
+                                            log.raw err
+                                        endUpdate app, callback
+
+                    # When application is installed, try :
+                    #   * update application
+                    when 'installed'
+                        log.info " * Old status: " + "started".bold
+                        log.info " * Update " + app.name
+                        lightUpdateApp app, (err) ->
+                            if err
+                                log.error 'An error occured:'
+                                log.raw err
+                            endUpdate app, callback
+
+                    # When application is stopped, try :
+                    #   * update application
+                    else
+                        log.info " * Old status: " + "stopped".bold
+                        log.info " * Update " + app.name
+                        lightUpdateApp app, (err) ->
+                            if err
+                                log.error 'An error occured:'
+                                log.raw err
+                            endUpdate app, callback
 
         homeClient.host = homeUrl
         homeClient.get "api/applications/", (err, res, apps) ->
@@ -1220,6 +1282,7 @@ program
         configureCouchClient()
 
         log.info "Start couchdb compaction on #{database} ..."
+        couchClient.headers['content-type'] = 'application/json'
         couchClient.post "#{database}/_compact", {}, (err, res, body) ->
             if err or not body.ok
                 handleError err, body, "Compaction failed."

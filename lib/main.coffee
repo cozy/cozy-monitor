@@ -320,13 +320,13 @@ installApp = (app, callback) ->
     homeClient.headers['content-type'] = 'application/json'
     homeClient.post path, manifest, (err, res, body) ->
         if err
-            handleError err, body, "App installation failed: #{app.name}"
+            callback err
+        else if body?.error
+            callback body.error
         else
             waitInstallComplete app.slug, (err, appresult) ->
                 if err
                     callback err
-                else if body.error
-                    callback body.error
                 else
                     callback()
 
@@ -410,17 +410,17 @@ program
             path = "api/applications/install"
             homeClient.post path, manifest, (err, res, body) ->
                 if err or body.error
-                    if body?.message?.indexOf('Not Found') isnt -1
-                        msg = """
-Install home failed for #{app}.
-Default git repo #{manifest.git} doesn't exist.
-You can use option -r to use a specific repo."""
-                        handleError err, body, msg
-                    else if  body.code is 'ECONNREFUSED'
+                    if err.code is 'ECONNREFUSED'
                         msg = """
 Install home failed for #{app}.
 The Cozy Home looks not started. Install operation cannot be performed.
 """
+                        handleError err, body, msg
+                    else if body?.message?.indexOf('Not Found') isnt -1
+                        msg = """
+Install home failed for #{app}.
+Default git repo #{manifest.git} doesn't exist.
+You can use option -r to use a specific repo."""
                         handleError err, body, msg
                     else
                         handleError err, body, "Install home failed for #{app}."

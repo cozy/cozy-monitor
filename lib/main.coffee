@@ -1374,7 +1374,7 @@ program
 
         configureCouchClient()
         couchClient.post "_replicate", data, (err, res, body) ->
-            if err or not body.og
+            if err or not body.ok
                 handleError err, body, "Backup failed."
             else
                 log.info "Backup succeeded"

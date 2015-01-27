@@ -410,7 +410,7 @@ program
             path = "api/applications/install"
             homeClient.post path, manifest, (err, res, body) ->
                 if err or body.error
-                    if err.code is 'ECONNREFUSED'
+                    if err?.code is 'ECONNREFUSED'
                         msg = """
 Install home failed for #{app}.
 The Cozy Home looks not started. Install operation cannot be performed.

@@ -38,11 +38,14 @@ appsPath = '/usr/local/cozy/apps'
 
 ## Helpers
 
+# Generate a random 32 char string.
 randomString = (length=32) ->
     string = ""
     string += Math.random().toString(36).substr(2) while string.length < length
     string.substr 0, length
 
+
+# Read Controller auth token from token file located in /etc/cozy/stack.token .
 readToken = (file) ->
     try
         token = fs.readFileSync file, 'utf8'
@@ -56,11 +59,16 @@ Cannot get Cozy credentials. Are you sure you have the rights to access to:
         return null
 
 
+# Get Controller auth token from token file. If it can't find token in
+# expected folder it looks for in the location of previous controller version
+# (backward compatibility).
 getToken = ->
+
     # New controller
     if fs.existsSync '/etc/cozy/stack.token'
         return readToken '/etc/cozy/stack.token'
     else
+
         # Old controller
         if fs.existsSync '/etc/cozy/controller.token'
             return readToken '/etc/cozy/controller.token'
@@ -145,25 +153,42 @@ waitInstallComplete = (slug, callback) ->
     axon   = require 'axon'
     socket = axon.socket 'sub-emitter'
     socket.connect 9105
+    noAppListErrMsg = """
+No application listed after installation.
+"""
+    appNotStartedErrMsg = """
+Application is not running after installation.
+"""
+    appNotListedErrMsg = """
+Expected application not listed in database after installation.
+"""
 
     timeoutId = setTimeout ->
         socket.close()
 
         statusClient.host = homeUrl
         statusClient.get "api/applications/", (err, res, apps) ->
-            return unless apps?.rows?
-            for app in apps.rows
-                console.log slug, app.slug, app.state, app.port
-                if app.slug is slug and app.state is 'installed' and app.port
-                    statusClient.host = "http://localhost:#{app.port}/"
-                    statusClient.get "", (err, res) ->
-                        if res?.statusCode in [200, 403]
-                            callback null, state: 'installed'
-                        else
-                            handleError null, null, "Install home failed"
-                    return
-            handleError null, null, "Install home failed"
+            if not apps?.rows?
+                callback new Error noAppListErrMsg
+            else
+                isApp = false
 
+                for app in apps.rows
+
+                    if app.slug is slug and \
+                       app.state is 'installed' and \
+                       app.port
+
+                        isApp = true
+                        statusClient.host = "http://localhost:#{app.port}/"
+                        statusClient.get "", (err, res) ->
+                            if res?.statusCode in [200, 403]
+                                callback null, state: 'installed'
+                            else
+                                callback new Error appNotStartedErrMsg
+
+                unless isApp
+                    callback new Error appNotListedErrMsg
     , 240000
 
     socket.on 'application.update', (id) ->
@@ -240,7 +265,7 @@ startApp = (app, callback) ->
         if err
             callback err
         else if body.error
-            callback body.error
+            callback new Error body.error
         else
             callback()
 
@@ -249,9 +274,9 @@ removeApp = (app, callback) ->
     path = "api/applications/#{app.slug}/uninstall"
     homeClient.del path, (err, res, body) ->
         if err
-            callback err
+            callback err, body
         else if body.error
-            callback body.error
+            callback new Error body.error, body
         else
             callback()
 
@@ -294,13 +319,16 @@ installApp = (app, callback) ->
     path = "api/applications/install"
     homeClient.headers['content-type'] = 'application/json'
     homeClient.post path, manifest, (err, res, body) ->
-        waitInstallComplete app.slug, (err, appresult) ->
-            if err
-                callback err
-            else if body.error
-                callback body.error
-            else
-                callback()
+        if err
+            callback err
+        else if body?.error
+            callback new Error body.error
+        else
+            waitInstallComplete app.slug, (err, appresult) ->
+                if err
+                    callback err
+                else
+                    callback()
 
 
 stopApp = (app, callback) ->
@@ -309,7 +337,7 @@ stopApp = (app, callback) ->
         if err
             callback err
         else if body.error
-            callback body.error
+            callback new Error body.error
         else
             callback()
 
@@ -382,22 +410,39 @@ program
             path = "api/applications/install"
             homeClient.post path, manifest, (err, res, body) ->
                 if err or body.error
-                    isIndexOf = body.message.indexOf('Not Found')
-                    if body?.message? and  isIndexOf isnt -1
-                        err = """
+                    if err?.code is 'ECONNREFUSED'
+                        msg = """
+Install home failed for #{app}.
+The Cozy Home looks not started. Install operation cannot be performed.
+"""
+                        handleError err, body, msg
+                    else if body?.message?.indexOf('Not Found') isnt -1
+                        msg = """
+Install home failed for #{app}.
 Default git repo #{manifest.git} doesn't exist.
 You can use option -r to use a specific repo."""
-                        handleError err, null, "Install home failed for #{app}."
+                        handleError err, body, msg
                     else
                         handleError err, body, "Install home failed for #{app}."
 
                 else
                     waitInstallComplete body.app.slug, (err, appresult) ->
-                        if not err? and
-                            appresult.state in ['installed', 'installing']
-                                log.info "#{app} was successfully installed."
+                        if err
+                            msg = "Install home failed."
+                            handleError err, null, msg
+                        else if appresult.state is 'installed'
+                            log.info "#{app} was successfully installed."
+                        else if appresult.state is 'installing'
+                            log.info """
+#{app} installation is still running. You should check for its status later.
+If the installation is too long, you should try to stop it by uninstalling the
+application and running the installation again.
+"""
                         else
-                            handleError null, null, "Install home failed"
+                            msg = """
+Install home failed. Can't figure out the app state.
+"""
+                            handleError err, null, msg
 
 # Install cozy stack (home, ds, proxy)
 program
@@ -425,9 +470,9 @@ program
                 else
                     log.info "#{app} was successfully uninstalled."
         else
-            removeApp "name": app, (err)->
+            removeApp "name": app, (err, body)->
                 if err
-                    handleError err, null, "Uninstall home failed for #{app}."
+                    handleError err, body, "Uninstall home failed for #{app}."
                 else
                     log.info "#{app} was successfully uninstalled."
 
@@ -978,7 +1023,7 @@ program
                 if err
                     callback err
                 else if body.error
-                    callback body.error
+                    callback new Error body.error
                 else
                     callback()
 
@@ -1006,10 +1051,11 @@ program
                     when 'broken'
                         log.info " * Old status: " + "broken".bold
                         log.info " * Remove #{app.name}"
-                        removeApp app, (err) ->
+                        removeApp app, (err, body) ->
                             if err
                                 log.error 'An error occured: '
                                 log.raw err
+                                log.raw body
 
                             log.info " * Install #{app.name}"
                             installApp app, (err) ->

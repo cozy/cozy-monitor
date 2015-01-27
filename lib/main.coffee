@@ -265,7 +265,7 @@ startApp = (app, callback) ->
         if err
             callback err
         else if body.error
-            callback body.error
+            callback new Error body.error
         else
             callback()
 
@@ -276,7 +276,7 @@ removeApp = (app, callback) ->
         if err
             callback err, body
         else if body.error
-            callback body.error, body
+            callback new Error body.error, body
         else
             callback()
 
@@ -322,7 +322,7 @@ installApp = (app, callback) ->
         if err
             callback err
         else if body?.error
-            callback body.error
+            callback new Error body.error
         else
             waitInstallComplete app.slug, (err, appresult) ->
                 if err
@@ -337,7 +337,7 @@ stopApp = (app, callback) ->
         if err
             callback err
         else if body.error
-            callback body.error
+            callback new Error body.error
         else
             callback()
 
@@ -1023,7 +1023,7 @@ program
                 if err
                     callback err
                 else if body.error
-                    callback body.error
+                    callback new Error body.error
                 else
                     callback()
 

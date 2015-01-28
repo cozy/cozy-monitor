@@ -470,7 +470,7 @@ program
                 else
                     log.info "#{app} was successfully uninstalled."
         else
-            removeApp "name": app, (err, body)->
+            removeApp "slug": app, (err, body)->
                 if err
                     handleError err, body, "Uninstall home failed for #{app}."
                 else

@@ -88,7 +88,7 @@ module.exports.stopDevRoute = (slug, callback) ->
             console.log "There is no dev route with this slug"
 
 
-module.export.getRoutes = (callback) ->
+module.exports.getRoutes = (callback) ->
         log.info "Display proxy routes..."
 
         statusClient.host = proxyUrl

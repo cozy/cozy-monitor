@@ -42,7 +42,7 @@ configureCouchClient = (callback) ->
     couchClient.setBasicAuth username, password
 
 #options: {client, foound)
-waitCompactComplete = (options, callback) ->
+waitCompactComplete = (client, found, callback) ->
     setTimeout ->
         client.get '_active_tasks', (err, res, body) =>
             exist = false
@@ -56,7 +56,7 @@ waitCompactComplete = (options, callback) ->
     , 500
 
 #options : [username, password]
-prepareCozyDatabase = (options, callback) ->
+prepareCozyDatabase = (username, password, callback) ->
     couchClient.setBasicAuth username, password
 
     # Remove cozy database
@@ -78,7 +78,7 @@ prepareCozyDatabase = (options, callback) ->
                 callback()
 
 #options = database
-module.exports.compact = (options, callback)->
+module.exports.compact = (database, callback)->
     database ?= "cozy"
     configureCouchClient()
 
@@ -93,7 +93,7 @@ module.exports.compact = (options, callback)->
                 process.exit 0
 
 #options = database
-module.exports.compactViews = (options, callback) ->
+module.exports.compactViews = (database, callback) ->
     database ?= "cozy"
     log.info "Start vews compaction on #{database} for #{view} ..."
     compactViews database, view, (err) =>
@@ -102,7 +102,7 @@ module.exports.compactViews = (options, callback) ->
             process.exit 0
 
 #options = database
-module.exports.compactAllViews = (options, callback) ->
+module.exports.compactAllViews = (database, callback) ->
     database ?= "cozy"
     configureCouchClient()
 
@@ -126,7 +126,7 @@ module.exports.compactAllViews = (options, callback) ->
                     log.info "Views are successfully compacted"
 
 #options = database
-module.exports.cleanup = (options, callback) ->
+module.exports.cleanup = (database, callback) ->
     database ?= "cozy"
     log.info "Start couchdb cleanup on #{database}..."
     configureCouchClient()
@@ -139,7 +139,7 @@ module.exports.cleanup = (options, callback) ->
 
 ## Backup ##
 #options = target
-module.exports.backup = (options, callback) ->
+module.exports.backup = (target, callback) ->
     data =
         source: "cozy"
         target: target
@@ -152,7 +152,7 @@ module.exports.backup = (options, callback) ->
             process.exit 0
 
 #options = username, password, backup
-module.exports.reverseBackup = (options, callback) ->
+module.exports.reverseBackup = (username,  password, backup, callback) ->
     [username, password] = getAuthCouchdb()
     prepareCozyDatabase username, password, ->
         toBase64 = (str) ->

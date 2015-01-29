@@ -38,7 +38,7 @@
     "async": "=0.1.22",
     "colors": "=0.6.0-1",
     "axon": "~0.6.1",
-    "cozy-clients": "=0.8.1",
+    "cozy-clients": "1.0.3",
     "shelljs": "^0.3.0",
     "request-json-light": "0.5.10",
     "printit": "0.1.3",

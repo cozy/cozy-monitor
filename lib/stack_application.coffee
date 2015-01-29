@@ -8,28 +8,16 @@ exec = require('child_process').exec
 spawn = require('child_process').spawn
 path = require('path')
 log = require('printit')()
-
 request = require("request-json-light")
 
-installStackApp = (app, callback) ->
-    if typeof app is 'string'
-        manifest =
-            repository:
-                url: "https://github.com/cozy/cozy-#{app}.git"
-                type: "git"
-            "scripts":
-                "start": "build/server.js"
-            name: app
-            user: app
-    else
-        manifest = app
-    log.info "Install started for #{manifest.name}..."
-    client.clean manifest, (err, res, body) ->
-        client.start manifest, (err, res, body)  ->
-            if err or body.error?
-                handleError err, body, "Install failed for #{manifest.name}."
-            else
-                log.info "#{manifest.name} was successfully installed."
+
+helpers = require './helpers'
+homeClient = helpers.homeClient
+indexClient = helpers.indexClient
+client = helpers.client
+makeError = helpers.makeError
+
+appsPath = '/usr/local/cozy/apps'
 
 
 manifest =
@@ -37,13 +25,13 @@ manifest =
    "repository":
        "type": "git"
    "scripts":
-       "start": "server.coffee"
+       "start": "build/server.js"
 
-module.exports.install = (app, options) ->
+# Install stack application
+module.exports.install = (app, options, callback) ->
     # Create manifest
     manifest.name = app
     manifest.user = app
-
     unless options.repo?
         manifest.repository.url =
             "https://github.com/cozy/cozy-#{app}.git"
@@ -51,36 +39,23 @@ module.exports.install = (app, options) ->
         manifest.repository.url = options.repo
     if options.branch?
         manifest.repository.branch = options.branch
-    installStackApp manifest, (err) ->
-            if err
-                handleError err, null, "Install failed"
-            else
-                log.info "#{app} successfully installed"
 
+    client.clean manifest, (err, res, body) ->
+        client.start manifest, (err, res, body) ->
+            callback(makeError(err, body))
 
-# Install cozy stack (home, ds, proxy)
-program
-    .command("install-cozy-stack")
-    .description("Install cozy via the Cozy Controller")
-    .action () ->
-        installStackApp 'data-system', () ->
-            installStackApp 'home', () ->
-                installStackApp 'proxy', () ->
-                    log.info 'Cozy stack successfully installed.'
-
-
-module.exports.uninstall = (app) ->
-    log.info "Uninstall started for #{app}..."
+# Uninstall stack application
+module.exports.uninstall = (app, callback) ->
     manifest.name = app
     manifest.user = app
     client.clean manifest, (err, res, body) ->
         if err or body.error?
-            handleError err, body, "Uninstall failed for #{app}."
+            callback makeError(err, body)
         else
-            log.info "#{app} was successfully uninstalled."
+            callback()
 
-module.exports.start = (app) ->
-    log.info "Starting #{app}..."
+# Restart stack application
+module.exports.start = (app, callback) ->
     manifest.name = app
     manifest.repository.url =
         "https://github.com/cozy/cozy-#{app}.git"
@@ -88,45 +63,23 @@ module.exports.start = (app) ->
     client.stop app, (err, res, body) ->
         client.start manifest, (err, res, body) ->
             if err or body.error?
-                handleError err, body, "Start failed for #{app}."
+                callback makeError(err, body)
             else
-                log.info "#{app} was successfully started."
+                callback()
 
 
 # Stop
-module.exports.stop = (app) ->
-    log.info "Stopping #{app}..."
+module.exports.stop = (app, callback) ->
     manifest.name = app
     manifest.user = app
     client.stop app, (err, res, body) ->
         if err or body.error?
-            handleError err, body, "Stop failed"
+            callback makeError(err, body)
         else
-            log.info "#{app} was successfully stopped."
-
-
-# Restart
-module.exports.restart = (app) ->
-        log.info "Stopping #{app}..."
-        client.stop app, (err, res, body) ->
-            if err or body.error?
-                handleError err, body, "Stop failed."
-            else
-                log.info "#{app} successfully stopped."
-                log.info "Starting #{app}..."
-                manifest.name = app
-                manifest.repository.url =
-                    "https://github.com/cozy/cozy-#{app}.git"
-                manifest.user = app
-                client.start manifest, (err, res, body) ->
-                    if err
-                        handleError err, body, "Start failed for #{app}"
-                    else
-                        log.info "#{app} sucessfully started."
+            callback()
 
 # Update
-module.exports.update = (app, repo) ->
-    log.info "Updating #{app}..."
+module.exports.update = (app, repo, callback) ->
     manifest.name = app
     if repo?
         manifest.repository.url = repo
@@ -136,55 +89,46 @@ module.exports.update = (app, repo) ->
     manifest.user = app
     client.lightUpdate manifest, (err, res, body) ->
         if err or body.error?
-            handleError err, body, "Update failed."
+            callback makeError(err, body)
         else
-            log.info "#{app} was successfully updated."
+            callback()
 
-
-module.exports.updateController = (callback) ->
-    log.info "Update controller ..."
-    exec "npm -g update cozy-controller", (err, stdout) ->
-        if err
-            handleError err, null, "Light update failed."
+# Update all stack
+module.exports.updateAll = (callback) ->
+    client.updateStack (err, res, body) ->
+        if err or body.error?
+            callback makeError(err, body)
         else
-            log.info "Controller was successfully updated."
-            callback null
-
-module.exports.restartController = (callback) ->
-    log.info "Restart controller ..."
-    exec "supervisorctl restart cozy-controller", (err, stdout) ->
-        if err
-            handleError err, null, "Light update failed."
-        else
-            log.info "Controller was successfully restarted."
-            callback null
-
-module.exports.getVersion = (name) =>
-    if name is "controller"
-        path = "/usr/local/lib/node_modules/cozy-controller/package.json"
-    else
-        path = "#{appsPath}/#{name}/#{name}/cozy-#{name}/package.json"
-    if fs.existsSync path
-        data = fs.readFileSync path, 'utf8'
-        data = JSON.parse data
-        log.raw "#{name}: #{data.version}"
-    else
-        if name is 'controller'
-            path = "/usr/lib/node_modules/cozy-controller/package.json"
-        else
-            path = "#{appsPath}/#{name}/package.json"
-        if fs.existsSync path
-            data = fs.readFileSync path, 'utf8'
-            data = JSON.parse data
-            log.raw "#{name}: #{data.version}"
-        else
-            log.raw "#{name}: unknown"
-
+            callback()
 
 getVersionIndexer = (callback) =>
-    client = request.newClient indexerUrl
-    client.get '', (err, res, body) =>
+    indexClient.get '', (err, res, body) =>
         if body? and body.split('v')[1]?
             callback  body.split('v')[1]
         else
             callback "unknown"
+
+module.exports.getVersion = (name, callback) =>
+    if name is "indexer"
+        getVersionIndexer callback
+    else
+        if name is "controller"
+            path = "/usr/local/lib/node_modules/cozy-controller/package.json"
+        else
+            path = "#{appsPath}/#{name}/#{name}/cozy-#{name}/package.json"
+        if fs.existsSync path
+            data = fs.readFileSync path, 'utf8'
+            data = JSON.parse data
+            callback data.version
+        else
+            if name is 'controller'
+                path = "/usr/lib/node_modules/cozy-controller/package.json"
+            else
+                path = "#{appsPath}/#{name}/package.json"
+            if fs.existsSync path
+                data = fs.readFileSync path, 'utf8'
+                data = JSON.parse data
+                callback data.version
+            else
+                callback "unknown"
+

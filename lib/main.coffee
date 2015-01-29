@@ -27,6 +27,7 @@ stackApplication = require './stack_application'
 monitoring = require './monitoring'
 database = require './database'
 
+logError = helpers.logError
 
 program
   .version(version)
@@ -44,6 +45,16 @@ program
     .option('-b, --branch <branch>', 'Use specific branch')
     .option('-d, --displayName <displayName>', 'Display specific name')
     .action (app, options) ->
+        log.info "Install started for #{app}..."
+        if app in ['data-system', 'home', 'proxy']
+            installation = stackApplication.install
+        else
+            installation = application.install
+        installation app, options, (err) ->
+            if err?
+                logError err, "Install failed for #{app}."
+            else
+                log.info "#{app} was successfully installed."
 
 
 # Install cozy stack (home, ds, proxy)
@@ -51,10 +62,20 @@ program
     .command("install-cozy-stack")
     .description("Install cozy via the Cozy Controller")
     .action () ->
-        installStackApp 'data-system', () ->
-            installStackApp 'home', () ->
-                installStackApp 'proxy', () ->
-                    log.info 'Cozy stack successfully installed.'
+        async.eachSeries ['data-system', 'home', 'proxy'], (app, cb) ->
+            log.info "Install started for #{app}..."
+            stackApplication.install app, {}, (err) ->
+                if err?
+                    logError err, "Install failed for #{app}."
+                    cb(err)
+                else
+                    log.info '...ok'
+                    cb()
+        , (err) ->
+            if err?
+                logError err, "Install failed for cozy stack."
+            else
+                log.info 'Cozy stack successfully installed.'
 
 
 # Uninstall
@@ -64,9 +85,14 @@ program
     .action (app) ->
         log.info "Uninstall started for #{app}..."
         if app in ['data-system', 'home', 'proxy']
-            
+            uninstallation = stackApplication.uninstall
         else
-            
+            uninstallation = application.uninstall
+        uninstallation app, (err) ->
+            if err?
+                logError err, "Uninstall failed for #{app}."
+            else
+                log.info "#{app} successfully uninstalled."
 
 
 # Start
@@ -76,16 +102,224 @@ program
     .action (app) ->
         log.info "Starting #{app}..."
         if app in ['data-system', 'home', 'proxy']
-            
+            start = stackApplication.start
         else
-            
+            start = application.start
+        start app, (err) ->
+            if err?
+                logError err, "Start failed for #{app}."
+            else
+                log.info "#{app} successfully started."
+
+# Restart
+program
+    .command("restart <app>")
+    .description("Start application")
+    .action (app) ->
+        log.info "Restart #{app}..."
+        if app in ['data-system', 'home', 'proxy']
+            start = stackApplication.start
+        else
+            start = application.start
+        start app, (err) ->
+            if err?
+                logError err, "Start failed for #{app}."
+            else
+                log.info "#{app} successfully started."
+
+# Restart cozy stack
+program
+    .command("restart-cozy-stack")
+    .description("Restart cozy trough controller")
+    .action () ->
+        async.eachSeries ['data-system', 'home', 'proxy'], (app, cb) ->
+            log.info "Restart #{app}..."
+            stackApplication.start app, (err) ->
+                if err?
+                    logError err, "Restart failed for #{app}."
+                    cb(err)
+                else
+                    log.info '...ok'
+                    cb()
+        , (err) ->
+            if err?
+                logError err, "restart failed for cozy stack."
+            else
+                log.info 'Cozy stack successfully restarted.'
+
+# Stop
+program
+    .command("stop <app>")
+    .description("Stop application")
+    .action (app) ->
+        log.info "Stopping #{app}..."
+        if app in ['data-system', 'home', 'proxy']
+            stop = stackApplication.stop
+        else
+            stop = application.stop
+        stop app, (err) ->
+            if err?
+                logError err, "Stop failed for #{app}."
+            else
+                log.info "#{app} successfully stoped."
+
+# Stop all user applications
+program
+    .command("stop-all")
+    .description("Stop all user applications")
+    .action ->
+        application.getApps (err, apps) ->
+            if err?
+                logError err, "Retrieve applications failed."
+            else
+                async.eachSeries apps, (app, cb) ->
+                    log.info "Stopping #{app.slug} ..."
+                    application.stop app.slug, (err) ->
+                        if err?
+                            logError err, "Stop failed for #{app.slug}."
+                            cb err
+                        else
+                            log.info "...ok"
+                            cb()
+                , (err) ->
+                    if err?
+                        logError err, "Stop failed."
+                    else
+                        log.info "All applications successfully stopped."
 
 
+# Update
+program
+    .command("update <app> [repo]")
+    .description(
+        "Update application (git + npm) and restart it. Option repo " +
+        "is usefull only if app comes from a specific repo")
+    .action (app, repo) ->
+        log.info "Updating #{app}..."
+        if app in ['data-system', 'home', 'proxy']
+            update = stackApplication.update
+        else
+            update = application.update
+        update app, repo, (err) ->
+            if err?
+                logError err, "Update failed for #{app}."
+            else
+                log.info "#{app} successfully updated."
+
+# Update cozy stack
+program
+    .command("update-cozy-stack")
+    .description(
+        "Update cozy stack (home/proxy/data-system)")
+    .action () ->
+        async.eachSeries ['data-system', 'home', 'proxy'], (app, cb) ->
+            log.info "Update #{app}..."
+            stackApplication.update app, {}, (err) ->
+                if err?
+                    logError err, "Update failed for #{app}."
+                    cb(err)
+                else
+                    log.info '...ok'
+                    cb()
+        , (err) ->
+            if err?
+                logError err, "Update failed for cozy stack."
+            else
+                log.info 'Cozy stack successfully updated.'
+
+# Update all user application
+program
+    .command("update-all")
+    .description("Update all user applications")
+    .action ->
+        application.getApps (err, apps) ->
+            if err?
+                logError err, "Retrieve applications failed."
+            else
+                async.eachSeries apps, (app, cb) ->
+                    log.info "Update #{app.slug} ..."
+                    application.update app.slug, {}, (err) ->
+                        if err?
+                            logError err, "Update failed for #{app.slug}."
+                            cb err
+                        else
+                            log.info "...ok"
+                            cb()
+                , (err) ->
+                    if err?
+                        logError err, "Update failed."
+                    else
+                        log.info "All applications successfully updated."
+
+program
+    .command("update-all-cozy-stack")
+    .description(
+        "Update all cozy stack application (DS + proxy + home + controller)")
+    .action () ->
+        log.info "Update all cozy stack ..."
+        stackApplication.updateAll (err) ->
+            if err?
+                logError err, "Update all cozy stack failed."
+            else
+                logError err, "All cozy stack successfully updated."
+
+# Force restart all user application
 program
     .command("force-restart")
     .description("Force application restart - usefull for relocation")
     .action () ->
-       
+        application.getApps (err, apps) ->
+            if err?
+                logError err, "Retrieve applications failed."
+            else
+                async.forEachSeries apps, (app, callback) ->
+                    switch app.state
+                        when 'installed'
+                            log.info "Restart #{app.slug}..."
+                            application.restart app.slug, callback
+                        when 'stopped'
+                            log.info "Restop #{app.slug}..."
+                            application.restop app.slug, callback
+                        when 'installing'
+                            log.info "Reinstall #{app.slug}..."
+                            app.repo = app.git
+                            application.reinstall app.slug, app, callback
+                        when 'broken'
+                            log.info "Reinstall #{app.slug}..."
+                            application.reinstall app.slug, app, callback
+                        else
+                            callback()
+                , (err) ->
+                    if err?
+                        logError err, "Force restart failed."
+                    else
+                        log.info "All applications successfully restart."
+
+
+
+program
+    .command('autostop-all')
+    .description("Put all applications in autostop mode" +
+        "(except pfm, emails, feeds, nirc and konnectors)")
+    .action ->
+        application.getApps (err, apps) ->
+            if err?
+                logError err, "Retrieve applications failed."
+            else
+                async.forEachSeries apps, (app, cb) ->
+                    log.info "Autostop #{app.slug} ..."
+                    application.autoStop app, (err) ->
+                        if err?
+                            logError err, "Autostop failed for #{app.slug}."
+                            cb err
+                        else
+                            log.info "...ok"
+                            cb()
+                , (err) ->
+                    if err?
+                        logError err, "Autostop failed."
+                    else
+                        log.info "All applications successfully autostoppable."
 
 
 ## Start applicationn without controller in a production environment.
@@ -97,7 +331,9 @@ program
     .command("start-standalone <port>")
     .description("Start application without controller")
     .action (port) ->
-        
+        application.startStandalone port, (err) ->
+            if err?
+                logError err, "Start standalone failed."
 
 
 ## Stop applicationn without controller in a production environment.
@@ -105,121 +341,13 @@ program
 # * Usefull if start-standalone doesn't remove app
 program
     .command("stop-standalone")
-    .description("Start application without controller")
+    .description("Stop application without controller")
     .action () ->
-
-# Stop
-
-program
-    .command("stop <app>")
-    .description("Stop application")
-    .action (app) ->
-        log.info "Stopping #{app}..."
-        if app in ['data-system', 'home', 'proxy']
-
-        else
-
-
-program
-    .command("stop-all")
-    .description("Stop all user applications")
-    .action ->
-
-
-program
-    .command('autostop-all')
-    .description("Put all applications in autostop mode" +
-        "(except pfm, emails, feeds, nirc and konnectors)")
-    .action ->
-
-# Restart
-
-program
-    .command("restart <app>")
-    .description("Restart application")
-    .action (app) ->
-        log.info "Stopping #{app}..."
-        if app in ['data-system', 'home', 'proxy']
-
-        else
-
-
-program
-    .command("restart-cozy-stack")
-    .description("Restart cozy trough controller")
-    .action () ->
-        restartApp 'data-system', () =>
-            restartApp 'home', () =>
-                restartApp 'proxy', () =>
-                    log.info 'Cozy stack successfully restarted.'
-
-
-# Update
-
-program
-    .command("update <app> [repo]")
-    .description(
-        "Update application (git + npm) and restart it. Option repo " +
-        "is usefull only if app comes from a specific repo")
-    .action (app, repo) ->
-        log.info "Updating #{app}..."
-        if app in ['data-system', 'home', 'proxy']
-
-        else
-
-
-program
-    .command("update-cozy-stack")
-    .description(
-        "Update application (git + npm) and restart it through controller")
-    .action () ->
-        updateApp 'data-system', () =>
-            updateApp 'home', () =>
-                updateApp 'proxy', () =>
-                    log.info 'Cozy stack successfully updated'
-
-program
-    .command("update-all-cozy-stack [token]")
-    .description(
-        "Update all cozy stack application (DS + proxy + home + controller)")
-    .action (token) ->
-        if token
-            client = new ControllerClient
-                token: token
-        updateController ->
-            updateApp 'data-system', ->
-                updateApp 'home', ->
-                    updateApp 'proxy', ->
-                        restartController ->
-                            log.info 'Cozy stack successfully updated'
-
-
-program
-    .command("update-all")
-    .description("Reinstall all user applications")
-    .action ->
-        homeClient.host = homeUrl
-        homeClient.get "api/applications/", (err, res, apps) ->
-            funcs = []
-            if apps? and apps.rows?
-                for app in apps.rows
-                    func = updateApp app
-                    funcs.push func
-
-                async.series funcs, ->
-                    log.info "\nAll apps reinstalled."
-                    log.info "Reset proxy routes"
-
-                    statusClient.host = proxyUrl
-                    statusClient.get "routes/reset", (err, res, body) ->
-                        if err
-                            handleError err, body, "Cannot reset proxy routes."
-                        else
-                            log.info "Resetting proxy routes succeeded."
-
+        application.stopStandalone (err) ->
+            if err?
+                logError err, "Stop standalone failed."
 
 # Versions
-
 
 program
     .command("versions-stack")
@@ -227,12 +355,11 @@ program
     .action () ->
         log.raw ''
         log.raw 'Cozy Stack:'.bold
-        getVersion "controller"
-        getVersion "data-system"
-        getVersion "home"
-        getVersion 'proxy'
-        getVersionIndexer (indexerVersion) =>
-            log.raw "indexer: #{indexerVersion}"
+        async.forEachSeries ['controller', 'data-system', 'home', 'proxy', 'indexer'], (app, cb) ->
+            stackApplication.getVersion app, (version) ->
+                log.raw "#{app}: #{version}"
+                cb()
+        , (err) ->
             log.raw "monitor: #{version}"
 
 
@@ -242,22 +369,25 @@ program
     .action () ->
         log.raw ''
         log.raw 'Cozy Stack:'.bold
-        getVersion "controller"
-        getVersion "data-system"
-        getVersion "home"
-        getVersion 'proxy'
-        getVersionIndexer (indexerVersion) =>
-            log.raw "indexer: #{indexerVersion}"
+        async.forEachSeries ['controller', 'data-system', 'home', 'proxy', 'indexer'], (app, cb) ->
+            stackApplication.getVersion app, (version) ->
+                log.raw "#{app}: #{version}"
+                cb()
+        , (err) ->
             log.raw "monitor: #{version}"
             log.raw ''
             log.raw "Other applications: ".bold
-            homeClient.host = homeUrl
-            homeClient.get "api/applications/", (err, res, apps) ->
-                if apps?.rows?
-                    log.raw "#{app.name}: #{app.version}" for app in apps.rows
+            application.getApps (err, apps) ->
+                if err?
+                    log.error "Error when retrieve user application."
+                else
+                async.forEachSeries apps, (app, cb)->
+                    application.getVersion app, (version)->
+                        log.raw "#{app.name}: #{version}"
+                        cb()
 
-
-## Monitoring ###
+###
+## Monitoring ##
 
 
 program
@@ -381,7 +511,7 @@ program
                 handleError err, body, "Reset routes failed"
             else
                 log.info "Reset proxy succeeded."
-
+###
 
 program
     .command("*")

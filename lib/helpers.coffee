@@ -1,5 +1,6 @@
 fs = require "fs"
 log = require('printit')()
+request = require("request-json-light")
 
 couchUrl = "http://localhost:5984/"
 dataSystemUrl = "http://localhost:9101/"
@@ -14,10 +15,7 @@ module.exports.homeClient = request.newClient homeUrl
 module.exports.statusClient = request.newClient ''
 module.exports.couchClient = request.newClient couchUrl
 module.exports.dsClient = request.newClient dataSystemUrl
-
-token = getToken()
-module.exports.client = new ControllerClient
-    token: token
+module.exports.indexClient = request.newClient indexerUrl
 
 
 # Generate a random 32 char string.
@@ -28,7 +26,7 @@ module.exports.randomString = (length=32) ->
 
 
 # Read Controller auth token from token file located in /etc/cozy/stack.token .
-module.exports.readToken = (file) ->
+readToken = (file) ->
     try
         token = fs.readFileSync file, 'utf8'
         token = token.split('\n')[0]
@@ -40,11 +38,10 @@ Cannot get Cozy credentials. Are you sure you have the rights to access to:
 """
         return null
 
-
 # Get Controller auth token from token file. If it can't find token in
 # expected folder it looks for in the location of previous controller version
 # (backward compatibility).
-module.exports.getToken = ->
+getToken = module.exports.getToken = ->
     # New controller
     if fs.existsSync '/etc/cozy/stack.token'
         return readToken '/etc/cozy/stack.token'
@@ -69,6 +66,21 @@ Cannot read database credentials in /etc/cozy/couchdb.login.
 """
         process.exit 1
 
+module.exports.makeError = (err, body) ->
+    if err?
+        return new Error(err)
+    else if body?
+        if body.msg
+            return new Error(body.msg)
+        else if body.message
+            return new Error(body.message)
+        else if body.error
+            return new Error(body.error)
+
+module.exports.logError = (err, msg) ->
+    log.error "An error occured:"
+    log.error msg
+    log.raw err
 
 module.exports.handleError = (err, body, msg) ->
     log.error "An error occured:"
@@ -86,3 +98,8 @@ module.exports.handleError = (err, body, msg) ->
             log.raw body.error if typeof body.error is "string"
         else log.raw body
     process.exit 1
+
+
+token = getToken()
+module.exports.client = new ControllerClient
+    token: token

@@ -4,10 +4,13 @@ axon = require 'axon'
 spawn = require('child_process').spawn
 path = require('path')
 log = require('printit')()
+request = require("request-json-light")
 
 helpers = require './helpers'
-homeClient = helpers.homeClient
-client = helpers.client
+homeClient = helpers.clients.home
+proxyClient = helpers.clients.proxy
+dsClient = helpers.clients.ds
+client = helpers.clients.controller
 handleError = helpers.handleError
 makeError = helpers.makeError
 getToken = helpers.getToken
@@ -58,12 +61,11 @@ Expected application not listed in database after installation.
         clearTimeout timeoutId
         socket.close()
 
-        dSclient = helpers.dsClient
-        dSclient.setBasicAuth 'home', token if token = getToken()
-        dSclient.get "data/#{id}/", (err, response, body) ->
+        dsClient.setBasicAuth 'home', token if token = getToken()
+        dsClient.get "data/#{id}/", (err, response, body) ->
             if response.statusCode is 401
-                dSclient.setBasicAuth 'home', ''
-                dSclient.get "data/#{id}/", (err, response, body) ->
+                dsClient.setBasicAuth 'home', ''
+                dsClient.get "data/#{id}/", (err, response, body) ->
                     callback err, body
             else
                 callback err, body
@@ -264,6 +266,18 @@ module.exports.getVersion = (app, callback) ->
     callback app.version
 
 
+module.exports.check = (app, url) ->
+    (callback) ->
+        statusClient = request.newClient url
+        url.get "", (err, res) ->
+            if (res? and not res.statusCode in [200,403]) or (err? and
+                err.code is 'ECONNREFUSED')
+                    log.raw "#{app}: " + "down".red
+            else
+                log.raw "#{app}: " + "up".green
+            callback()
+        , false
+
 
 ## Usefull for application developpement
 
@@ -271,8 +285,7 @@ module.exports.getVersion = (app, callback) ->
 removeFromDatabase = ->
     log.info "Remove application from database ..."
     dsClient.del "data/#{id}/", (err, response, body) ->
-        statusClient.host = proxyUrl
-        statusClient.get "routes/reset", (err, res, body) ->
+        proxyClient.get "routes/reset", (err, res, body) ->
             if err
                 handleError err, body, "Cannot reset routes."
             else
@@ -369,6 +382,7 @@ module.exports.startStandalone = (port, callback) ->
                 if err
                     log.error "Cannot reset routes."
                     callback makeError(err, body)
+                    return
                 else
                     # Add environment varaible.
                     log.info "Start application..."
@@ -401,12 +415,14 @@ module.exports.stopStandalone = (callback) ->
         error = "Cannot read package.json. " +
             "This function should be called in root application  folder"
         callback makeError(err, null)
+        return
     try
         packagePath = path.relative __dirname, 'package.json'
         manifest = require packagePath
     catch err
         error "Package.json isn't in a correct format"
         callback makeError(err, null)
+        return
     # Retrieve manifest from package.json
     manifest.name = manifest.name + "test"
     manifest.slug = manifest.name.replace 'cozy-', ''

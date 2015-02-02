@@ -9,22 +9,27 @@ spawn = require('child_process').spawn
 path = require('path')
 log = require('printit')()
 
-request = require("request-json-light")
 
+application = require './application'
+stackApplication = require './stack_application'
+helpers = require './helpers'
+makeError = helpers.makeError
+dsClient = helpers.clients.ds
+homeClient = helpers.clients.home
+proxyClient = helpers.clients.proxy
+getToken = helpers.getToken
 
 ## Monitoring ###
 
 
 module.exports.startDevRoute = (slug, port, callback) ->
-    client = request.newClient dataSystemUrl
-    client.setBasicAuth 'home', token if token = getToken()
-
+    dsClient.setBasicAuth 'home', token if token = getToken()
     packagePath = process.cwd() + '/package.json'
     try
         packageData = JSON.parse(fs.readFileSync(packagePath, 'utf8'))
     catch err
-        log.error "Run this command in the package.json directory"
-        log.raw err
+        error = "Run this command in the package.json directory"
+        callback makeError(err, null)
         return
 
     perms = {}
@@ -43,121 +48,106 @@ module.exports.startDevRoute = (slug, port, callback) ->
         port: port
         devRoute: true
 
-    client.post "data/", data, (err, res, body) ->
+    dsClient.post "data/", data, (err, res, body) ->
         if err
-            handleError err, body, "Create route failed"
+            log.error "Create route failed"
+            callback makeError(err, body)
         else
-            statusClient.host = proxyUrl
-            statusClient.get "routes/reset", (err, res, body) ->
+            proxyClient.get "routes/reset", (err, res, body) ->
                 if err
-                    handleError err, body, "Reset routes failed"
+                    log.error "Reset routes failed"
+                    callback makeError(err, body)
                 else
-                    log.info "Route was successfully created."
                     log.info "Start your app with the following ENV vars:"
                     log.info "NAME=#{slug} TOKEN=#{slug} PORT=#{port}"
                     log.info "Use dev-route:stop #{slug} to remove it."
+                    callback()
 
 
 module.exports.stopDevRoute = (slug, callback) ->
-        client = request.newClient dataSystemUrl
-        client.setBasicAuth 'home', token if token = getToken()
-        appsQuery = 'request/application/all/'
+    found = false
+    dsClient.setBasicAuth 'home', token if token = getToken()
+    appsQuery = 'request/application/all/'
 
-        stopRoute = (app) ->
-            isSlug = (app.key is slug or slug is 'all')
-            if isSlug and app.value.devRoute
-                client.del "data/#{app.id}/", (err, res, body) ->
-                    if err
-                        handleError err, body, "Unable to delete route."
-                    else
-                        log.info "Route deleted."
-                        client.host = proxyUrl
-                        client.get 'routes/reset', (err, res, body) ->
-                            if err
-                                msg = "Stop reseting proxy routes."
-                                handleError err, body, msg
-                            else
-                                log.info "Reseting proxy routes succeeded."
+    stopRoute = (app) ->
+        isSlug = (app.value.slug is slug or slug is 'all')
+        if isSlug and app.value.devRoute
+            found = true
+            dsClient.del "data/#{app.id}/", (err, res, body) ->
+                if err
+                    callback makeError(err, body)
+                else
+                    log.info "Route deleted."
+                    proxyClient.get 'routes/reset', (err, res, body) ->
+                        if err
+                            log.error "Stop reseting proxy routes."
+                            callback makeError(err, body)
+                        else
+                            callback()
 
 
-        client.post appsQuery, null, (err, res, apps) ->
-            if err or not apps?
-                handleError err, apps, "Unable to retrieve apps data."
-            else
-                apps.forEach stopRoute
-            console.log "There is no dev route with this slug"
+    dsClient.post appsQuery, null, (err, res, apps) ->
+        if err or not apps?
+            log.error "Unable to retrieve apps data."
+            callback makeError(err, apps)
+        else
+            apps.forEach stopRoute
+            if not found
+                console.log "There is no dev route with this slug"
 
 
 module.exports.getRoutes = (callback) ->
-        log.info "Display proxy routes..."
-
-        statusClient.host = proxyUrl
-        statusClient.get "routes", (err, res, routes) ->
-
-            if err
-                handleError err, {}, "Cannot display routes."
-            else if routes?
-                for route of routes
-                    log.raw "#{route} => #{routes[route].port}"
+    proxyClient.get "routes", (err, res, routes) ->
+        if err
+            callback makeError(err, null)
+        else if routes?
+            for route of routes
+                log.raw "#{route} => #{routes[route].port}"
+                callback()
 
 module.exports.moduleStatus = (module, callback) ->
-    urls =
-        controller: controllerUrl
-        "data-system": dataSystemUrl
-        indexer: indexerUrl
-        home: homeUrl
-        proxy: proxyUrl
-    statusClient.host = urls[module]
-    statusClient.get '', (err, res) ->
+    if module is "data-system"
+        module = 'ds'
+    if module is 'indexer'
+        module = 'index'
+    helpers.clients[module].get '', (err, res) ->
         if not res? or not res.statusCode in [200, 401, 403]
-            console.log "down"
+            callback "down"
         else
-            console.log "up"
+            callback "up"
 
 
 module.exports.status = (callback) ->
-    checkApp = (app, host, path="") ->
-        (callback) ->
-            statusClient.host = host
-            statusClient.get path, (err, res) ->
-                if (res? and not res.statusCode in [200,403]) or (err? and
-                    err.code is 'ECONNREFUSED')
-                        log.raw "#{app}: " + "down".red
-                else
-                    log.raw "#{app}: " + "up".green
-                callback()
-            , false
-
     async.series [
-        checkApp "postfix", postfixUrl
-        checkApp "couchdb", couchUrl
-        checkApp "controller", controllerUrl, "version"
-        checkApp "data-system", dataSystemUrl
-        checkApp "home", homeUrl
-        checkApp "proxy", proxyUrl, "routes"
-        checkApp "indexer", indexerUrl
+        stackApplication.check "postfix"
+        stackApplication.check "couch"
+        stackApplication.check "controller", "version"
+        stackApplication.check "ds"
+        stackApplication.check "home"
+        stackApplication.check "proxy", "routes"
+        stackApplication.check "index"
     ], ->
-        statusClient.host = homeUrl
-        statusClient.get "api/applications/", (err, res, apps) ->
-            funcs = []
-            if apps? and apps.rows?
-                for app in apps.rows
+        application.getApps (apps, err) ->
+            if err?
+                callback makeError("Cannot retrieve apps", null)
+            else
+                for app in apps
                     if app.state is 'stopped'
                         log.raw "#{app.name}: " + "stopped".grey
                     else
                         url = "http://localhost:#{app.port}/"
-                        func = checkApp app.name, url
+                        func = application.check app.name, url
                         funcs.push func
                 async.series funcs, ->
 
 module.exports.log = (app, type, callback) ->
     path = "/usr/local/var/log/cozy/#{app}.log"
-
     if not fs.existsSync path
-        log.error "Log file doesn't exist (#{path})."
+        callback makeError("Log file doesn't exist (#{path}).", null)
 
     else if type is "cat"
         log.raw fs.readFileSync path, 'utf8'
+        callback()
 
     else if type is "tail"
         tail = spawn "tail", ["-f", path]
@@ -170,4 +160,4 @@ module.exports.log = (app, type, callback) ->
             log.info "ps process exited with code #{code}"
 
     else
-        log.info "<type> should be 'cat' or 'tail'"
+        callback makeError("<type> should be 'cat' or 'tail'", null)

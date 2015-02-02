@@ -12,9 +12,9 @@ request = require("request-json-light")
 
 
 helpers = require './helpers'
-homeClient = helpers.homeClient
-indexClient = helpers.indexClient
-client = helpers.client
+homeClient = helpers.clients.home
+indexClient = helpers.clients.index
+client = helpers.clients.controller
 makeError = helpers.makeError
 
 appsPath = '/usr/local/cozy/apps'
@@ -131,4 +131,16 @@ module.exports.getVersion = (name, callback) =>
                 callback data.version
             else
                 callback "unknown"
+
+module.exports.check = (app, path="") ->
+    (callback) ->
+        helpers.clients[app].get path, (err, res) ->
+            if (res? and not res.statusCode in [200,403]) or (err? and
+                err.code is 'ECONNREFUSED')
+                    log.raw "#{app}: " + "down".red
+            else
+                log.raw "#{app}: " + "up".green
+            callback()
+        , false
+
 

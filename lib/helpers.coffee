@@ -11,13 +11,6 @@ proxyUrl = "http://localhost:9104/"
 postfixUrl = "http://localhost:25/"
 ControllerClient = require("cozy-clients").ControllerClient
 
-module.exports.homeClient = request.newClient homeUrl
-module.exports.statusClient = request.newClient ''
-module.exports.couchClient = request.newClient couchUrl
-module.exports.dsClient = request.newClient dataSystemUrl
-module.exports.indexClient = request.newClient indexerUrl
-
-
 # Generate a random 32 char string.
 module.exports.randomString = (length=32) ->
     string = ""
@@ -101,5 +94,12 @@ module.exports.handleError = (err, body, msg) ->
 
 
 token = getToken()
-module.exports.client = new ControllerClient
-    token: token
+
+module.exports.clients =
+    'home': request.newClient homeUrl
+    'couch': request.newClient couchUrl
+    'ds': request.newClient dataSystemUrl
+    'index': request.newClient indexerUrl
+    'proxy': request.newClient proxyUrl
+    'controller': new ControllerClient(token: token)
+    'postfix': request.newClient postfixUrl

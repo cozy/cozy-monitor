@@ -123,9 +123,9 @@ program
             start = application.start
         start app, (err) ->
             if err?
-                logError err, "Start failed for #{app}."
+                logError err, "Restart failed for #{app}."
             else
-                log.info "#{app} successfully started."
+                log.info "#{app} successfully restarted."
 
 # Restart cozy stack
 program
@@ -386,64 +386,62 @@ program
                         log.raw "#{app.name}: #{version}"
                         cb()
 
-###
+
 ## Monitoring ##
-
-
 program
     .command("dev-route:start <slug> <port>")
     .description("Create a route so we can access it by the proxy. ")
     .action (slug, port) ->
+        monitoring.startDevRoute slug, port, (err) ->
+            if err?
+                logError err, 'Start route failed'
+            else
+                log.info "Route was successfully created."
 
 program
     .command("dev-route:stop <slug>")
     .action (slug) ->
+        monitoring.stopDevRoute slug, (err) ->
+            if err?
+                logError err, 'Stop route failed'
+            else
+                log.info "Route was successfully removed."
 
 program
     .command("routes")
     .description("Display routes currently configured inside proxy.")
     .action ->
         log.info "Display proxy routes..."
+        monitoring.getRoutes (err) ->
+            if err?
+                logError err, 'Display routes failed'
 
 
 program
     .command("module-status <module>")
     .description("Give status of given in an easy to parse way.")
     .action (module) ->
+        monitoring.moduleStatus module, (status) ->
+            log.info status
 
 program
     .command("status")
     .description("Give current state of cozy platform applications")
     .action ->
-        async.series [
-            checkApp "postfix", postfixUrl
-            checkApp "couchdb", couchUrl
-            checkApp "controller", controllerUrl, "version"
-            checkApp "data-system", dataSystemUrl
-            checkApp "home", homeUrl
-            checkApp "proxy", proxyUrl, "routes"
-            checkApp "indexer", indexerUrl
-        ], ->
-            statusClient.host = homeUrl
-            statusClient.get "api/applications/", (err, res, apps) ->
-                funcs = []
-                if apps? and apps.rows?
-                    for app in apps.rows
-                        if app.state is 'stopped'
-                            log.raw "#{app.name}: " + "stopped".grey
-                        else
-                            url = "http://localhost:#{app.port}/"
-                            func = checkApp app.name, url
-                            funcs.push func
-                    async.series funcs, ->
+        monitoring.status (err) ->
+            if err?
+                logError err, "Cannot display status"
 
 
 program
     .command("log <app> <type>")
     .description("Display application log with cat or tail -f")
     .action (app, type, environment) ->
-        path = "/usr/local/var/log/cozy/#{app}.log"
+        monitoring.log app, type, (err) ->
+            if err?
+                logError err, "Cannot display log"
 
+###
 
 ## Database ##
 
@@ -495,7 +493,7 @@ program
 
 
         [username, password] = getAuthCouchdb()
-
+###
 
 ## Others ##
 
@@ -511,7 +509,7 @@ program
                 handleError err, body, "Reset routes failed"
             else
                 log.info "Reset proxy succeeded."
-###
+
 
 program
     .command("*")

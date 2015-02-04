@@ -25,7 +25,7 @@ helpers = require './helpers'
 application = require './application'
 stackApplication = require './stack_application'
 monitoring = require './monitoring'
-database = require './database'
+db = require './database'
 
 logError = helpers.logError
 
@@ -441,7 +441,6 @@ program
             if err?
                 logError err, "Cannot display log"
 
-###
 
 ## Database ##
 
@@ -450,7 +449,13 @@ program
     .description("Start couchdb compaction")
     .action (database) ->
         database ?= "cozy"
-       
+        log.info "Start couchdb compaction on #{database} ..."
+        db.compact database, (err)->
+            if err?
+                logError err, "Cannot compact database"
+            else
+                log.info "#{database} compaction succeeded"
+                process.exit 0
 
 
 program
@@ -458,6 +463,13 @@ program
     .description("Start couchdb compaction")
     .action (view, database) ->
         database ?= "cozy"
+        log.info "Start views compaction on #{database} for #{view} ..."
+        db.compactViews view, database, (err)->
+            if err?
+                logError err, "Cannot compact view"
+            else
+                log.info "#{view} compaction succeeded"
+                process.exit 0
 
 
 
@@ -466,12 +478,28 @@ program
     .description("Start couchdb compaction")
     .action (database) ->
         database ?= "cozy"
+        database ?= "cozy"
+        log.info "Start views compaction on #{database}..."
+        db.compactAllViews database, (err)->
+            if err?
+                logError err, "Cannot compact views"
+            else
+                log.info "Views compaction succeeded"
+                process.exit 0
+
 
 program
     .command("cleanup [database]")
     .description("Start couchdb cleanup")
     .action (database) ->
         database ?= "cozy"
+        log.info "Start couchdb cleanup on #{database}..."
+        db.cleanup database, (err) ->
+            if err?
+                logError err, "Cannot cleanup database"
+            else
+                log.info "Cleanup succeeded"
+                process.exit 0
 
 ## Backup ##
 
@@ -479,10 +507,16 @@ program
     .command("backup <target>")
     .description("Start couchdb replication to the target")
     .action (target) ->
+        log.info "Backup database in #{target}"
         data =
             source: "cozy"
             target: target
-
+        db.backup data, (err) ->
+            if err?
+                logError err, "Cannot backup database"
+            else
+                log.info "Backup succeeded"
+                process.exit 0
 
 
 program
@@ -490,10 +524,13 @@ program
     .description("Start couchdb replication from target to cozy")
     .action (backup, usernameBackup, passwordBackup) ->
         log.info "Reverse backup..."
+        db.reverseBackup backup, unsernameBackup, passwordBackup, (err) ->
+            if err?
+                logError err, "Cannot reverse backup"
+            else
+                log.info "Reverse backup succeeded"
+                process.exit 0
 
-
-        [username, password] = getAuthCouchdb()
-###
 
 ## Others ##
 
@@ -522,4 +559,3 @@ program.parse process.argv
 
 unless process.argv.slice(2).length
     program.outputHelp()
-

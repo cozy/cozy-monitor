@@ -9,39 +9,23 @@ spawn = require('child_process').spawn
 path = require('path')
 log = require('printit')()
 
+helpers = require './helpers'
+
+couchClient = helpers.clients.couch
+getAuthCouchdb = helpers.getAuthCouchdb
+makeError = helpers.makeError
+
 request = require("request-json-light")
 
 
-## Database ##
+## Database helpers ##
 
-
-compactViews = (database, designDoc, callback) ->
-    [username, password] = getAuthCouchdb()
-    couchClient.setBasicAuth username, password
-    path = "#{database}/_compact/#{designDoc}"
-    couchClient.headers['content-type'] = 'application/json'
-    couchClient.post path, {}, (err, res, body) =>
-        if err or not body.ok
-            handleError err, body, "compaction failed for #{designDoc}"
-        else
-            callback null
-
-
-compactAllViews = (database, designs, callback) ->
-    if designs.length > 0
-        design = designs.pop()
-        log.info "Views compaction for #{design}"
-        compactViews database, design, (err) =>
-            compactAllViews database, designs, callback
-    else
-        callback null
-
-
+# Configure couchClient
 configureCouchClient = (callback) ->
     [username, password] = getAuthCouchdb()
     couchClient.setBasicAuth username, password
 
-#options: {client, foound)
+# Wait end of compaction
 waitCompactComplete = (client, found, callback) ->
     setTimeout ->
         client.get '_active_tasks', (err, res, body) =>
@@ -55,7 +39,8 @@ waitCompactComplete = (client, found, callback) ->
                 waitCompactComplete(client, exist, callback)
     , 500
 
-#options : [username, password]
+# Prepare cozy database
+#     * usefull for reverse backup
 prepareCozyDatabase = (username, password, callback) ->
     couchClient.setBasicAuth username, password
 
@@ -77,81 +62,73 @@ prepareCozyDatabase = (username, password, callback) ->
                     process.exit 1
                 callback()
 
-#options = database
+
+## Database functions ##
+
+# Compaction #
+
+# Compact database <database>
 module.exports.compact = (database, callback)->
-    database ?= "cozy"
     configureCouchClient()
 
-    log.info "Start couchdb compaction on #{database} ..."
     couchClient.headers['content-type'] = 'application/json'
     couchClient.post "#{database}/_compact", {}, (err, res, body) ->
         if err or not body.ok
-            handleError err, body, "Compaction failed."
+            callback makeError(err, body)
         else
             waitCompactComplete couchClient, false, (success) =>
-                log.info "#{database} compaction succeeded"
-                process.exit 0
 
-#options = database
-module.exports.compactViews = (database, callback) ->
-    database ?= "cozy"
-    log.info "Start vews compaction on #{database} for #{view} ..."
-    compactViews database, view, (err) =>
-        if not err
-            log.info "#{database} compaction for #{view} succeeded"
-            process.exit 0
+# Comapct view <view> in database <database>
+compactViews = module.exports.compactViews = (view, database, callback) ->
+    [username, password] = getAuthCouchdb()
+    couchClient.setBasicAuth username, password
+    path = "#{database}/_compact/#{view}"
+    couchClient.headers['content-type'] = 'application/json'
+    couchClient.post path, {}, (err, res, body) =>
+        if err or not body.ok
+            callback makeError(err, body)
+        else
+            callback()
 
-#options = database
+# Compact all views in database
 module.exports.compactAllViews = (database, callback) ->
-    database ?= "cozy"
     configureCouchClient()
-
-    log.info "Start vews compaction on #{database} ..."
     path = "#{database}/_all_docs?startkey=\"_design/\"&endkey=" +
         "\"_design0\"&include_docs=true"
 
     couchClient.get path, (err, res, body) =>
-        if err
-            handleError err, body, "Views compaction failed. " +
-                "Cannot recover all design documents"
+        if err or not body.rows
+            callback makeError(err, body)
         else
             designs = []
-            body.rows.forEach (design) ->
+            async.eachSeries body.rows, (design, callback) ->
                 designId = design.id
                 designDoc = designId.substring 8, designId.length
-                designs.push designDoc
+                compactViews designDoc, database, callback
+            , (err) ->
+                callback(err)
 
-            compactAllViews database, designs, (err) =>
-                if not err
-                    log.info "Views are successfully compacted"
-
-#options = database
+# Cleanup database
 module.exports.cleanup = (database, callback) ->
-    database ?= "cozy"
-    log.info "Start couchdb cleanup on #{database}..."
     configureCouchClient()
     couchClient.post "#{database}/_view_cleanup", {}, (err, res, body) ->
         if err or not body.ok
-            handleError err, body, "Cleanup failed."
+            callback makeError(err, body)
         else
-            log.info "#{database} cleanup succeeded"
-            process.exit 0
+            callback()
 
-## Backup ##
-#options = target
-module.exports.backup = (target, callback) ->
-    data =
-        source: "cozy"
-        target: target
+# Backup #
+
+# Backup database
+module.exports.backup = (data, callback) ->
     configureCouchClient()
     couchClient.post "_replicate", data, (err, res, body) ->
         if err or not body.ok
-            handleError err, body, "Backup failed."
+            callback makeError(err, body)
         else
-            log.info "Backup succeeded"
-            process.exit 0
+            callback()
 
-#options = username, password, backup
+# Reverse backup
 module.exports.reverseBackup = (username,  password, backup, callback) ->
     [username, password] = getAuthCouchdb()
     prepareCozyDatabase username, password, ->
@@ -182,7 +159,6 @@ module.exports.reverseBackup = (username,  password, backup, callback) ->
         # Database replication
         couchClient.post "_replicate", data, (err, res, body) ->
             if err or not body.ok
-                handleError err, body, "Backup failed."
+                callback makeError(err, body)
             else
-                log.info "Reverse backup succeeded"
-                process.exit 0
+                callback()

@@ -15,6 +15,8 @@ handleError = helpers.handleError
 makeError = helpers.makeError
 getToken = helpers.getToken
 
+# Applications helpers #
+
 waitInstallComplete = (slug, callback) ->
     axon   = require 'axon'
     socket = axon.socket 'sub-emitter'
@@ -32,8 +34,7 @@ Expected application not listed in database after installation.
     timeoutId = setTimeout ->
         socket.close()
 
-        statusClient.host = homeUrl
-        statusClient.get "api/applications/", (err, res, apps) ->
+        homeClient.get "api/applications/", (err, res, apps) ->
             if not apps?.rows?
                 callback new Error noAppListErrMsg
             else
@@ -46,6 +47,7 @@ Expected application not listed in database after installation.
                        app.port
 
                         isApp = true
+                        statusClient = request.newClient url
                         statusClient.host = "http://localhost:#{app.port}/"
                         statusClient.get "", (err, res) ->
                             if res?.statusCode in [200, 403]
@@ -71,9 +73,6 @@ Expected application not listed in database after installation.
                 callback err, body
 
 
-
-
-
 msgHomeNotStarted = (app) ->
     return """
 Install home failed for #{app}.
@@ -95,7 +94,6 @@ msgInstallFailed = (app) ->
 Install home failed. Can't figure out the app state.
 """
 
-
 manifest =
    "domain": "localhost"
    "repository":
@@ -103,6 +101,10 @@ manifest =
    "scripts":
        "start": "server.coffee"
 
+
+# Applications functions #
+
+# Callback all application stored in database
 module.exports.getApps = (callback) ->
     homeClient.get "api/applications/", (err, res, apps) ->
         funcs = []
@@ -111,6 +113,8 @@ module.exports.getApps = (callback) ->
         else
             callback makeError(err, apps)
 
+
+# Install application <app>
 install = module.exports.install = (app, options, callback) ->
     # Create manifest
     manifest.name = app
@@ -151,7 +155,8 @@ install = module.exports.install = (app, options, callback) ->
                 else
                     callback makeError(msgFailed(app), null)
 
-# Uninstall
+
+# Uninstall application <app>
 uninstall = module.exports.uninstall = (app, callback) ->
     path = "api/applications/#{app}/uninstall"
     homeClient.del path, (err, res, body) ->
@@ -160,7 +165,8 @@ uninstall = module.exports.uninstall = (app, callback) ->
         else
             callback()
 
-# Start
+
+# Start application <app>
 start = module.exports.start = (app, callback) ->
     find = false
     homeClient.get "api/applications/", (err, res, apps) ->
@@ -181,7 +187,7 @@ start = module.exports.start = (app, callback) ->
             callback makeError(msg)
 
 
-# Stop
+# Stop application <app>
 stop = module.exports.stop = (app, callback) ->
     find = false
     homeClient.get "api/applications/", (err, res, apps) ->
@@ -201,7 +207,8 @@ stop = module.exports.stop = (app, callback) ->
             err = "application #{app} not found"
             callback makeError(err, null)
 
-# Update
+
+# Update application <app>
 module.exports.update = (app, repo=null, callback) ->
     find = false
     homeClient.get "api/applications/", (err, res, apps) ->
@@ -222,6 +229,8 @@ module.exports.update = (app, repo=null, callback) ->
             err = "Update failed: no application installed"
             callback makeError(err, null)
 
+
+# Restart application <app>
 module.exports.restart = (app, callback) ->
     log.info "stop #{app}"
     stop app, (err) ->
@@ -231,6 +240,8 @@ module.exports.restart = (app, callback) ->
             log.info "start #{app}"
             start app, callback
 
+
+# Restop (start and stop) application <app>
 module.exports.restop = (app, callback) ->
     log.info "start #{app}"
     start app, (err) ->
@@ -240,6 +251,8 @@ module.exports.restop = (app, callback) ->
             log.info "stop #{app}"
             stop app, callback
 
+
+# Reinstall application <app>
 module.exports.reinstall = (app, options, callback) ->
     log.info "uninstall #{app}"
     uninstall app, (err) ->
@@ -249,6 +262,8 @@ module.exports.reinstall = (app, options, callback) ->
             log.info "install #{app}"
             install app, options, callback
 
+
+# Put autostoppable application <app>
 module.exports.autoStop = (app, callback) ->
     unStoppable = ['pfm', 'emails', 'feeds', 'nirc', 'sync', 'konnectors']
     if not(app.name in unStoppable) and not app.isStoppable
@@ -261,11 +276,13 @@ module.exports.autoStop = (app, callback) ->
     else
         callback()
 
-# Versions
+
+# Callback application version
 module.exports.getVersion = (app, callback) ->
     callback app.version
 
 
+# Callback application state
 module.exports.check = (app, url) ->
     (callback) ->
         statusClient = request.newClient url
@@ -281,72 +298,18 @@ module.exports.check = (app, url) ->
 
 ## Usefull for application developpement
 
-# Remove from database when process exit.
-removeFromDatabase = ->
-    log.info "Remove application from database ..."
-    dsClient.del "data/#{id}/", (err, response, body) ->
-        proxyClient.get "routes/reset", (err, res, body) ->
-            if err
-                handleError err, body, "Cannot reset routes."
-            else
-                log.info "Reset proxy succeeded."
 
-recoverManifest = (callback) ->
-    unless fs.existsSync 'package.json'
-        log.error "Cannot read package.json. " +
-            "This function should be called in root application folder."
-    else
-        try
-            packagePath = path.relative __dirname, 'package.json'
-            manifest = require packagePath
-        catch err
-            log.raw err
-            log.error "Package.json isn't correctly formatted."
-            return
-
-        # Retrieve manifest from package.json
-        manifest.name = "#{manifest.name}test"
-        manifest.permissions = manifest['cozy-permissions']
-        manifest.displayName =
-            manifest['cozy-displayName'] or manifest.name
-        manifest.state = "installed"
-        manifest.password = randomString()
-        manifest.docType = "Application"
-        manifest.port = port
-        manifest.slug = manifest.name.replace 'cozy-', ''
-
-        if manifest.slug in ['hometest', 'proxytest', 'data-systemtest']
-            log.error(
-                'Sorry, cannot start stack application without ' +
-                ' controller.')
-        else
-            callback(manifest)
-
-
-putInDatabase = (manifest, callback) ->
-    log.info "Add/replace application in database..."
-    token = getToken()
-    if token?
-        dsClient.setBasicAuth 'home', token
-        requestPath = "request/application/all/"
-        dsClient.post requestPath, {}, (err, response, apps) ->
-            if err
-                log.error "Data-system looks down (not responding)."
-            else
-                removeApp apps, manifest.name, () ->
-                    dsClient.post "data/", manifest, (err, res, body) ->
-                        id = body._id
-                        if err
-                            msg = "Cannot add application in database."
-                            handleError err, body, msg
-                        else
-                            callback()
-
+# Generate a random 32 char string.
+randomString = (length=32) ->
+    string = ""
+    string += Math.random().toString(36).substr(2) while string.length < length
+    string.substr 0, length
 
 removeApp = (apps, name, callback) ->
     if apps.length > 0
         app = apps.pop().value
         if app.name is name
+            console.log app._id
             dsClient.del "data/#{app._id}/", (err, response, body) ->
                 removeApp apps, name, callback
         else
@@ -354,18 +317,70 @@ removeApp = (apps, name, callback) ->
     else
         callback()
 
-
-
-
 ## Start applicationn without controller in a production environment.
 # * Add/Replace application in database (for home and proxy)
 # * Reset proxy
 # * Start application with environment variable
 # * When application is stopped : remove application in database and reset proxy
 module.exports.startStandalone = (port, callback) ->
+    recoverManifest = (cb) ->
+        unless fs.existsSync 'package.json'
+            log.error "Cannot read package.json. " +
+                "This function should be called in root application folder."
+        else
+            try
+                packagePath = path.relative __dirname, 'package.json'
+                manifest = require packagePath
+            catch err
+                log.raw err
+                log.error "Package.json isn't correctly formatted."
+                return
+
+            # Retrieve manifest from package.json
+            manifest.name = "#{manifest.name}test"
+            manifest.permissions = manifest['cozy-permissions']
+            manifest.displayName =
+                manifest['cozy-displayName'] or manifest.name
+            manifest.state = "installed"
+            manifest.password = randomString()
+            manifest.docType = "Application"
+            manifest.port = port
+            manifest.slug = manifest.name.replace 'cozy-', ''
+
+            if manifest.slug in ['hometest', 'proxytest', 'data-systemtest']
+                log.error(
+                    'Sorry, cannot start stack application without ' +
+                    ' controller.')
+                cb()
+            else
+                cb(manifest)
+
+
+    putInDatabase = (manifest, cb) ->
+        log.info "Add/replace application in database..."
+        token = getToken()
+        if token?
+            dsClient.setBasicAuth 'home', token
+            requestPath = "request/application/all/"
+            dsClient.post requestPath, {}, (err, response, apps) ->
+                if err
+                    log.error "Data-system looks down (not responding)."
+                else
+                    removeApp apps, manifest.name, () ->
+                        dsClient.post "data/", manifest, (err, res, body) ->
+                            id = body._id
+                            if err
+                                log.error "Cannot add application in database."
+                                cb makeError(err, body)
+                            else
+                                cb()
+
     id = 0
     process.on 'SIGINT', ->
-        removeFromDatabase()
+        stopStandalone (err) ->
+            if not err?
+                console.log "Application removed"
+        , manifest
     process.on 'uncaughtException', (err) ->
         log.error 'uncaughtException'
         log.raw err
@@ -374,15 +389,14 @@ module.exports.startStandalone = (port, callback) ->
     # Recover application manifest
     recoverManifest (manifest) ->
         # Add/Replace application in database
-        putInDatabase manifest, () ->
+        putInDatabase manifest, (err) ->
+            return callback err if err?
             # Reset proxy
             log.info "Reset proxy..."
-            statusClient.host = proxyUrl
-            statusClient.get "routes/reset", (err, res, body) ->
+            proxyClient.get "routes/reset", (err, res, body) ->
                 if err
                     log.error "Cannot reset routes."
-                    callback makeError(err, body)
-                    return
+                    return callback makeError(err, body)
                 else
                     # Add environment varaible.
                     log.info "Start application..."
@@ -408,24 +422,24 @@ module.exports.startStandalone = (port, callback) ->
 ## Stop applicationn without controller in a production environment.
 # * Remove application in database and reset proxy
 # * Usefull if start-standalone doesn't remove app
-module.exports.stopStandalone = (callback) ->
+stopStandalone = module.exports.stopStandalone = (callback, manifest=null) ->
+
     log.info "Retrieve application manifest ..."
-    # Recover application manifest
-    unless fs.existsSync 'package.json'
-        error = "Cannot read package.json. " +
-            "This function should be called in root application  folder"
-        callback makeError(err, null)
-        return
-    try
-        packagePath = path.relative __dirname, 'package.json'
-        manifest = require packagePath
-    catch err
-        error "Package.json isn't in a correct format"
-        callback makeError(err, null)
-        return
-    # Retrieve manifest from package.json
-    manifest.name = manifest.name + "test"
-    manifest.slug = manifest.name.replace 'cozy-', ''
+    if not manifest
+        # Recover application manifest
+        unless fs.existsSync 'package.json'
+            error = "Cannot read package.json. " +
+                "This function should be called in root application  folder"
+            return callback makeError(err, null)
+        try
+            packagePath = path.relative __dirname, 'package.json'
+            manifest = require packagePath
+        catch err
+            error "Package.json isn't in a correct format"
+            return callback makeError(err, null)
+        # Retrieve manifest from package.json
+        manifest.name = manifest.name + "test"
+        manifest.slug = manifest.name.replace 'cozy-', ''
     if manifest.slug in ['hometest', 'proxytest', 'data-systemtest']
         error = 'Sorry, cannot start stack application without controller.'
         callback makeError(err, null)
@@ -439,12 +453,10 @@ module.exports.stopStandalone = (callback) ->
         requestPath = "request/application/all/"
         dsClient.post requestPath, {}, (err, response, apps) =>
             if err
-                log.error "Data-system doesn't respond"
-                return
+                return callback makeError("Data-system doesn't respond", null)
             removeApp apps, manifest.name, () ->
                 log.info "Reset proxy ..."
-                statusClient.host = proxyUrl
-                statusClient.get "routes/reset", (err, res, body) ->
+                proxyClient.get "routes/reset", (err, res, body) ->
                     if err
                         log.error "Cannot reset routes."
                         callback makeError(err, null)

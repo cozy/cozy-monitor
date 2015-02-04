@@ -21,7 +21,7 @@ getToken = helpers.getToken
 
 ## Monitoring ###
 
-
+# Start proxy route for dev
 module.exports.startDevRoute = (slug, port, callback) ->
     dsClient.setBasicAuth 'home', token if token = getToken()
     packagePath = process.cwd() + '/package.json'
@@ -63,7 +63,7 @@ module.exports.startDevRoute = (slug, port, callback) ->
                     log.info "Use dev-route:stop #{slug} to remove it."
                     callback()
 
-
+# Stop proxy route for dev
 module.exports.stopDevRoute = (slug, callback) ->
     found = false
     dsClient.setBasicAuth 'home', token if token = getToken()
@@ -95,7 +95,7 @@ module.exports.stopDevRoute = (slug, callback) ->
             if not found
                 console.log "There is no dev route with this slug"
 
-
+# Callback all proxy routes
 module.exports.getRoutes = (callback) ->
     proxyClient.get "routes", (err, res, routes) ->
         if err
@@ -105,6 +105,7 @@ module.exports.getRoutes = (callback) ->
                 log.raw "#{route} => #{routes[route].port}"
                 callback()
 
+# Callback module state
 module.exports.moduleStatus = (module, callback) ->
     if module is "data-system"
         module = 'ds'
@@ -116,7 +117,7 @@ module.exports.moduleStatus = (module, callback) ->
         else
             callback "up"
 
-
+# Log all applications status
 module.exports.status = (callback) ->
     async.series [
         stackApplication.check "postfix"
@@ -140,6 +141,7 @@ module.exports.status = (callback) ->
                         funcs.push func
                 async.series funcs, ->
 
+# Display application logs
 module.exports.log = (app, type, callback) ->
     path = "/usr/local/var/log/cozy/#{app}.log"
     if not fs.existsSync path

@@ -11,12 +11,6 @@ proxyUrl = "http://localhost:9104/"
 postfixUrl = "http://localhost:25/"
 ControllerClient = require("cozy-clients").ControllerClient
 
-# Generate a random 32 char string.
-module.exports.randomString = (length=32) ->
-    string = ""
-    string += Math.random().toString(36).substr(2) while string.length < length
-    string.substr 0, length
-
 
 # Read Controller auth token from token file located in /etc/cozy/stack.token .
 readToken = (file) ->
@@ -72,7 +66,7 @@ module.exports.makeError = (err, body) ->
 
 module.exports.logError = (err, msg) ->
     log.error "An error occured:"
-    log.error msg
+    log.error msg if msg?
     log.raw err
 
 module.exports.handleError = (err, body, msg) ->
@@ -94,7 +88,6 @@ module.exports.handleError = (err, body, msg) ->
 
 
 token = getToken()
-
 module.exports.clients =
     'home': request.newClient homeUrl
     'couch': request.newClient couchUrl

@@ -101,6 +101,7 @@ module.exports.updateAll = (callback) ->
         else
             callback()
 
+# Callback indexer version
 getVersionIndexer = (callback) =>
     indexClient.get '', (err, res, body) =>
         if body? and body.split('v')[1]?
@@ -108,6 +109,7 @@ getVersionIndexer = (callback) =>
         else
             callback "unknown"
 
+# Callback application version
 module.exports.getVersion = (name, callback) =>
     if name is "indexer"
         getVersionIndexer callback
@@ -132,6 +134,7 @@ module.exports.getVersion = (name, callback) =>
             else
                 callback "unknown"
 
+# Callback application status
 module.exports.check = (app, path="") ->
     (callback) ->
         helpers.clients[app].get path, (err, res) ->
@@ -142,5 +145,3 @@ module.exports.check = (app, path="") ->
                 log.raw "#{app}: " + "up".green
             callback()
         , false
-
-

@@ -36,7 +36,7 @@ describe "Monitoring", ->
             it "And there is no routes",  ->
                 Object.keys(@routes).length.should.equal 0
 
-        describe "Add dev route", ->
+        ###describe "Add dev route", ->
             it "When I send a request to add dev route", (done) ->
                 monitoring.startDevRoute 'test', 9915, (err) =>
                     @err = err
@@ -62,7 +62,7 @@ describe "Monitoring", ->
             it "And route should be removed", (done) ->
                 monitoring.getRoutes (err, routes) =>
                     Object.keys(routes).length.should.equal 0
-                    done()
+                    done()###
 
     describe 'Status', ->
 

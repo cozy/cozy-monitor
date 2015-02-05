@@ -17,6 +17,17 @@ getToken = helpers.getToken
 
 # Applications helpers #
 
+setIcon = (manifest, callback) ->
+    homeClient.headers['content-type'] = 'application/json'
+    homeClient.get 'api/applications/market', (err, res, body) ->
+        found = false
+        for app in body
+            if app.name is manifest.name
+                found = true
+                callback app.icon
+        if not found
+            callback ''
+
 waitInstallComplete = (slug, callback) ->
     axon   = require 'axon'
     socket = axon.socket 'sub-emitter'
@@ -116,44 +127,50 @@ module.exports.getApps = (callback) ->
 
 # Install application <app>
 install = module.exports.install = (app, options, callback) ->
-    # Create manifest
-    manifest.name = app
-    if options.displayName?
-        manifest.displayName = options.displayName
-    else
-        manifest.displayName = app
-    manifest.user = app
-
-    unless options.repo?
-        manifest.git =
-            "https://github.com/cozy/cozy-#{app}.git"
-    else
-        manifest.git = options.repo
-
-    if options.branch?
-        manifest.branch = options.branch
-    path = "api/applications/install"
-    homeClient.headers['content-type'] = 'application/json'
-    homeClient.post path, manifest, (err, res, body) ->
-        if err or body.error
-            if err?.code is 'ECONNREFUSED'
-                err = makeError msgHomeNotStarted(app), null
-            else if body?.message?.indexOf('Not Found') isnt -1
-                console.log body.message
-                err = makeError msgRepoGit(app), null
-            else
-                err = makeError err, body
-            callback err
+    recoverManifest = (callback) =>
+        # Create manifest
+        manifest.name = app
+        if options.displayName?
+            manifest.displayName = options.displayName
         else
-            waitInstallComplete body.app.slug, (err, appresult) ->
-                if err
-                    callback makeError(err, null)
-                else if appresult.state is 'installed'
-                    log.info "#{app} was successfully installed."
-                else if appresult.state is 'installing'
-                    log.info msgLongInstall(app)
+            manifest.displayName = app
+        manifest.user = app
+
+        unless options.repo?
+            manifest.git =
+                "https://github.com/cozy/cozy-#{app}.git"
+        else
+            manifest.git = options.repo
+
+        if options.branch?
+            manifest.branch = options.branch
+        path = "api/applications/install"
+        setIcon manifest, (icon) ->
+            manifest.icon = icon
+            callback manifest
+
+    recoverManifest (manifest) ->
+        homeClient.headers['content-type'] = 'application/json'
+        homeClient.post path, manifest, (err, res, body) ->
+            if err or body.error
+                if err?.code is 'ECONNREFUSED'
+                    err = makeError msgHomeNotStarted(app), null
+                else if body?.message?.indexOf('Not Found') isnt -1
+                    console.log body.message
+                    err = makeError msgRepoGit(app), null
                 else
-                    callback makeError(msgFailed(app), null)
+                    err = makeError err, body
+                callback err
+            else
+                waitInstallComplete body.app.slug, (err, appresult) ->
+                    if err
+                        callback makeError(err, null)
+                    else if appresult.state is 'installed'
+                        log.info "#{app} was successfully installed."
+                    else if appresult.state is 'installing'
+                        log.info msgLongInstall(app)
+                    else
+                        callback makeError(msgInstallFailed(app), null)
 
 
 # Uninstall application <app>

@@ -7,10 +7,9 @@ env:
     global:
         - NODE_ENV=test
 before_install:
-    - npm install forever coffee-script casperjs -g
+    - npm install forever coffee-script -g
     - npm install cozy-controller
-    - cd cozy-controller
-    - sudo forever start -o forever-ds.log bin/cozy-controller
+    - sudo forever start -o forever-ds.log /usr/local/lib/node_modules/cozy-controller/bin/cozy-controller
     - ps aux | grep controller
     - sleep 5
     - cat forever-ds.log

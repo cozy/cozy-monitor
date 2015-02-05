@@ -103,7 +103,7 @@ module.exports.getRoutes = (callback) ->
         else if routes?
             for route of routes
                 log.raw "#{route} => #{routes[route].port}"
-                callback()
+            callback null, routes
 
 # Callback module state
 module.exports.moduleStatus = (module, callback) ->

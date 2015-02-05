@@ -167,8 +167,9 @@ install = module.exports.install = (app, options, callback) ->
                         callback makeError(err, null)
                     else if appresult.state is 'installed'
                         log.info "#{app} was successfully installed."
+                        callback()
                     else if appresult.state is 'installing'
-                        log.info msgLongInstall(app)
+                        callback makeError(msgLongInstall(app), null)
                     else
                         callback makeError(msgInstallFailed(app), null)
 
@@ -240,7 +241,7 @@ module.exports.update = (app, repo=null, callback) ->
                         else
                             callback()
             if not find
-                err = "Update failed: #{app} was not found."
+                err = "Update failed: application #{app} not found."
                 callback makeError(err, null)
         else
             err = "Update failed: no application installed"
@@ -300,17 +301,16 @@ module.exports.getVersion = (app, callback) ->
 
 
 # Callback application state
-module.exports.check = (app, url) ->
-    (callback) ->
-        statusClient = request.newClient url
-        url.get "", (err, res) ->
-            if (res? and not res.statusCode in [200,403]) or (err? and
-                err.code is 'ECONNREFUSED')
-                    log.raw "#{app}: " + "down".red
-            else
-                log.raw "#{app}: " + "up".green
-            callback()
-        , false
+module.exports.check = (app, url, callback=null) ->
+    statusClient = request.newClient url
+    statusClient.get "", (err, res) ->
+        if (res? and not res.statusCode in [200,403]) or (err? and
+            err.code is 'ECONNREFUSED')
+                log.raw "#{app}: " + "down".red
+                callback 'down' if callback?
+        else
+            log.raw "#{app}: " + "up".green
+            callback 'up' if callback?
 
 
 ## Usefull for application developpement

@@ -1,0 +1,22 @@
+language: node_js
+node_js:
+    - "0.10"
+services:
+    - couchdb
+env:
+    global:
+        - NODE_ENV=test
+before_install:
+    - npm install forever coffee-script casperjs -g
+    - npm install cozy-controller
+    - cd cozy-controller
+    - sudo forever start -o forever-ds.log bin/cozy-controller
+    - ps aux | grep controller
+    - sleep 5
+    - cat forever-ds.log
+    - curl http://localhost:9002/
+    - cd ..
+
+after_failure:
+    - cat cozy-data-system/forever-ds.log
+    - cat cozy-data-system/log/test.log

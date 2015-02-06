@@ -33,14 +33,14 @@ waitInstallComplete = (slug, callback) ->
     socket = axon.socket 'sub-emitter'
     socket.connect 9105
     noAppListErrMsg = """
-No application listed after installation.
-"""
+        No application listed after installation.
+    """
     appNotStartedErrMsg = """
-Application is not running after installation.
-"""
+        Application is not running after installation.
+    """
     appNotListedErrMsg = """
-Expected application not listed in database after installation.
-"""
+        Expected application not listed in database after installation.
+    """
 
     timeoutId = setTimeout ->
         socket.close()

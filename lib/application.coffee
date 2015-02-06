@@ -86,24 +86,28 @@ Expected application not listed in database after installation.
 
 msgHomeNotStarted = (app) ->
     return """
-Install home failed for #{app}.
-The Cozy Home looks not started. Install operation cannot be performed.
-"""
+            Install home failed for #{app}. The Cozy Home looks not started. 
+            Install operation cannot be performed.
+        """
+
 msgRepoGit = (app) ->
     return """
-Install home failed for #{app}.
-Default git repo #{manifest.git} doesn't exist.
-You can use option -r to use a specific repo."""
+            Install home failed for #{app}.
+            Default git repo #{manifest.git} doesn't exist.
+            You can use option -r to use a specific repo.
+        """
+
 msgLongInstall = (app) ->
     return """
-#{app} installation is still running. You should check for its status later.
-If the installation is too long, you should try to stop it by uninstalling the
-application and running the installation again.
-"""
+            #{app} installation is still running. You should check for 
+            its status later. If the installation is too long, you should try 
+            to stop it by uninstalling the application and running the 
+            installation again.
+        """
 msgInstallFailed = (app) ->
     return """
-Install home failed. Can't figure out the app state.
-"""
+            Install home failed. Can't figure out the app state.
+        """
 
 manifest =
    "domain": "localhost"

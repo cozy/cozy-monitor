@@ -16,7 +16,7 @@ before_install:
     - cat forever-ds.log
     - curl http://localhost:9002/
 
-script: 'cake tests'
+script: 'npm test'
 
 after_failure:
     - cat forever-ds.log

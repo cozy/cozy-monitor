@@ -12,6 +12,7 @@
   "main": "./lib/main",
   "scripts": {
     "lint": "coffeelint -f coffeelint.json lib/main.coffee",
+    "test":"mocha tests --reporter spec --compilers coffee:coffee-script/register --colors",
     "build": "coffee -c lib/main.coffee",
     "prepublish": "npm run build"
   },

@@ -1,6 +1,6 @@
 {
   "name": "cozy-monitor",
-  "version": "1.2.10",
+  "version": "1.2.11",
   "description": "Tool to manage you Cozy Platform from the command line.",
   "author": "Cozy Cloud <contact@cozycloud.cc> (http://cozycloud.cc)",
   "licenses": [
@@ -12,7 +12,7 @@
   "main": "./lib/main",
   "scripts": {
     "lint": "coffeelint -f coffeelint.json lib/main.coffee",
-    "test":"mocha tests --reporter spec --compilers coffee:coffee-script/register --colors",
+    "test": "mocha tests --reporter spec --compilers coffee:coffee-script/register --colors",
     "build": "coffee -c lib/main.coffee",
     "prepublish": "npm run build"
   },

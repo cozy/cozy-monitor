@@ -1,0 +1,22 @@
+language: node_js
+node_js:
+    - "0.10"
+services:
+    - couchdb
+env:
+    global:
+        - NODE_ENV=test
+before_install:
+    - npm install forever mocha coffee-script -g
+    - npm install cozy-controller
+    - sudo sed -i -e 's/^Defaults\tsecure_path.*$//' /etc/sudoers
+    - sudo forever start -o forever-ds.log node_modules/cozy-controller/bin/cozy-controller
+    - ps aux | grep controller
+    - sleep 5
+    - cat forever-ds.log
+    - curl http://localhost:9002/
+
+script: 'npm test'
+
+after_failure:
+    - cat forever-ds.log

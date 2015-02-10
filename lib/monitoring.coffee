@@ -128,7 +128,8 @@ module.exports.status = (callback) ->
         stackApplication.check "proxy", "routes"
         stackApplication.check "index"
     ], ->
-        application.getApps (apps, err) ->
+        funcs = []
+        application.getApps (err, apps) ->
             if err?
                 callback makeError("Cannot retrieve apps", null)
             else

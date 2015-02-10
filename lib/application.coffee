@@ -21,10 +21,11 @@ setIcon = (manifest, callback) ->
     homeClient.headers['content-type'] = 'application/json'
     homeClient.get 'api/applications/market', (err, res, body) ->
         found = false
-        for app in body
-            if app.name is manifest.name
-                found = true
-                callback app.icon
+        if body?
+            for app in body
+                if app.name is manifest.name
+                    found = true
+                    callback app.icon
         if not found
             callback ''
 
@@ -170,7 +171,6 @@ install = module.exports.install = (app, options, callback) ->
                     if err
                         callback makeError(err, null)
                     else if appresult.state is 'installed'
-                        log.info "#{app} was successfully installed."
                         callback()
                     else if appresult.state is 'installing'
                         callback makeError(msgLongInstall(app), null)

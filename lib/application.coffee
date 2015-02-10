@@ -21,10 +21,11 @@ setIcon = (manifest, callback) ->
     homeClient.headers['content-type'] = 'application/json'
     homeClient.get 'api/applications/market', (err, res, body) ->
         found = false
-        for app in body
-            if app.name is manifest.name
-                found = true
-                callback app.icon
+        if body?
+            for app in body
+                if app.name is manifest.name
+                    found = true
+                    callback app.icon
         if not found
             callback ''
 

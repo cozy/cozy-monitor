@@ -171,7 +171,6 @@ install = module.exports.install = (app, options, callback) ->
                     if err
                         callback makeError(err, null)
                     else if appresult.state is 'installed'
-                        log.info "#{app} was successfully installed."
                         callback()
                     else if appresult.state is 'installing'
                         callback makeError(msgLongInstall(app), null)

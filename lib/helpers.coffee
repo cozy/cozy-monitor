@@ -68,6 +68,7 @@ module.exports.logError = (err, msg) ->
     log.error "An error occured:"
     log.error msg if msg?
     log.raw err
+    process.exit(1)
 
 module.exports.handleError = (err, body, msg) ->
     log.error "An error occured:"

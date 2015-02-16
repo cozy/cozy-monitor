@@ -1,2 +1,2 @@
-lib/main.coffee
+lib/*.coffee
 coffeelint.json

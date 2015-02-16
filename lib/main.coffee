@@ -507,7 +507,7 @@ program
     .command("backup <target>")
     .description("Start couchdb replication to the target")
     .action (target) ->
-        log.info "Backup database in #{target}"
+        log.info "Backup database ..."
         data =
             source: "cozy"
             target: target

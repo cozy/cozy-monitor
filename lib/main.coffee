@@ -30,8 +30,8 @@ db = require './database'
 logError = helpers.logError
 
 program
-  .version(version)
-  .usage('<action> <app>')
+    .version(version)
+    .usage('<action> <app>')
 
 
 ## Applications management ##
@@ -349,13 +349,15 @@ program
 
 # Versions
 
+cozyStack = ['controller', 'data-system', 'home', 'proxy', 'indexer']
+
 program
     .command("versions-stack")
     .description("Display stack applications versions")
     .action () ->
         log.raw ''
         log.raw 'Cozy Stack:'.bold
-        async.forEachSeries ['controller', 'data-system', 'home', 'proxy', 'indexer'], (app, cb) ->
+        async.forEachSeries cozyStack, (app, cb) ->
             stackApplication.getVersion app, (version) ->
                 log.raw "#{app}: #{version}"
                 cb()
@@ -369,7 +371,7 @@ program
     .action () ->
         log.raw ''
         log.raw 'Cozy Stack:'.bold
-        async.forEachSeries ['controller', 'data-system', 'home', 'proxy', 'indexer'], (app, cb) ->
+        async.forEachSeries cozyStack, (app, cb) ->
             stackApplication.getVersion app, (version) ->
                 log.raw "#{app}: #{version}"
                 cb()

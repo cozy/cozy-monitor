@@ -2,13 +2,20 @@ fs = require "fs"
 log = require('printit')()
 request = require("request-json-light")
 
-couchUrl = "http://localhost:5984/"
+couchdbHost = process.env.COUCH_HOST or 'localhost'
+couchdbPort = process.env.COUCH_PORT or '5984'
+indexerHost = process.env.INDEXER_HOST or 'localhost'
+indexerPort = process.env.INDEXER_PORT or '9102'
+postfixHost = process.env.POSTFIX_HOST or 'localhost'
+postfixPort = process.env.POSTFIX_PORT or '25'
+
+couchUrl = "http://#{couchdbHost}:#{couchdbPort}/"
 dataSystemUrl = "http://localhost:9101/"
-indexerUrl = "http://localhost:9102/"
+indexerUrl = "http://#{indexerHost}:#{indexerPort}/"
 controllerUrl = "http://localhost:9002/"
 homeUrl = "http://localhost:9103/"
 proxyUrl = "http://localhost:9104/"
-postfixUrl = "http://localhost:25/"
+postfixUrl = "http://#{postfixHost}:#{postfixPort}/"
 ControllerClient = require("cozy-clients").ControllerClient
 
 

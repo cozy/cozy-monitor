@@ -285,20 +285,6 @@ module.exports.reinstall = (app, options, callback) ->
             install app, options, callback
 
 
-# Put autostoppable application <app>
-module.exports.autoStop = (app, callback) ->
-    unStoppable = ['pfm', 'emails', 'feeds', 'nirc', 'sync', 'konnectors']
-    if not(app.name in unStoppable) and not app.isStoppable
-        app.isStoppable = true
-        homeClient.put "api/applications/byid/#{app.id}", app, (err, res, body) ->
-            if err? or body.error
-                callback makeError(err, body)
-            else
-                callback()
-    else
-        callback()
-
-
 # Callback application version
 module.exports.getVersion = (app, callback) ->
     callback app.version

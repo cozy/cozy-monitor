@@ -296,32 +296,6 @@ program
                         log.info "All applications successfully restart."
 
 
-
-program
-    .command('autostop-all')
-    .description("Put all applications in autostop mode" +
-        "(except pfm, emails, feeds, nirc and konnectors)")
-    .action ->
-        application.getApps (err, apps) ->
-            if err?
-                logError err, "Retrieve applications failed."
-            else
-                async.forEachSeries apps, (app, cb) ->
-                    log.info "Autostop #{app.slug} ..."
-                    application.autoStop app, (err) ->
-                        if err?
-                            logError err, "Autostop failed for #{app.slug}."
-                            cb err
-                        else
-                            log.info "...ok"
-                            cb()
-                , (err) ->
-                    if err?
-                        logError err, "Autostop failed."
-                    else
-                        log.info "All applications successfully autostoppable."
-
-
 ## Start applicationn without controller in a production environment.
 # * Add/Replace application in database (for home and proxy)
 # * Reset proxy

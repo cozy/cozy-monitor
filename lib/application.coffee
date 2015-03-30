@@ -160,8 +160,7 @@ install = module.exports.install = (app, options, callback) ->
             if err or body.error
                 if err?.code is 'ECONNREFUSED'
                     err = makeError msgHomeNotStarted(app), null
-                else if body?.message?.indexOf('Not Found') isnt -1
-                    console.log body.message
+                else if body and body.message and body.message.indexOf('Not Found') isnt -1
                     err = makeError msgRepoGit(app), null
                 else
                     err = makeError err, body

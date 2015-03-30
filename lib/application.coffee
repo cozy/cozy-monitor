@@ -160,8 +160,7 @@ install = module.exports.install = (app, options, callback) ->
             if err or body.error
                 if err?.code is 'ECONNREFUSED'
                     err = makeError msgHomeNotStarted(app), null
-                else if body?.message?.indexOf('Not Found') isnt -1
-                    console.log body.message
+                else if body and body.message and body.message.indexOf('Not Found') isnt -1
                     err = makeError msgRepoGit(app), null
                 else
                     err = makeError err, body
@@ -283,20 +282,6 @@ module.exports.reinstall = (app, options, callback) ->
         else
             log.info "install #{app}"
             install app, options, callback
-
-
-# Put autostoppable application <app>
-module.exports.autoStop = (app, callback) ->
-    unStoppable = ['pfm', 'emails', 'feeds', 'nirc', 'sync', 'konnectors']
-    if not(app.name in unStoppable) and not app.isStoppable
-        app.isStoppable = true
-        homeClient.put "api/applications/byid/#{app.id}", app, (err, res, body) ->
-            if err? or body.error
-                callback makeError(err, body)
-            else
-                callback()
-    else
-        callback()
 
 
 # Callback application version

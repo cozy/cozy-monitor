@@ -30,8 +30,8 @@ db = require './database'
 logError = helpers.logError
 
 program
-  .version(version)
-  .usage('<action> <app>')
+    .version(version)
+    .usage('<action> <app>')
 
 
 ## Applications management ##
@@ -130,7 +130,7 @@ program
 # Restart cozy stack
 program
     .command("restart-cozy-stack")
-    .description("Restart cozy trough controller")
+    .description("Restart cozy through controller")
     .action () ->
         async.eachSeries ['data-system', 'home', 'proxy'], (app, cb) ->
             log.info "Restart #{app}..."
@@ -192,8 +192,8 @@ program
 program
     .command("update <app> [repo]")
     .description(
-        "Update application (git + npm) and restart it. Option repo " +
-        "is usefull only if app comes from a specific repo")
+        "Update application (git + npm) and restart it. The 'repo' option " +
+        "is only useful if the app comes from a specific repo")
     .action (app, repo) ->
         log.info "Updating #{app}..."
         if app in ['data-system', 'home', 'proxy']
@@ -266,7 +266,7 @@ program
 # Force restart all user application
 program
     .command("force-restart")
-    .description("Force application restart - usefull for relocation")
+    .description("Force application restart - useful for relocation")
     .action () ->
         application.getApps (err, apps) ->
             if err?
@@ -323,13 +323,15 @@ program
 
 # Versions
 
+cozyStack = ['controller', 'data-system', 'home', 'proxy', 'indexer']
+
 program
     .command("versions-stack")
     .description("Display stack applications versions")
     .action () ->
         log.raw ''
         log.raw 'Cozy Stack:'.bold
-        async.forEachSeries ['controller', 'data-system', 'home', 'proxy', 'indexer'], (app, cb) ->
+        async.forEachSeries cozyStack, (app, cb) ->
             stackApplication.getVersion app, (version) ->
                 log.raw "#{app}: #{version}"
                 cb()
@@ -343,7 +345,7 @@ program
     .action () ->
         log.raw ''
         log.raw 'Cozy Stack:'.bold
-        async.forEachSeries ['controller', 'data-system', 'home', 'proxy', 'indexer'], (app, cb) ->
+        async.forEachSeries cozyStack, (app, cb) ->
             stackApplication.getVersion app, (version) ->
                 log.raw "#{app}: #{version}"
                 cb()
@@ -353,7 +355,7 @@ program
             log.raw "Other applications: ".bold
             application.getApps (err, apps) ->
                 if err?
-                    log.error "Error when retrieve user application."
+                    log.error "Error when retrieving user application."
                 else
                 async.forEachSeries apps, (app, cb)->
                     application.getVersion app, (version)->
@@ -434,7 +436,7 @@ program
 
 program
     .command("compact-views <view> [database]")
-    .description("Start couchdb compaction")
+    .description("Start couchdb compaction of the given view")
     .action (view, database) ->
         database ?= "cozy"
         log.info "Start views compaction on #{database} for #{view} ..."
@@ -449,7 +451,7 @@ program
 
 program
     .command("compact-all-views [database]")
-    .description("Start couchdb compaction")
+    .description("Start couchdb compaction of all views")
     .action (database) ->
         database ?= "cozy"
         database ?= "cozy"
@@ -524,10 +526,10 @@ program
 
 program
     .command("*")
-    .description("Display error message for an unknown command.")
+    .description("Display the help message for an unknown command.")
     .action ->
-        log.error 'Unknown command, run "cozy-monitor --help"' + \
-                    ' to know the list of available commands.'
+        log.error 'Unknown command, showing help instead.'
+        program.outputHelp()
 
 program.parse process.argv
 

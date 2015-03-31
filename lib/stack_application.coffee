@@ -19,13 +19,25 @@ makeError = helpers.makeError
 
 appsPath = '/usr/local/cozy/apps'
 
-
 manifest =
    "domain": "localhost"
    "repository":
        "type": "git"
    "scripts":
        "start": "build/server.js"
+
+msgControllerNotStarted = (app) ->
+    return """
+            Install failed for #{app}. The Cozy Controller looks not started.
+            Install operation cannot be performed.
+        """
+
+msgRepoGit = (app) ->
+    return """
+            Install failed for #{app}.
+            Default git repo #{manifest.git} doesn't exist.
+            You can use option -r to use a specific repo.
+        """
 
 # Install stack application
 module.exports.install = (app, options, callback) ->
@@ -42,7 +54,16 @@ module.exports.install = (app, options, callback) ->
 
     client.clean manifest, (err, res, body) ->
         client.start manifest, (err, res, body) ->
-            callback(makeError(err, body))
+            if err or body.error
+                if err?.code is 'ECONNREFUSED'
+                    err = makeError msgControllerNotStarted(app), null
+                else if body and body.message and body.message.indexOf('Not Found') isnt -1
+                    err = makeError msgRepoGit(app), null
+                else
+                    err = makeError err, body
+                callback err
+            else
+                callback()
 
 # Uninstall stack application
 module.exports.uninstall = (app, callback) ->

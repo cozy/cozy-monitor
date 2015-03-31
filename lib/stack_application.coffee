@@ -35,7 +35,7 @@ msgControllerNotStarted = (app) ->
 msgRepoGit = (app) ->
     return """
             Install failed for #{app}.
-            Default git repo #{manifest.git} doesn't exist.
+            Default git repo #{manifest.repository.url} doesn't exist.
             You can use option -r to use a specific repo.
         """
 

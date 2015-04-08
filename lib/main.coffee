@@ -45,6 +45,8 @@ program
     .option('-b, --branch <branch>', 'Use specific branch')
     .option('-d, --displayName <displayName>', 'Display specific name')
     .action (app, options) ->
+        if options.repo and options.repo.indexOf('.git') is -1
+            options.repo = options.repo + '.git'
         log.info "Install started for #{app}..."
         if app in ['data-system', 'home', 'proxy']
             installation = stackApplication.install

@@ -265,10 +265,10 @@ program
             else
                 logError err, "All cozy stack successfully updated."
 
-# Force restart all user application
+# Reinstall all user applications (usefull for cozy relocation)
 program
-    .command("force-restart")
-    .description("Force application restart - useful for relocation")
+    .command('reinstall-missing-app')
+    .description('Reinstall all user applications, usefull for cozy relocation')
     .action () ->
         application.getApps (err, apps) ->
             if err?
@@ -277,25 +277,27 @@ program
                 async.forEachSeries apps, (app, callback) ->
                     switch app.state
                         when 'installed'
-                            log.info "Restart #{app.slug}..."
-                            application.restart app.slug, callback
+                            log.info "#{app.slug} : installed. Reinstall application if necessary..."
+                            application.installController app, callback
                         when 'stopped'
-                            log.info "Restop #{app.slug}..."
-                            application.restop app.slug, callback
+                            log.info "#{app.slug} : stopped. Reinstall application if necessary and stop it..."
+                            application.installController app, (err) ->
+                                return callback err if err?
+                                application.stopController app.slug, callback
                         when 'installing'
-                            log.info "Reinstall #{app.slug}..."
-                            app.repo = app.git
+                            log.info "#{app.slug} : installing. Reinstall application..."
                             application.reinstall app.slug, app, callback
                         when 'broken'
-                            log.info "Reinstall #{app.slug}..."
+                            log.info "#{app.slug} : broken. Try to reinstall application..."
                             application.reinstall app.slug, app, callback
                         else
                             callback()
                 , (err) ->
                     if err?
-                        logError err, "Force restart failed."
+                        logError err, "Reinstall missing app failed."
                     else
-                        log.info "All applications successfully restart."
+                        log.info "All missing applications successfully reinstall."
+
 
 
 ## Start applicationn without controller in a production environment.

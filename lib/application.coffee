@@ -299,32 +299,34 @@ module.exports.installController = (app, callback) ->
         if app.branch?
             manifest.repository.branch = options.branch
         client.start manifest, (err, res, body) ->
-            if err
+            if err or body.error
                 log.error '     -> KO'
+                callback makeError(err, body)
             else
                 log.info '     -> OK'
-            if body.drone.port isnt app.port and app.state is 'installed'
-                app.port = body.drone.port
-                log.info "    * update port"
-                dsClient.setBasicAuth 'home', token if token = getToken()
-                dsClient.put "data/#{app.id}/", app, (err, res, body) ->
-                    if err or body?.error
-                        log.error '     -> KO'
-                    else
-                        log.info '     -> OK'
-                    return callback(body.error) if body?.error
-                    callback err
-            else
-                callback(err)
+                if body.drone.port isnt app.port and app.state is 'installed'
+                    app.port = body.drone.port
+                    log.info "    * update port"
+                    dsClient.setBasicAuth 'home', token if token = getToken()
+                    dsClient.put "data/#{app.id}/", app, (err, res, body) ->
+                        if err or body?.error
+                            log.error '     -> KO'
+                            callback makeError(err, body)
+                        else
+                            log.info '     -> OK'
+                            callback()
+                else
+                    callback()
 
 module.exports.stopController = (app, callback) ->
     log.info "    * stop #{app}"
     client.stop app, (err, res, body) ->
         if err
             log.error '     -> KO'
+            callback makeError(err, body)
         else
             log.info '     -> OK'
-        callback(err)
+            callback()
 
 
 # Callback application version

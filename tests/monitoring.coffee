@@ -10,11 +10,8 @@ describe "Monitoring", ->
     before (done) ->
         @timeout 2 * MINUTE
         stackApplication.install 'data-system', {}, (err) ->
-            console.log err
             stackApplication.install 'home', {}, (err) ->
-                console.log err
                 stackApplication.install 'proxy', {}, (err) ->
-                    console.log err
                     done()
 
     after (done) ->

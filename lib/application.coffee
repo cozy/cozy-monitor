@@ -288,16 +288,18 @@ module.exports.reinstall = (app, options, callback) ->
                     log.info '     -> OK'
                 callback err
 
-#Install without home (usefull for relocation)
+# Install without home (usefull for relocation)
 module.exports.installController = (app, callback) ->
     log.info "    * install #{app.slug}"
     client.stop app.slug, (err, res, body) ->
+        # Retrieve application manifest
         manifest.name = app.slug
         manifest.user = app.slug
         manifest.repository.url = app.git
         manifest.password = app.password
         if app.branch?
             manifest.repository.branch = options.branch
+        # Install (or start) application
         client.start manifest, (err, res, body) ->
             if err or body.error
                 log.error '     -> KO'
@@ -305,6 +307,7 @@ module.exports.installController = (app, callback) ->
             else
                 log.info '     -> OK'
                 if body.drone.port isnt app.port and app.state is 'installed'
+                    # Update port if it has changed
                     app.port = body.drone.port
                     log.info "    * update port"
                     dsClient.setBasicAuth 'home', token if token = getToken()
@@ -318,8 +321,10 @@ module.exports.installController = (app, callback) ->
                 else
                     callback()
 
+# Stop application without home (usefull for relocation)
 module.exports.stopController = (app, callback) ->
     log.info "    * stop #{app}"
+    # Stop application
     client.stop app, (err, res, body) ->
         if err
             log.error '     -> KO'

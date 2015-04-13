@@ -277,18 +277,30 @@ program
                 async.forEachSeries apps, (app, callback) ->
                     switch app.state
                         when 'installed'
-                            log.info "#{app.slug} : installed. Reinstall application if necessary..."
+                            # if application is marked 'installed' :
+                            #     reinstall it with controller
+                            log.info "#{app.slug} : installed. Reinstall " +
+                                "application if necessary..."
                             application.installController app, callback
                         when 'stopped'
-                            log.info "#{app.slug} : stopped. Reinstall application if necessary and stop it..."
+                            # if application is marked 'stopped' :
+                            #     reinstall and then stop it with controller
+                            log.info "#{app.slug} : stopped. Reinstall " +
+                                "application if necessary and stop it..."
                             application.installController app, (err) ->
                                 return callback err if err?
                                 application.stopController app.slug, callback
                         when 'installing'
-                            log.info "#{app.slug} : installing. Reinstall application..."
+                            # if application is marked 'installing' :
+                            #     reinstall with home
+                            log.info "#{app.slug} : installing. " +
+                                "Reinstall application..."
                             application.reinstall app.slug, app, callback
                         when 'broken'
-                            log.info "#{app.slug} : broken. Try to reinstall application..."
+                            # if application is marked 'broken' :
+                            #     reinstall with home
+                            log.info "#{app.slug} : broken. Try to reinstall " +
+                                "application..."
                             application.reinstall app.slug, app, callback
                         else
                             callback()
@@ -296,7 +308,8 @@ program
                     if err?
                         logError err, "Reinstall missing app failed."
                     else
-                        log.info "All missing applications successfully reinstall."
+                        log.info "All missing applications successfully " +
+                            "reinstall."
 
 
 

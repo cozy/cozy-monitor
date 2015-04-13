@@ -53,6 +53,7 @@ module.exports.install = (app, options, callback) ->
         manifest.repository.branch = options.branch
 
     client.clean manifest, (err, res, body) ->
+        console.log manifest
         client.start manifest, (err, res, body) ->
             if err or body.error
                 if err?.code is 'ECONNREFUSED'

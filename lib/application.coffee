@@ -115,15 +115,13 @@ manifest =
    "repository":
        "type": "git"
    "scripts":
-       "start": "server.coffee"
-
+       "start": "build/server.js"
 
 # Applications functions #
 
 # Callback all application stored in database
 module.exports.getApps = (callback) ->
     homeClient.get "api/applications/", (err, res, apps) ->
-        funcs = []
         if apps? and apps.rows?
             callback null, apps.rows
         else
@@ -275,13 +273,65 @@ module.exports.restop = (app, callback) ->
 
 # Reinstall application <app>
 module.exports.reinstall = (app, options, callback) ->
-    log.info "uninstall #{app}"
+    log.info "    * uninstall #{app}"
     uninstall app, (err) ->
         if err
+            log.error '     -> KO'
             callback err
         else
-            log.info "install #{app}"
-            install app, options, callback
+            log.info '     -> OK'
+            log.info "    * install #{app}"
+            install app, options, (err)->
+                if err
+                    log.error '     -> KO'
+                else
+                    log.info '     -> OK'
+                callback err
+
+# Install without home (usefull for relocation)
+module.exports.installController = (app, callback) ->
+    log.info "    * install #{app.slug}"
+    client.stop app.slug, (err, res, body) ->
+        # Retrieve application manifest
+        manifest.name = app.slug
+        manifest.user = app.slug
+        manifest.repository.url = app.git
+        manifest.password = app.password
+        if app.branch?
+            manifest.repository.branch = options.branch
+        # Install (or start) application
+        client.start manifest, (err, res, body) ->
+            if err or body.error
+                log.error '     -> KO'
+                callback makeError(err, body)
+            else
+                log.info '     -> OK'
+                if body.drone.port isnt app.port and app.state is 'installed'
+                    # Update port if it has changed
+                    app.port = body.drone.port
+                    log.info "    * update port"
+                    dsClient.setBasicAuth 'home', token if token = getToken()
+                    dsClient.put "data/#{app.id}/", app, (err, res, body) ->
+                        if err or body?.error
+                            log.error '     -> KO'
+                            callback makeError(err, body)
+                        else
+                            log.info '     -> OK'
+                            callback()
+                else
+                    callback()
+
+# Stop application without home (usefull for relocation)
+module.exports.stopController = (app, callback) ->
+    log.info "    * stop #{app}"
+    # Stop application
+    client.stop app, (err, res, body) ->
+        if err
+            log.error '     -> KO'
+            callback makeError(err, body)
+        else
+            log.info '     -> OK'
+            callback()
 
 
 # Callback application version

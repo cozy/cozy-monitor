@@ -46,12 +46,24 @@ waitCompactComplete = (client, found, callback) ->
 # Prepare cozy database
 #     * usefull for reverse backup
 prepareCozyDatabase = (username, password, callback) ->
+    createDatabase = (count, cb) ->
+        if count < 5
+            couchClient.put "cozy", {}, (err, res, body) ->
+                if res.statusCode is 412
+                    setTimeout () ->
+                        createDatabase count+1, cb
+                    , 5 * 1000
+                else
+                    callback err
+        else
+            callback 'Cannot create database'
+
     couchClient.setBasicAuth username, password
 
     # Remove cozy database
     couchClient.del "cozy", (err, res, body) ->
         # Create new cozy database
-        couchClient.put "cozy", {}, (err, res, body) ->
+        createDatabase 0, (err) ->
             # Add member in cozy database
             data =
                 "admins":

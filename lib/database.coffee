@@ -15,6 +15,10 @@ couchClient = helpers.clients.couch
 getAuthCouchdb = helpers.getAuthCouchdb
 makeError = helpers.makeError
 
+couchdbHost = process.env.COUCH_HOST or 'localhost'
+couchdbPort = process.env.COUCH_PORT or '5984'
+couchUrl = "http://#{couchdbHost}:#{couchdbPort}/"
+
 request = require("request-json-light")
 
 
@@ -129,7 +133,7 @@ module.exports.backup = (data, callback) ->
             callback()
 
 # Reverse backup
-module.exports.reverseBackup = (username,  password, backup, callback) ->
+module.exports.reverseBackup = (backup, usernameBackup,  passwordBackup, callback) ->
     [username, password] = getAuthCouchdb()
     prepareCozyDatabase username, password, ->
         toBase64 = (str) ->
@@ -147,16 +151,17 @@ module.exports.reverseBackup = (username,  password, backup, callback) ->
 
         # Initialize data for replication
         data =
-            source:
-                url: backup
-                headers:
-                    Authorization: authBackup
-            target:
-                url: "#{couchUrl}cozy"
-                headers:
-                    Authorization: authCozy
+            'source':
+                'url': backup
+                'headers':
+                    'Authorization': authBackup
+            'target':
+                'url': "#{couchUrl}cozy"
+                'headers':
+                    'Authorization': authCozy
 
         # Database replication
+        couchClient.headers['content-type'] = 'application/json'
         couchClient.post "_replicate", data, (err, res, body) ->
             if err or not body.ok
                 callback makeError(err, body)

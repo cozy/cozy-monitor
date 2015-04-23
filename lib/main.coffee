@@ -517,7 +517,7 @@ program
     .description("Start couchdb replication from target to cozy")
     .action (backup, usernameBackup, passwordBackup) ->
         log.info "Reverse backup..."
-        db.reverseBackup backup, unsernameBackup, passwordBackup, (err) ->
+        db.reverseBackup backup, usernameBackup, passwordBackup, (err) ->
             if err?
                 logError err, "Cannot reverse backup"
             else

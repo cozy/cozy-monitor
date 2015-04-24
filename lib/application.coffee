@@ -15,7 +15,7 @@ handleError = helpers.handleError
 makeError = helpers.makeError
 getToken = helpers.getToken
 
-appsDir = "/usr/local/cozy/apps/"
+appsDir = "/usr/local/cozy/apps"
 
 # Applications helpers #
 
@@ -153,12 +153,13 @@ install = module.exports.install = (app, options, callback) ->
         unless options.icon?
             setIcon manifest, (icon) ->
                 manifest.icon = icon
-                callback manifest
         else
             manifest.icon = options.icon
 
         if options.local?
             manifest.local = options.local
+
+        callback manifest
 
     path = "api/applications/install"
 
@@ -197,10 +198,11 @@ deploy = module.exports.deploy = (app, options, callback) ->
     unless fs.existsSync appRepo
         return callback new Error "App is not deployable"
 
-    unless fs.existsSync "#{appRepo}/manifest.json" \
-      and manifest = require "#{appRepo}/manifest.json"
-        return callback \
-            new Error "You need a valid `manifest.json` at the root of your \
+    try
+        manifest = require "#{appRepo}/package.json"
+    catch error
+	    return callback \
+            new Error "You need a valid `package.json` at the root of your \
                        repository #{appRepo}"
 
     installOptions =

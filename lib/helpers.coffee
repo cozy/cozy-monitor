@@ -21,6 +21,8 @@ ControllerClient = require("cozy-clients").ControllerClient
 
 # Read Controller auth token from token file located in /etc/cozy/stack.token .
 readToken = (file) ->
+    if process.env.TOKEN?
+        return process.env.TOKEN
     try
         token = fs.readFileSync file, 'utf8'
         token = token.split('\n')[0]

@@ -514,7 +514,8 @@ program
 
 program
     .command("reverse-backup <backup> <username> <password>")
-    .description("Start couchdb replication from target to cozy")
+    .description("Start couchdb replication from target to cozy.
+        <backup> should be 'https://<ip>:<port>/<database>' ")
     .action (backup, usernameBackup, passwordBackup) ->
         log.info "Reverse backup..."
         db.reverseBackup backup, usernameBackup, passwordBackup, (err) ->

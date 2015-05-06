@@ -15,6 +15,8 @@ handleError = helpers.handleError
 makeError = helpers.makeError
 getToken = helpers.getToken
 
+appsDir = "/usr/local/cozy/apps"
+
 # Applications helpers #
 
 setIcon = (manifest, callback) ->
@@ -147,10 +149,19 @@ install = module.exports.install = (app, options, callback) ->
 
         if options.branch?
             manifest.branch = options.branch
-        path = "api/applications/install"
-        setIcon manifest, (icon) ->
-            manifest.icon = icon
-            callback manifest
+
+        unless options.icon?
+            setIcon manifest, (icon) ->
+                manifest.icon = icon
+        else
+            manifest.icon = options.icon
+
+        if options.local?
+            manifest.local = options.local
+
+        callback manifest
+
+    path = "api/applications/install"
 
     recoverManifest (manifest) ->
         homeClient.headers['content-type'] = 'application/json'
@@ -158,7 +169,8 @@ install = module.exports.install = (app, options, callback) ->
             if err or body.error
                 if err?.code is 'ECONNREFUSED'
                     err = makeError msgHomeNotStarted(app), null
-                else if body and body.message and body.message.indexOf('Not Found') isnt -1
+                else if body and body.message \
+                  and body.message.indexOf('Not Found') isnt -1
                     err = makeError msgRepoGit(app), null
                 else
                     err = makeError err, body
@@ -173,6 +185,34 @@ install = module.exports.install = (app, options, callback) ->
                         callback makeError(msgLongInstall(app), null)
                     else
                         callback makeError(msgInstallFailed(app), null)
+
+
+# If <app> is already installed in /usr/local/cozy/apps, we want to deploy it
+# without having to fetch anything on a remote Git repository.
+deploy = module.exports.deploy = (app, options, callback) ->
+    unless app.match /^[a-zA-Z0-9-]{2,30}$/
+        return callback new Error "Invalid app name"
+
+    appRepo = "#{appsDir}/#{app}"
+
+    unless fs.existsSync appRepo
+        return callback new Error "App is not deployable"
+
+    try
+        manifest = require "#{appRepo}/package.json"
+    catch error
+	    return callback \
+            new Error "You need a valid `package.json` at the root of your \
+                       repository #{appRepo}"
+
+    installOptions =
+        local: true
+        repo: "#{appRepo}"
+
+    if options.branch?
+        installOptions.branch = options.branch
+
+    install app, installOptions, callback
 
 
 # Uninstall application <app>

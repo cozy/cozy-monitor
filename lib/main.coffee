@@ -59,6 +59,26 @@ program
                 log.info "#{app} was successfully installed."
 
 
+# Deploy
+#
+program
+    .command("deploy <app> ")
+    .description("Deploy an application")
+    .option('-b, --branch <branch>', 'Use specific branch')
+    .action (app, options) ->
+        log.info "Deploying #{app}..."
+        if app in ['data-system', 'home', 'proxy']
+            return logError null, "You cannot deploy a stack application"
+        else
+            deploy = application.deploy
+
+        deploy app, options, (err) ->
+            if err?
+                logError err, "Deployment failed for #{app}."
+            else
+                log.info "#{app} was successfully deployed."
+
+
 # Install cozy stack (home, ds, proxy)
 program
     .command("install-cozy-stack")

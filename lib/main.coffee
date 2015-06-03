@@ -10,7 +10,6 @@ async = require "async"
 fs = require "fs"
 axon = require 'axon'
 exec = require('child_process').exec
-spawn = require('child_process').spawn
 path = require('path')
 log = require('printit')()
 
@@ -437,6 +436,20 @@ program
 
 
 ## Database ##
+
+program
+    .command("curlcouch <url> [method]")
+    .description("Send request curl -X <method> http://id:pwd@couchhost:couchport/cozy/<url> to couchdb ")
+    .action (url, method) ->
+        if not method
+            method = 'GET'
+        [username, password] = helpers.getAuthCouchdb false
+        if username is '' and password is ''
+            request = "curl -X #{method} http://localhost:5984/cozy/#{url}"
+        else
+            request = "curl -X #{method} http://#{username}:#{password}@localhost:5984/cozy/#{url}"
+        child = exec request, (err, stdout, stderr) ->
+            console.log stdout
 
 program
     .command("compact [database]")

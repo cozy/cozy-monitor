@@ -28,6 +28,7 @@ monitoring = require './monitoring'
 db = require './database'
 
 logError = helpers.logError
+clients = helpers.clients
 
 program
     .version(version)
@@ -534,7 +535,7 @@ program
     .action ->
         log.info "Reset proxy routes"
 
-        statusClient.host = proxyUrl
+        statusClient = clients['proxy']
         statusClient.get "routes/reset", (err, res, body) ->
             if err
                 handleError err, body, "Reset routes failed"

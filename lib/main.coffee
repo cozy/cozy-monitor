@@ -3,8 +3,6 @@
 # If you want a friendly application manager you should use the
 # appmanager.coffee script.
 
-require "colors"
-
 program = require 'commander'
 async = require "async"
 fs = require "fs"
@@ -534,10 +532,9 @@ program
     .action ->
         log.info "Reset proxy routes"
 
-        statusClient.host = proxyUrl
-        statusClient.get "routes/reset", (err, res, body) ->
+        helpers.clients.proxy.get "routes/reset", (err, res, body) ->
             if err
-                handleError err, body, "Reset routes failed"
+                logError helpers.makeError err, body, "Reset routes failed"
             else
                 log.info "Reset proxy succeeded."
 

@@ -47,7 +47,7 @@ getToken = module.exports.getToken = ->
             return null
 
 
-module.exports.getAuthCouchdb = (callback) ->
+module.exports.getAuthCouchdb = (exit=true) ->
     try
         data = fs.readFileSync '/etc/cozy/couchdb.login', 'utf8', (err, data) =>
         username = data.split('\n')[0]
@@ -58,7 +58,10 @@ module.exports.getAuthCouchdb = (callback) ->
         log.error """
 Cannot read database credentials in /etc/cozy/couchdb.login.
 """
-        process.exit 1
+        if exit
+            process.exit 1
+        else
+            return ['', '']
 
 module.exports.makeError = (err, body) ->
     if err?

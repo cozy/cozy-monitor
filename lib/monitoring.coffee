@@ -157,10 +157,10 @@ module.exports.log = (app, type, callback) ->
         tail = spawn "tail", ["-f", path]
 
         tail.stdout.setEncoding 'utf8'
-        tail.stdout.on 'data', (data) =>
+        tail.stdout.on 'data', (data) ->
             log.raw data
 
-        tail.on 'close', (code) =>
+        tail.on 'close', (code) ->
             log.info "ps process exited with code #{code}"
 
     else

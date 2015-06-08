@@ -49,7 +49,7 @@ getToken = module.exports.getToken = ->
 
 module.exports.getAuthCouchdb = (exit=true) ->
     try
-        data = fs.readFileSync '/etc/cozy/couchdb.login', 'utf8', (err, data) =>
+        data = fs.readFileSync '/etc/cozy/couchdb.login', 'utf8', (err, data) ->
         username = data.split('\n')[0]
         password = data.split('\n')[1]
         return [username, password]

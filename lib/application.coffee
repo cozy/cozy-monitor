@@ -121,12 +121,24 @@ manifest =
 
 # Callback all application stored in database
 module.exports.getApps = (callback) ->
-    homeClient.get "api/applications/", (err, res, apps) ->
+    homeClient.get "api/applications/", (error, res, apps) ->
         if apps? and apps.rows?
             callback null, apps.rows
         else
-            callback makeError(err, apps)
-
+            # Check if couch is available
+            helpers.clients['couch'].get '', (err, res, body) ->
+                if err or not res? or res.statusCode isnt 200
+                    log.error "couchDB isn't available"
+                # Check if data-system is available
+                helpers.clients['ds'].get '', (err, res, body) ->
+                    if not res? or res.statusCode isnt 200
+                        log.error "data-system isn't available"
+                    # Check if home is available
+                    helpers.clients['home'].get '', (err, res, body) ->
+                        if not res? or res.statusCode isnt 200
+                            log.error "home isn't available"
+                        # Other pbs: credentials, view, ...
+                        callback makeError(error, apps)
 
 # Install application <app>
 install = module.exports.install = (app, options, callback) ->

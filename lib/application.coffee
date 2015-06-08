@@ -87,7 +87,7 @@ waitInstallComplete = (slug, callback) ->
 
 msgHomeNotStarted = (app) ->
     return """
-            Install home failed for #{app}. The Cozy Home looks not started. 
+            Install home failed for #{app}. The Cozy Home looks not started.
             Install operation cannot be performed.
         """
 
@@ -100,9 +100,9 @@ msgRepoGit = (app) ->
 
 msgLongInstall = (app) ->
     return """
-            #{app} installation is still running. You should check for 
-            its status later. If the installation is too long, you should try 
-            to stop it by uninstalling the application and running the 
+            #{app} installation is still running. You should check for
+            its status later. If the installation is too long, you should try
+            to stop it by uninstalling the application and running the
             installation again.
         """
 msgInstallFailed = (app) ->
@@ -121,16 +121,28 @@ manifest =
 
 # Callback all application stored in database
 module.exports.getApps = (callback) ->
-    homeClient.get "api/applications/", (err, res, apps) ->
+    homeClient.get "api/applications/", (error, res, apps) ->
         if apps? and apps.rows?
             callback null, apps.rows
         else
-            callback makeError(err, apps)
-
+            # Check if couch is available
+            helpers.clients['couch'].get '', (err, res, body) ->
+                if err or not res? or res.statusCode isnt 200
+                    log.error "CouchDB looks not started"
+                # Check if data-system is available
+                helpers.clients['ds'].get '', (err, res, body) ->
+                    if not res? or res.statusCode isnt 200
+                        log.error "The Cozy Data System looks not started"
+                    # Check if home is available
+                    helpers.clients['home'].get '', (err, res, body) ->
+                        if not res? or res.statusCode isnt 200
+                            log.error "The Cozy Home looks not started"
+                        # Other pbs: credentials, view, ...
+                        callback makeError(error, apps)
 
 # Install application <app>
 install = module.exports.install = (app, options, callback) ->
-    recoverManifest = (callback) =>
+    recoverManifest = (callback) ->
         # Create manifest
         manifest.name = app
         if options.displayName?
@@ -158,7 +170,7 @@ install = module.exports.install = (app, options, callback) ->
             if err or body.error
                 if err?.code is 'ECONNREFUSED'
                     err = makeError msgHomeNotStarted(app), null
-                else if body and body.message and body.message.indexOf('Not Found') isnt -1
+                else if body?.message? and body.message.indexOf('Not Found') isnt -1
                     err = makeError msgRepoGit(app), null
                 else
                     err = makeError err, body
@@ -343,10 +355,11 @@ module.exports.getVersion = (app, callback) ->
 module.exports.check = (app, url, callback=null) ->
     statusClient = request.newClient url
     statusClient.get "", (err, res) ->
-        if (res? and not res.statusCode in [200,403]) or (err? and
-            err.code is 'ECONNREFUSED')
-                log.raw "#{app}: " + "down".red
-                callback 'down' if callback?
+        badStatusCode = res? and not res.statusCode in [200,403]
+        econnRefused = err? and err.code is 'ECONNREFUSED'
+        if badStatusCode or econnRefused
+            log.raw "#{app}: " + "down".red
+            callback 'down' if callback?
         else
             log.raw "#{app}: " + "up".green
             callback 'up' if callback?
@@ -507,7 +520,7 @@ stopStandalone = module.exports.stopStandalone = (callback, manifest=null) ->
         log.info "Remove from database ..."
         dsClient.setBasicAuth 'home', token
         requestPath = "request/application/all/"
-        dsClient.post requestPath, {}, (err, response, apps) =>
+        dsClient.post requestPath, {}, (err, response, apps) ->
             if err
                 return callback makeError("Data-system doesn't respond", null)
             removeApp apps, manifest.name, () ->

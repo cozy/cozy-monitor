@@ -437,15 +437,17 @@ program
 
 program
     .command("curlcouch <url> [method]")
-    .description("Send request curl -X <method> http://id:pwd@couchhost:couchport/cozy/<url> to couchdb ")
+    .description("""Send request curl -X <method>
+        http://id:pwd@couchhost:couchport/cozy/<url> to couchdb """)
     .action (url, method) ->
         if not method
             method = 'GET'
-        [username, password] = helpers.getAuthCouchdb false
-        if username is '' and password is ''
-            request = "curl -X #{method} http://localhost:5984/cozy/#{url}"
+        [user, pwd] = helpers.getAuthCouchdb false
+        request = "curl -X #{method} "
+        if user is '' and pwd is ''
+            request += "http://localhost:5984/cozy/#{url}"
         else
-            request = "curl -X #{method} http://#{username}:#{password}@localhost:5984/cozy/#{url}"
+            request += "http://#{user}:#{pwd}@localhost:5984/cozy/#{url}"
         child = exec request, (err, stdout, stderr) ->
             console.log stdout
 

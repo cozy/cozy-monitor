@@ -57,7 +57,7 @@ module.exports.install = (app, options, callback) ->
             if err or body.error
                 if err?.code is 'ECONNREFUSED'
                     err = makeError msgControllerNotStarted(app), null
-                else if body and body.message and body.message.indexOf('Not Found') isnt -1
+                else if body?.message? and body.message.indexOf('Not Found') isnt -1
                     err = makeError msgRepoGit(app), null
                 else
                     err = makeError err, body
@@ -123,15 +123,15 @@ module.exports.updateAll = (callback) ->
             callback()
 
 # Callback indexer version
-getVersionIndexer = (callback) =>
-    indexClient.get '', (err, res, body) =>
+getVersionIndexer = (callback) ->
+    indexClient.get '', (err, res, body) ->
         if body? and body.split('v')[1]?
             callback  body.split('v')[1]
         else
             callback "unknown"
 
 # Callback application version
-module.exports.getVersion = (name, callback) =>
+module.exports.getVersion = (name, callback) ->
     if name is "indexer"
         getVersionIndexer callback
     else
@@ -159,9 +159,10 @@ module.exports.getVersion = (name, callback) =>
 module.exports.check = (app, path="") ->
     (callback) ->
         helpers.clients[app].get path, (err, res) ->
-            if (res? and not res.statusCode in [200,403]) or (err? and
-                err.code is 'ECONNREFUSED')
-                    log.raw "#{app}: " + "down".red
+            badStatusCode = res? and not res.statusCode in [200,403]
+            econnRefused = err? and err.code is 'ECONNREFUSED'
+            if badStatusCode or econnRefused
+                log.raw "#{app}: " + "down".red
             else
                 log.raw "#{app}: " + "up".green
             callback()

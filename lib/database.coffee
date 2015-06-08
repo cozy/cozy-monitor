@@ -32,7 +32,7 @@ configureCouchClient = (callback) ->
 # Wait end of compaction
 waitCompactComplete = (client, found, callback) ->
     setTimeout ->
-        client.get '_active_tasks', (err, res, body) =>
+        client.get '_active_tasks', (err, res, body) ->
             exist = false
             for task in body
                 if task.type is "database_compaction"
@@ -92,7 +92,7 @@ module.exports.compact = (database, callback)->
         if err or not body.ok
             callback makeError(err, body)
         else
-            waitCompactComplete couchClient, false, (success) =>
+            waitCompactComplete couchClient, false, (success) ->
 
 # Comapct view <view> in database <database>
 compactViews = module.exports.compactViews = (view, database, callback) ->
@@ -100,7 +100,7 @@ compactViews = module.exports.compactViews = (view, database, callback) ->
     couchClient.setBasicAuth username, password
     path = "#{database}/_compact/#{view}"
     couchClient.headers['content-type'] = 'application/json'
-    couchClient.post path, {}, (err, res, body) =>
+    couchClient.post path, {}, (err, res, body) ->
         if err or not body.ok
             callback makeError(err, body)
         else
@@ -112,7 +112,7 @@ module.exports.compactAllViews = (database, callback) ->
     path = "#{database}/_all_docs?startkey=\"_design/\"&endkey=" +
         "\"_design0\"&include_docs=true"
 
-    couchClient.get path, (err, res, body) =>
+    couchClient.get path, (err, res, body) ->
         if err or not body.rows
             callback makeError(err, body)
         else
@@ -145,7 +145,7 @@ module.exports.backup = (data, callback) ->
             callback()
 
 # Reverse backup
-module.exports.reverseBackup = (backup, usernameBackup,  passwordBackup, callback) ->
+module.exports.reverseBackup = (backup, usernameBackup,  passwordBackup, cb) ->
     [username, password] = getAuthCouchdb()
     prepareCozyDatabase username, password, ->
         toBase64 = (str) ->
@@ -176,6 +176,6 @@ module.exports.reverseBackup = (backup, usernameBackup,  passwordBackup, callbac
         couchClient.headers['content-type'] = 'application/json'
         couchClient.post "_replicate", data, (err, res, body) ->
             if err or not body.ok
-                callback makeError(err, body)
+                cb makeError(err, body)
             else
-                callback()
+                cb()

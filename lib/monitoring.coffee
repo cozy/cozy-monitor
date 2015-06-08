@@ -131,7 +131,8 @@ module.exports.status = (callback) ->
         funcs = []
         application.getApps (err, apps) ->
             if err?
-                callback makeError("Cannot retrieve apps", null)
+                log.error "Cannot retrieve apps"
+                callback err
             else
                 for app in apps
                     if app.state is 'stopped'
@@ -156,10 +157,10 @@ module.exports.log = (app, type, callback) ->
         tail = spawn "tail", ["-f", path]
 
         tail.stdout.setEncoding 'utf8'
-        tail.stdout.on 'data', (data) =>
+        tail.stdout.on 'data', (data) ->
             log.raw data
 
-        tail.on 'close', (code) =>
+        tail.on 'close', (code) ->
             log.info "ps process exited with code #{code}"
 
     else

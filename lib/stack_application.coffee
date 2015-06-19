@@ -156,14 +156,20 @@ module.exports.getVersion = (name, callback) ->
                 callback "unknown"
 
 # Callback application status
-module.exports.check = (app, path="") ->
+module.exports.check = (raw, app, path="") ->
     (callback) ->
         helpers.clients[app].get path, (err, res) ->
             badStatusCode = res? and not res.statusCode in [200,403]
             econnRefused = err? and err.code is 'ECONNREFUSED'
             if badStatusCode or econnRefused
-                log.raw "#{app}: " + "down".red
+                if raw?
+                    log.raw "#{app}: " + "down"
+                else
+                    log.raw "#{app}: " + "down".red
             else
-                log.raw "#{app}: " + "up".green
+                if raw?
+                    log.raw "#{app}: " + "up"
+                else
+                    log.raw "#{app}: " + "up".green
             callback()
         , false

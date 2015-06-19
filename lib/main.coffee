@@ -418,8 +418,9 @@ program
 program
     .command("status")
     .description("Give current state of cozy platform applications")
-    .action ->
-        monitoring.status (err) ->
+    .option('-r, --raw', "Don't display color")
+    .action (options) ->
+        monitoring.status options.raw, (err) ->
             if err?
                 logError err, "Cannot display status"
 

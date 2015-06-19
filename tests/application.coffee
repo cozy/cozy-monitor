@@ -40,7 +40,7 @@ describe "Application management", ->
                     done()
 
             it "And photos should be started", (done) ->
-                application.check 'photos', 'http://localhost:9119', (state) ->
+                application.check true, 'photos', 'http://localhost:9119', (state) ->
                     state.should.equal 'up'
                     done()
 
@@ -65,7 +65,7 @@ describe "Application management", ->
                     done()
 
             it "And calendar should be started", (done) ->
-                application.check 'calendar', 'http://localhost:9113', (state) ->
+                application.check true, 'calendar', 'http://localhost:9113', (state) ->
                     state.should.equal 'up'
                     done()
 
@@ -125,7 +125,7 @@ describe "Application management", ->
                 should.not.exist @err
 
             it "And photos should be started", (done) ->
-                application.check 'photos', 'http://localhost:9119', (state) ->
+                application.check true, 'photos', 'http://localhost:9119', (state) ->
                     state.should.equal 'up'
                     done()
 
@@ -156,7 +156,7 @@ describe "Application management", ->
                 should.not.exist @err
 
             it "And photos should be stopped", (done) ->
-                application.check 'photos', 'http://localhost:9119', (state) ->
+                application.check true, 'photos', 'http://localhost:9119', (state) ->
                     state.should.equal 'down'
                     done()
 
@@ -188,7 +188,7 @@ describe "Application management", ->
                 should.not.exist @err
 
             it "And photos should be stopped", (done) ->
-                application.check 'photos', 'http://localhost:9119', (state) ->
+                application.check true, 'photos', 'http://localhost:9119', (state) ->
                     state.should.equal 'down'
                     done()
 
@@ -220,7 +220,7 @@ describe "Application management", ->
                 should.not.exist @err
 
             it "And photos should be started", (done) ->
-                application.check 'photos', 'http://localhost:9119', (state) ->
+                application.check true, 'photos', 'http://localhost:9119', (state) ->
                     state.should.equal 'up'
                     done()
 
@@ -251,7 +251,7 @@ describe "Application management", ->
                 should.not.exist @err
 
             it "And photos should be started", (done) ->
-                application.check 'photos', 'http://localhost:9119', (state) ->
+                application.check true, 'photos', 'http://localhost:9119', (state) ->
                     state.should.equal 'up'
                     done()
 
@@ -288,7 +288,7 @@ describe "Application management", ->
                     done()
 
             it "And photos should be started", (done) ->
-                application.check 'photos', 'http://localhost:9119', (state) ->
+                application.check true, 'photos', 'http://localhost:9119', (state) ->
                     state.should.equal 'up'
                     done()
 
@@ -339,7 +339,7 @@ describe "Application management", ->
                 should.not.exist @err
 
             it "And photos should be stopped", (done) ->
-                application.check 'photos', 'http://localhost:9119', (state) ->
+                application.check true, 'photos', 'http://localhost:9119', (state) ->
                     state.should.equal 'down'
                     done()
 

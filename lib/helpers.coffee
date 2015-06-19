@@ -103,6 +103,7 @@ module.exports.clients =
     'home': request.newClient homeUrl
     'couch': request.newClient couchUrl
     'ds': request.newClient dataSystemUrl
+    'data-system': request.newClient dataSystemUrl
     'index': request.newClient indexerUrl
     'proxy': request.newClient proxyUrl
     'controller': new ControllerClient(token: token)

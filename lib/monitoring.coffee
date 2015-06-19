@@ -123,7 +123,7 @@ module.exports.status = (callback) ->
         stackApplication.check "postfix"
         stackApplication.check "couch"
         stackApplication.check "controller", "version"
-        stackApplication.check "ds"
+        stackApplication.check "data-system"
         stackApplication.check "home"
         stackApplication.check "proxy", "routes"
         stackApplication.check "index"

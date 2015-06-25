@@ -1,4 +1,4 @@
-require "colors"
+colors = require "colors"
 
 program = require 'commander'
 async = require "async"
@@ -158,18 +158,13 @@ module.exports.getVersion = (name, callback) ->
 # Callback application status
 module.exports.check = (raw, app, path="") ->
     (callback) ->
+        colors.enabled = not raw
         helpers.clients[app].get path, (err, res) ->
             badStatusCode = res? and not res.statusCode in [200,403]
             econnRefused = err? and err.code is 'ECONNREFUSED'
             if badStatusCode or econnRefused
-                if raw?
-                    log.raw "#{app}: " + "down"
-                else
-                    log.raw "#{app}: " + "down".red
+                log.raw "#{app}: " + "down".red
             else
-                if raw?
-                    log.raw "#{app}: " + "up"
-                else
-                    log.raw "#{app}: " + "up".green
+                log.raw "#{app}: " + "up".green
             callback()
         , false

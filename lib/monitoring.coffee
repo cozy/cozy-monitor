@@ -1,4 +1,4 @@
-require "colors"
+colors = require "colors"
 
 program = require 'commander'
 async = require "async"
@@ -119,6 +119,7 @@ module.exports.moduleStatus = (module, callback) ->
 
 # Log all applications status
 module.exports.status = (raw, callback) ->
+    colors.enabled = not raw
     async.series [
         stackApplication.check raw, "postfix"
         stackApplication.check raw, "couch"
@@ -136,10 +137,7 @@ module.exports.status = (raw, callback) ->
             else
                 for app in apps
                     if app.state is 'stopped'
-                        if raw?
-                            log.raw "#{app.name}: " + "stopped"
-                        else
-                            log.raw "#{app.name}: " + "stopped".grey
+                        log.raw "#{app.name}: " + "stopped".grey
                     else
                         url = "http://localhost:#{app.port}/"
                         func = application.check raw, app.name, url

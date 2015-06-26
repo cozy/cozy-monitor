@@ -5,6 +5,7 @@ spawn = require('child_process').spawn
 path = require('path')
 log = require('printit')()
 request = require("request-json-light")
+colors = require "colors"
 
 helpers = require './helpers'
 homeClient = helpers.clients.home
@@ -352,7 +353,8 @@ module.exports.getVersion = (app, callback) ->
 
 
 # Callback application state
-module.exports.check = (app, url, callback=null) ->
+module.exports.check = (raw, app, url, callback=null) ->
+    colors.enabled = not raw
     statusClient = request.newClient url
     statusClient.get "", (err, res) ->
         badStatusCode = res? and not res.statusCode in [200,403]

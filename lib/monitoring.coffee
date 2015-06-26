@@ -1,4 +1,4 @@
-require "colors"
+colors = require "colors"
 
 program = require 'commander'
 async = require "async"
@@ -118,15 +118,16 @@ module.exports.moduleStatus = (module, callback) ->
             callback "up"
 
 # Log all applications status
-module.exports.status = (callback) ->
+module.exports.status = (raw, callback) ->
+    colors.enabled = not raw
     async.series [
-        stackApplication.check "postfix"
-        stackApplication.check "couch"
-        stackApplication.check "controller", "version"
-        stackApplication.check "ds"
-        stackApplication.check "home"
-        stackApplication.check "proxy", "routes"
-        stackApplication.check "index"
+        stackApplication.check raw, "postfix"
+        stackApplication.check raw, "couch"
+        stackApplication.check raw, "controller", "version"
+        stackApplication.check raw, "data-system"
+        stackApplication.check raw, "home"
+        stackApplication.check raw, "proxy", "routes"
+        stackApplication.check raw, "index"
     ], ->
         funcs = []
         application.getApps (err, apps) ->
@@ -139,7 +140,7 @@ module.exports.status = (callback) ->
                         log.raw "#{app.name}: " + "stopped".grey
                     else
                         url = "http://localhost:#{app.port}/"
-                        func = application.check app.name, url
+                        func = application.check raw, app.name, url
                         funcs.push func
                 async.series funcs, ->
 

@@ -30,7 +30,7 @@ setIcon = (manifest, callback) ->
         if not found
             callback ''
 
-waitInstallComplete = (slug, callback) ->
+waitInstallComplete = (slug, timeout, callback) ->
     axon   = require 'axon'
     socket = axon.socket 'sub-emitter'
     socket.connect 9105
@@ -43,34 +43,36 @@ waitInstallComplete = (slug, callback) ->
     appNotListedErrMsg = """
         Expected application not listed in database after installation.
     """
+    unless timeout?
+        timeout = 240000
+    if timeout isnt 'false'
+        timeoutId = setTimeout ->
+            socket.close()
 
-    timeoutId = setTimeout ->
-        socket.close()
+            homeClient.get "api/applications/", (err, res, apps) ->
+                if not apps?.rows?
+                    callback new Error noAppListErrMsg
+                else
+                    isApp = false
 
-        homeClient.get "api/applications/", (err, res, apps) ->
-            if not apps?.rows?
-                callback new Error noAppListErrMsg
-            else
-                isApp = false
+                    for app in apps.rows
 
-                for app in apps.rows
+                        if app.slug is slug and \
+                           app.state is 'installed' and \
+                           app.port
 
-                    if app.slug is slug and \
-                       app.state is 'installed' and \
-                       app.port
+                            isApp = true
+                            statusClient = request.newClient url
+                            statusClient.host = "http://localhost:#{app.port}/"
+                            statusClient.get "", (err, res) ->
+                                if res?.statusCode in [200, 403]
+                                    callback null, state: 'installed'
+                                else
+                                    callback new Error appNotStartedErrMsg
 
-                        isApp = true
-                        statusClient = request.newClient url
-                        statusClient.host = "http://localhost:#{app.port}/"
-                        statusClient.get "", (err, res) ->
-                            if res?.statusCode in [200, 403]
-                                callback null, state: 'installed'
-                            else
-                                callback new Error appNotStartedErrMsg
-
-                unless isApp
-                    callback new Error appNotListedErrMsg
-    , 240000
+                    unless isApp
+                        callback new Error appNotListedErrMsg
+        , timeout
 
     socket.on 'application.update', (id) ->
         clearTimeout timeoutId
@@ -177,7 +179,7 @@ install = module.exports.install = (app, options, callback) ->
                     err = makeError err, body
                 callback err
             else
-                waitInstallComplete body.app.slug, (err, appresult) ->
+                waitInstallComplete body.app.slug, options.timeout, (err, appresult) ->
                     if err
                         callback makeError(err, null)
                     else if appresult.state is 'installed'

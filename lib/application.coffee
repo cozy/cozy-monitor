@@ -382,9 +382,9 @@ removeApp = (apps, name, callback) ->
     if apps.length > 0
         app = apps.pop().value
         if app.name is name
-            console.log app._id
-            dsClient.del "data/#{app._id}/", (err, response, body) ->
-                removeApp apps, name, callback
+            dsClient.del "access/#{app._id}/", (err, response, body) ->
+                dsClient.del "data/#{app._id}/", (err, response, body) ->
+                    removeApp apps, name, callback
         else
             removeApp apps, name, callback
     else
@@ -411,14 +411,17 @@ module.exports.startStandalone = (port, callback) ->
 
             # Retrieve manifest from package.json
             manifest.name = "#{manifest.name}test"
-            manifest.permissions = manifest['cozy-permissions']
             manifest.displayName =
                 manifest['cozy-displayName'] or manifest.name
             manifest.state = "installed"
-            manifest.password = randomString()
             manifest.docType = "Application"
             manifest.port = port
             manifest.slug = manifest.name.replace 'cozy-', ''
+
+            access =
+                permissions: manifest['cozy-permissions']
+                password: randomString()
+                slug: manifest.slug
 
             if manifest.slug in ['hometest', 'proxytest', 'data-systemtest']
                 log.error(
@@ -426,10 +429,10 @@ module.exports.startStandalone = (port, callback) ->
                     ' controller.')
                 cb()
             else
-                cb(manifest)
+                cb(manifest, access)
 
 
-    putInDatabase = (manifest, cb) ->
+    putInDatabase = (manifest, access, cb) ->
         log.info "Add/replace application in database..."
         token = getToken()
         if token?
@@ -446,7 +449,13 @@ module.exports.startStandalone = (port, callback) ->
                                 log.error "Cannot add application in database."
                                 cb makeError(err, body)
                             else
-                                cb()
+                                access.app = id
+                                dsClient.post "access/", access, (err, res, body) ->
+                                    if err
+                                        log.error "Cannot add application in database."
+                                        cb makeError(err, body)
+                                    else
+                                        cb()
 
     id = 0
     process.on 'SIGINT', ->
@@ -460,9 +469,9 @@ module.exports.startStandalone = (port, callback) ->
         removeFromDatabase()
     log.info "Retrieve application manifest..."
     # Recover application manifest
-    recoverManifest (manifest) ->
+    recoverManifest (manifest, access) ->
         # Add/Replace application in database
-        putInDatabase manifest, (err) ->
+        putInDatabase manifest, access, (err) ->
             return callback err if err?
             # Reset proxy
             log.info "Reset proxy..."
@@ -476,6 +485,7 @@ module.exports.startStandalone = (port, callback) ->
                     process.env.TOKEN = manifest.password
                     process.env.NAME = manifest.slug
                     process.env.NODE_ENV = "production"
+                    process.env.PORT = port
 
                     # Start application
                     server = spawn "npm",  ["start"]

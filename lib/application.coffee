@@ -482,8 +482,8 @@ module.exports.startStandalone = (port, callback) ->
                 else
                     # Add environment varaible.
                     log.info "Start application..."
-                    process.env.TOKEN = manifest.password
-                    process.env.NAME = manifest.slug
+                    process.env.TOKEN = access.password
+                    process.env.NAME = access.slug
                     process.env.NODE_ENV = "production"
                     process.env.PORT = port
 

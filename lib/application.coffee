@@ -30,7 +30,7 @@ setIcon = (manifest, callback) ->
         if not found
             callback ''
 
-waitInstallComplete = (slug, callback) ->
+waitInstallComplete = (slug, timeout, callback) ->
     axon   = require 'axon'
     socket = axon.socket 'sub-emitter'
     socket.connect 9105
@@ -43,34 +43,36 @@ waitInstallComplete = (slug, callback) ->
     appNotListedErrMsg = """
         Expected application not listed in database after installation.
     """
+    unless timeout?
+        timeout = 240000
+    if timeout isnt 'false'
+        timeoutId = setTimeout ->
+            socket.close()
 
-    timeoutId = setTimeout ->
-        socket.close()
+            homeClient.get "api/applications/", (err, res, apps) ->
+                if not apps?.rows?
+                    callback new Error noAppListErrMsg
+                else
+                    isApp = false
 
-        homeClient.get "api/applications/", (err, res, apps) ->
-            if not apps?.rows?
-                callback new Error noAppListErrMsg
-            else
-                isApp = false
+                    for app in apps.rows
 
-                for app in apps.rows
+                        if app.slug is slug and \
+                           app.state is 'installed' and \
+                           app.port
 
-                    if app.slug is slug and \
-                       app.state is 'installed' and \
-                       app.port
+                            isApp = true
+                            statusClient = request.newClient url
+                            statusClient.host = "http://localhost:#{app.port}/"
+                            statusClient.get "", (err, res) ->
+                                if res?.statusCode in [200, 403]
+                                    callback null, state: 'installed'
+                                else
+                                    callback new Error appNotStartedErrMsg
 
-                        isApp = true
-                        statusClient = request.newClient url
-                        statusClient.host = "http://localhost:#{app.port}/"
-                        statusClient.get "", (err, res) ->
-                            if res?.statusCode in [200, 403]
-                                callback null, state: 'installed'
-                            else
-                                callback new Error appNotStartedErrMsg
-
-                unless isApp
-                    callback new Error appNotListedErrMsg
-    , 240000
+                    unless isApp
+                        callback new Error appNotListedErrMsg
+        , timeout
 
     socket.on 'application.update', (id) ->
         clearTimeout timeoutId
@@ -177,7 +179,7 @@ install = module.exports.install = (app, options, callback) ->
                     err = makeError err, body
                 callback err
             else
-                waitInstallComplete body.app.slug, (err, appresult) ->
+                waitInstallComplete body.app.slug, options.timeout, (err, appresult) ->
                     if err
                         callback makeError(err, null)
                     else if appresult.state is 'installed'
@@ -380,9 +382,9 @@ removeApp = (apps, name, callback) ->
     if apps.length > 0
         app = apps.pop().value
         if app.name is name
-            console.log app._id
-            dsClient.del "data/#{app._id}/", (err, response, body) ->
-                removeApp apps, name, callback
+            dsClient.del "access/#{app._id}/", (err, response, body) ->
+                dsClient.del "data/#{app._id}/", (err, response, body) ->
+                    removeApp apps, name, callback
         else
             removeApp apps, name, callback
     else
@@ -409,14 +411,17 @@ module.exports.startStandalone = (port, callback) ->
 
             # Retrieve manifest from package.json
             manifest.name = "#{manifest.name}test"
-            manifest.permissions = manifest['cozy-permissions']
             manifest.displayName =
                 manifest['cozy-displayName'] or manifest.name
             manifest.state = "installed"
-            manifest.password = randomString()
             manifest.docType = "Application"
             manifest.port = port
             manifest.slug = manifest.name.replace 'cozy-', ''
+
+            access =
+                permissions: manifest['cozy-permissions']
+                password: randomString()
+                slug: manifest.slug
 
             if manifest.slug in ['hometest', 'proxytest', 'data-systemtest']
                 log.error(
@@ -424,10 +429,10 @@ module.exports.startStandalone = (port, callback) ->
                     ' controller.')
                 cb()
             else
-                cb(manifest)
+                cb(manifest, access)
 
 
-    putInDatabase = (manifest, cb) ->
+    putInDatabase = (manifest, access, cb) ->
         log.info "Add/replace application in database..."
         token = getToken()
         if token?
@@ -444,7 +449,13 @@ module.exports.startStandalone = (port, callback) ->
                                 log.error "Cannot add application in database."
                                 cb makeError(err, body)
                             else
-                                cb()
+                                access.app = id
+                                dsClient.post "access/", access, (err, res, body) ->
+                                    if err
+                                        log.error "Cannot add application in database."
+                                        cb makeError(err, body)
+                                    else
+                                        cb()
 
     id = 0
     process.on 'SIGINT', ->
@@ -458,9 +469,9 @@ module.exports.startStandalone = (port, callback) ->
         removeFromDatabase()
     log.info "Retrieve application manifest..."
     # Recover application manifest
-    recoverManifest (manifest) ->
+    recoverManifest (manifest, access) ->
         # Add/Replace application in database
-        putInDatabase manifest, (err) ->
+        putInDatabase manifest, access, (err) ->
             return callback err if err?
             # Reset proxy
             log.info "Reset proxy..."
@@ -471,9 +482,10 @@ module.exports.startStandalone = (port, callback) ->
                 else
                     # Add environment varaible.
                     log.info "Start application..."
-                    process.env.TOKEN = manifest.password
-                    process.env.NAME = manifest.slug
+                    process.env.TOKEN = access.password
+                    process.env.NAME = access.slug
                     process.env.NODE_ENV = "production"
+                    process.env.PORT = port
 
                     # Start application
                     server = spawn "npm",  ["start"]

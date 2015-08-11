@@ -47,6 +47,10 @@ program
         if options.repo and options.repo.indexOf('.git') is -1
             options.repo = options.repo + '.git'
         log.info "Install started for #{app}..."
+        if app is 'controller'
+            err = new Error "Controller should be installed with command " +
+                "'npm -g install cozy-controller'"
+            logError err, 'Install failed for controller'
         if app in ['data-system', 'home', 'proxy']
             installation = stackApplication.install
         else
@@ -197,6 +201,10 @@ program
         "is only useful if the app comes from a specific repo")
     .action (app, repo) ->
         log.info "Updating #{app}..."
+        if app is 'controller'
+            err = new Error "Controller should be updated with command " +
+                "'npm -g update cozy-controller'"
+            logError err, 'Update failed for controller'
         if app in ['data-system', 'home', 'proxy']
             update = stackApplication.update
         else

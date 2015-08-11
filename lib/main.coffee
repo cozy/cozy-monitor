@@ -42,7 +42,8 @@ program
     .option('-r, --repo <repo>', 'Use specific repo')
     .option('-b, --branch <branch>', 'Use specific branch')
     .option('-d, --displayName <displayName>', 'Display specific name')
-    .option('-t , --timeout <timeout>', 'Configure timeout (in millisecond), -t false to remove timeout)')
+    .option('-t , --timeout <timeout>', 'Configure timeout (in millisecond)' +
+        ', -t false to remove timeout)')
     .action (app, options) ->
         if options.repo and options.repo.indexOf('.git') is -1
             options.repo = options.repo + '.git'

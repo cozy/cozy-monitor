@@ -173,13 +173,14 @@ install = module.exports.install = (app, options, callback) ->
             if err or body.error
                 if err?.code is 'ECONNREFUSED'
                     err = makeError msgHomeNotStarted(app), null
-                else if body?.message? and body.message.indexOf('Not Found') isnt -1
+                else if body?.message?.indexOf('Not Found') isnt -1
                     err = makeError msgRepoGit(app), null
                 else
                     err = makeError err, body
                 callback err
             else
-                waitInstallComplete body.app.slug, options.timeout, (err, appresult) ->
+                slug = body.app.slug
+                waitInstallComplete slug, options.timeout, (err, appresult) ->
                     if err
                         callback makeError(err, null)
                     else if appresult.state is 'installed'
@@ -439,23 +440,23 @@ module.exports.startStandalone = (port, callback) ->
             dsClient.setBasicAuth 'home', token
             requestPath = "request/application/all/"
             dsClient.post requestPath, {}, (err, response, apps) ->
-                if err
-                    log.error "Data-system looks down (not responding)."
-                else
-                    removeApp apps, manifest.name, () ->
-                        dsClient.post "data/", manifest, (err, res, body) ->
-                            id = body._id
-                            if err
-                                log.error "Cannot add application in database."
-                                cb makeError(err, body)
-                            else
-                                access.app = id
-                                dsClient.post "access/", access, (err, res, body) ->
-                                    if err
-                                        log.error "Cannot add application in database."
-                                        cb makeError(err, body)
-                                    else
-                                        cb()
+                log.error "Data-system looks down (not responding)." if err?
+                return cb() if err?
+                removeApp apps, manifest.name, () ->
+                    dsClient.post "data/", manifest, (err, res, body) ->
+                        id = body._id
+                        if err
+                            log.error "Cannot add application in database."
+                            cb makeError(err, body)
+                        else
+                            access.app = id
+                            dsClient.post "access/", access, (err, res, body) ->
+                                if err
+                                    msg = "Cannot add application in database."
+                                    log.error msg
+                                    cb makeError(err, body)
+                                else
+                                    cb()
 
     id = 0
     process.on 'SIGINT', ->

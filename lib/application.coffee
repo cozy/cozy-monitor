@@ -313,7 +313,7 @@ module.exports.installController = (app, callback) ->
         manifest.repository.url = app.git
         manifest.password = app.password
         if app.branch?
-            manifest.repository.branch = options.branch
+            manifest.repository.branch = app.branch
         # Install (or start) application
         client.start manifest, (err, res, body) ->
             if err or body.error

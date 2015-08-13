@@ -57,7 +57,7 @@ module.exports.install = (app, options, callback) ->
             if err or body.error
                 if err?.code is 'ECONNREFUSED'
                     err = makeError msgControllerNotStarted(app), null
-                else if body?.message? and body.message.indexOf('Not Found') isnt -1
+                else if body?.message?.indexOf('Not Found') isnt -1
                     err = makeError msgRepoGit(app), null
                 else
                     err = makeError err, body

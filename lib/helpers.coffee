@@ -108,3 +108,4 @@ module.exports.clients =
     'proxy': request.newClient proxyUrl
     'controller': new ControllerClient(token: token)
     'postfix': request.newClient postfixUrl
+    'mta': request.newClient postfixUrl

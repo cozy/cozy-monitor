@@ -121,7 +121,7 @@ module.exports.moduleStatus = (module, callback) ->
 module.exports.status = (raw, callback) ->
     colors.enabled = not raw
     async.series [
-        stackApplication.check raw, "postfix"
+        stackApplication.check raw, "mta"
         stackApplication.check raw, "couch"
         stackApplication.check raw, "controller", "version"
         stackApplication.check raw, "data-system"

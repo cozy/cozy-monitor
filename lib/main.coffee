@@ -271,7 +271,7 @@ program
             if err?
                 logError err, "Update all cozy stack failed."
             else
-                logError err, "All cozy stack successfully updated."
+                log.info "All cozy stack successfully updated."
 
 # Reinstall all user applications (usefull for cozy relocation)
 program

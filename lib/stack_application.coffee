@@ -114,10 +114,19 @@ module.exports.update = (app, repo, callback) ->
         else
             callback()
 
+waitUpdate = (callback) ->
+    homeClient.get '', (err, res, body) ->
+        if not res?
+            waitUpdate callback
+        else
+            callback()
+
 # Update all stack
 module.exports.updateAll = (callback) ->
     client.updateStack (err, res, body) ->
-        if err or body.error?
+        if not res?
+            waitUpdate callback
+        else if err or body.error?
             callback makeError(err, body)
         else
             callback()

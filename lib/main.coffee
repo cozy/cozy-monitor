@@ -450,7 +450,8 @@ program
     .command("curlcouch <url> [method]")
     .description("""Send request curl -X <method>
         http://id:pwd@couchhost:couchport/cozy/<url> to couchdb """)
-    .action (url, method) ->
+    .option('--pretty', "Pretty print result")
+    .action (url, method, options) ->
         if not method
             method = 'GET'
         [user, pwd] = helpers.getAuthCouchdb false
@@ -460,7 +461,13 @@ program
         else
             request += "http://#{user}:#{pwd}@localhost:5984/cozy/#{url}"
         child = exec request, (err, stdout, stderr) ->
-            console.log stdout
+            if options.pretty?
+                try
+                    console.log JSON.stringify(JSON.parse(stdout), null, 2)
+                catch e
+                    console.log stdout
+            else
+                console.log stdout
 
 program
     .command("compact [database]")

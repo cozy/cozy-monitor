@@ -124,6 +124,37 @@ module.exports.compactAllViews = (database, callback) ->
             , (err) ->
                 callback(err)
 
+
+# List all views in database
+module.exports.listAllViews = (database, callback) ->
+    configureCouchClient()
+    path = "#{database}/_all_docs?startkey=\"_design/\"&endkey=" +
+        "\"_design0\"&include_docs=true"
+
+    # Get list of views
+    couchClient.get path, (err, res, body) ->
+        if err or not body.rows
+            callback makeError(err, body)
+        else
+            designs = []
+            async.map body.rows, (design, callback) ->
+                # Get infos on each view
+                designId = design.id
+                designDoc = designId.substring 8, designId.length
+                path = "#{database}/_design/#{designDoc}/_info"
+                couchClient.get path, (err, res, body) ->
+                    if err
+                        callback err
+                    else
+                        infos =
+                            name: body.name
+                            hash: body.view_index.signature
+                            size: body.view_index.disk_size
+                        callback null, infos
+            , (err, res) ->
+                callback(err, res)
+
+
 # Cleanup database
 module.exports.cleanup = (database, callback) ->
     configureCouchClient()

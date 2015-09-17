@@ -10,6 +10,7 @@ axon = require 'axon'
 exec = require('child_process').exec
 path = require('path')
 log = require('printit')()
+humanize = require('humanize')
 
 request = require("request-json-light")
 
@@ -510,6 +511,31 @@ program
                 logError err, "Cannot compact views"
             else
                 log.info "Views compaction succeeded"
+                process.exit 0
+
+
+# List infos on all views
+program
+    .command("views-list [database]")
+    .description("List infos on all views")
+    .action (database) ->
+        database ?= "cozy"
+        db.listAllViews database, (err, infos)->
+            if err?
+                logError err, "Cannot list views"
+            else
+                # sort by view size
+                infos.sort (a, b) ->
+                    if a.size < b.size
+                        return -1
+                    else
+                        return 1
+                infos.map (info) ->
+                    name = "#{info.name}                    "
+                    size = "          #{humanize.filesize info.size}"
+                    console.log """
+                        #{name.substr(0, 20)} #{info.hash} #{size.substr -15}
+                    """
                 process.exit 0
 
 

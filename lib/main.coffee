@@ -38,30 +38,32 @@ program
 # Install
 #
 program
-    .command("install <app> ")
+    .command("install <name> ")
     .description("Install application")
     .option('-r, --repo <repo>', 'Use specific repo')
     .option('-b, --branch <branch>', 'Use specific branch')
     .option('-d, --displayName <displayName>', 'Display specific name')
     .option('-t , --timeout <timeout>', 'Configure timeout (in millisecond)' +
         ', -t false to remove timeout)')
-    .action (app, options) ->
+    .action (name, options) ->
+        if name.indexOf('https://') isnt -1
+            return log.info 'Use option -r to specify application repository'
         if options.repo and options.repo.indexOf('.git') is -1
             options.repo = options.repo + '.git'
         log.info "Install started for #{app}..."
-        if app is 'controller'
+        if name is 'controller'
             err = new Error "Controller should be installed with command " +
                 "'npm -g install cozy-controller'"
             logError err, 'Install failed for controller'
-        if app in ['data-system', 'home', 'proxy']
+        if name in ['data-system', 'home', 'proxy']
             installation = stackApplication.install
         else
             installation = application.install
-        installation app, options, (err) ->
+        installation name, options, (err) ->
             if err?
-                logError err, "Install failed for #{app}."
+                logError err, "Install failed for #{name}."
             else
-                log.info "#{app} was successfully installed."
+                log.info "#{name} was successfully installed."
 
 
 # Install cozy stack (home, ds, proxy)

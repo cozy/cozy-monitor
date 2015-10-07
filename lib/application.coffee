@@ -244,7 +244,7 @@ stop = module.exports.stop = (app, callback) ->
 
 
 # Update application <app>
-module.exports.update = (app, repo=null, callback) ->
+module.exports.update = (app, callback) ->
     find = false
     homeClient.get "api/applications/", (err, res, apps) ->
         if apps? and apps.rows?

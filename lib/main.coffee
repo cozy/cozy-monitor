@@ -227,7 +227,7 @@ program
     .action () ->
         async.eachSeries ['data-system', 'home', 'proxy'], (app, cb) ->
             log.info "Update #{app}..."
-            stackApplication.update app, {}, (err) ->
+            stackApplication.update app, (err) ->
                 if err?
                     logError err, "Update failed for #{app}."
                     cb(err)
@@ -251,7 +251,7 @@ program
             else
                 async.eachSeries apps, (app, cb) ->
                     log.info "Update #{app.slug} ..."
-                    application.update app.slug, {}, (err) ->
+                    application.update app.slug, (err) ->
                         if err?
                             logError err, "Update failed for #{app.slug}."
                             cb err

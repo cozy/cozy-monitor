@@ -61,7 +61,7 @@ describe "Stack application management", ->
     describe "Update", ->
         it "When I send a request to update data-system", (done) ->
             @timeout 2 * MINUTE
-            stackApplication.update 'data-system', null, (err) =>
+            stackApplication.update 'data-system', (err) =>
                 @err = err
                 done()
 

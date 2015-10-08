@@ -243,7 +243,7 @@ describe "Application management", ->
         describe "Update photos", ->
             it "When I send a request to update photos", (done) ->
                 @timeout 2 * MINUTE
-                application.update 'photos', null, (err) =>
+                application.update 'photos', (err) =>
                     @err = err
                     done()
 
@@ -258,7 +258,7 @@ describe "Application management", ->
         describe "Update an application undefined", ->
             it "When I send a request to update", (done) ->
                 @timeout 2 * MINUTE
-                application.update 'test', null, (err) =>
+                application.update 'test', (err) =>
                     @err = err
                     done()
 

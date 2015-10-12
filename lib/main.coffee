@@ -276,6 +276,22 @@ program
             else
                 log.info "All cozy stack successfully updated."
 
+# Change application branch
+program
+    .command("change-branch <app> <branch>")
+    .description("Change application branch")
+    .action (app, branch) ->
+        log.info "Change #{app} for branch #{branch}..."
+        if app in ['data-system', 'home', 'proxy']
+            changeBranch = stackApplication.changeBranch
+        else
+            changeBranch = application.changeBranch
+        changeBranch app, branch, (err) ->
+            if err?
+                logError err, "Start failed for #{app}."
+            else
+                log.info "#{app} successfully started."
+
 # Reinstall all user applications (usefull for cozy relocation)
 program
     .command('reinstall-missing-app')

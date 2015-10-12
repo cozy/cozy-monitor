@@ -137,6 +137,19 @@ module.exports.update = (app, callback) ->
         else
             callback()
 
+# Change stack application branch
+module.exports.changeBranch = (app, branch, callback) ->
+    manifest.name = app
+    # Retrieve manifest
+    manifest = retrieveManifest(app)
+    manifest.name = app
+    manifest.user = app
+    client.changeBranch manifest, branch, (err, res, body) ->
+        if err or body.error?
+            callback makeError(err, body)
+        else
+            callback()
+
 waitUpdate = (callback) ->
     homeClient.get '', (err, res, body) ->
         if not res?

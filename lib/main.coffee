@@ -201,8 +201,7 @@ program
 program
     .command("update <app>")
     .description(
-        "Update application (git + npm) and restart it. The 'repo' option " +
-        "is only useful if the app comes from a specific repo")
+        "Update application (git + npm) and restart it.")
     .action (app) ->
         log.info "Updating #{app}..."
         if app is 'controller'

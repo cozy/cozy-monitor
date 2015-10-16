@@ -38,30 +38,32 @@ program
 # Install
 #
 program
-    .command("install <app> ")
+    .command("install <name> ")
     .description("Install application")
     .option('-r, --repo <repo>', 'Use specific repo')
     .option('-b, --branch <branch>', 'Use specific branch')
     .option('-d, --displayName <displayName>', 'Display specific name')
     .option('-t , --timeout <timeout>', 'Configure timeout (in millisecond)' +
         ', -t false to remove timeout)')
-    .action (app, options) ->
+    .action (name, options) ->
+        if name.indexOf('https://') isnt -1
+            return log.info 'Use option -r to specify application repository'
         if options.repo and options.repo.indexOf('.git') is -1
             options.repo = options.repo + '.git'
-        log.info "Install started for #{app}..."
-        if app is 'controller'
+        log.info "Install started for #{name}..."
+        if name is 'controller'
             err = new Error "Controller should be installed with command " +
                 "'npm -g install cozy-controller'"
             logError err, 'Install failed for controller'
-        if app in ['data-system', 'home', 'proxy']
+        if name in ['data-system', 'home', 'proxy']
             installation = stackApplication.install
         else
             installation = application.install
-        installation app, options, (err) ->
+        installation name, options, (err) ->
             if err?
-                logError err, "Install failed for #{app}."
+                logError err, "Install failed for #{name}."
             else
-                log.info "#{app} was successfully installed."
+                log.info "#{name} was successfully installed."
 
 
 # Install cozy stack (home, ds, proxy)
@@ -197,11 +199,10 @@ program
 
 # Update
 program
-    .command("update <app> [repo]")
+    .command("update <app>")
     .description(
-        "Update application (git + npm) and restart it. The 'repo' option " +
-        "is only useful if the app comes from a specific repo")
-    .action (app, repo) ->
+        "Update application (git + npm) and restart it.")
+    .action (app) ->
         log.info "Updating #{app}..."
         if app is 'controller'
             err = new Error "Controller should be updated with command " +
@@ -211,7 +212,7 @@ program
             update = stackApplication.update
         else
             update = application.update
-        update app, repo, (err) ->
+        update app, (err) ->
             if err?
                 logError err, "Update failed for #{app}."
             else
@@ -225,7 +226,7 @@ program
     .action () ->
         async.eachSeries ['data-system', 'home', 'proxy'], (app, cb) ->
             log.info "Update #{app}..."
-            stackApplication.update app, {}, (err) ->
+            stackApplication.update app, (err) ->
                 if err?
                     logError err, "Update failed for #{app}."
                     cb(err)
@@ -249,7 +250,7 @@ program
             else
                 async.eachSeries apps, (app, cb) ->
                     log.info "Update #{app.slug} ..."
-                    application.update app.slug, {}, (err) ->
+                    application.update app.slug, (err) ->
                         if err?
                             logError err, "Update failed for #{app.slug}."
                             cb err
@@ -273,6 +274,22 @@ program
                 logError err, "Update all cozy stack failed."
             else
                 log.info "All cozy stack successfully updated."
+
+# Change application branch
+program
+    .command("change-branch <app> <branch>")
+    .description("Change application branch")
+    .action (app, branch) ->
+        log.info "Change #{app} for branch #{branch}..."
+        if app in ['data-system', 'home', 'proxy']
+            changeBranch = stackApplication.changeBranch
+        else
+            changeBranch = application.changeBranch
+        changeBranch app, branch, (err) ->
+            if err?
+                logError err, "Start failed for #{app}."
+            else
+                log.info "#{app} successfully started."
 
 # Reinstall all user applications (usefull for cozy relocation)
 program

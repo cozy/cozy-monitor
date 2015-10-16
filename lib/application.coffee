@@ -244,7 +244,7 @@ stop = module.exports.stop = (app, callback) ->
 
 
 # Update application <app>
-module.exports.update = (app, repo=null, callback) ->
+module.exports.update = (app, callback) ->
     find = false
     homeClient.get "api/applications/", (err, res, apps) ->
         if apps? and apps.rows?
@@ -263,6 +263,25 @@ module.exports.update = (app, repo=null, callback) ->
         else
             err = "Update failed: no application installed"
             callback makeError(err, null)
+
+
+# Change stack application branch
+module.exports.changeBranch = (app, branch, callback) ->
+    find = false
+    homeClient.get "api/applications/", (err, res, apps) ->
+        if apps? and apps.rows?
+            for manifest in apps.rows
+                if manifest.name is app
+                    find = true
+                    path = "api/applications/#{manifest.slug}/branch/#{branch}"
+                    homeClient.put path, manifest, (err, res, body) ->
+                        if err or body.error
+                            callback makeError(err, body)
+                        else
+                            callback()
+            if not find
+                err = "Update failed: application #{app} not found."
+                callback makeError(err, null)
 
 
 # Restart application <app>

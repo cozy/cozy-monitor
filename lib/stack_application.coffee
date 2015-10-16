@@ -5,7 +5,6 @@ async = require "async"
 fs = require "fs"
 axon = require 'axon'
 exec = require('child_process').exec
-spawn = require('child_process').spawn
 path = require('path')
 log = require('printit')()
 request = require("request-json-light")
@@ -39,6 +38,42 @@ msgRepoGit = (app) ->
             You can use option -r to use a specific repo.
         """
 
+# Retrieve application manifest from
+#   * its package.json
+#   * and its git configuration
+retrieveManifest = (app, callback) ->
+    # Define path
+    basePath =  path.join '/usr/local/cozy/apps', app
+    configGit = path.join basePath, '.git', 'config'
+    jsonPackage = path.join basePath, 'package.json'
+
+    # Retrieve manifest from package.json
+    manifest = JSON.parse(fs.readFileSync jsonPackage, 'utf8')
+
+    # Retrieve url for git config
+    command = "cd #{basePath} && git config --get remote.origin.url"
+    exec command, (err, body) ->
+        return callback err if err?
+        manifest.repository =
+            type: 'git'
+            url: body.replace '\n', ''
+
+        # Retrieve branch from git config
+        command = "cd #{basePath} && git branch"
+        exec "cd #{basePath} && git branch", (err, body) ->
+            return callback err if err?
+            # Body as form as :
+            ##  <other_branch>
+            ##* <current_branch>
+            ##  <other_branch>
+            body = body.split '\n'
+            for branch in body
+                if branch.indexOf('*') isnt -1
+                    manifest.repository.branch = branch.replace '* ', ''
+                    callback null, manifest
+
+
+
 # Install stack application
 module.exports.install = (app, options, callback) ->
     # Create manifest
@@ -51,7 +86,6 @@ module.exports.install = (app, options, callback) ->
         manifest.repository.url = options.repo
     if options.branch?
         manifest.repository.branch = options.branch
-
     client.clean manifest, (err, res, body) ->
         client.start manifest, (err, res, body) ->
             if err or body.error
@@ -100,19 +134,30 @@ module.exports.stop = (app, callback) ->
             callback()
 
 # Update
-module.exports.update = (app, repo, callback) ->
+module.exports.update = (app, callback) ->
     manifest.name = app
-    if repo?
-        manifest.repository.url = repo
-    else
-        manifest.repository.url =
-            "https ://github.com/cozy/cozy-#{app}.git"
-    manifest.user = app
-    client.lightUpdate manifest, (err, res, body) ->
-        if err or body.error?
-            callback makeError(err, body)
-        else
-            callback()
+    # Retrieve manifest
+    retrieveManifest app, (err, manifest) ->
+        manifest.name = app
+        manifest.user = app
+        client.lightUpdate manifest, (err, res, body) ->
+            if err or body.error?
+                callback makeError(err, body)
+            else
+                callback()
+
+# Change stack application branch
+module.exports.changeBranch = (app, branch, callback) ->
+    manifest.name = app
+    # Retrieve manifest
+    retrieveManifest app, (err, manifest) ->
+        manifest.name = app
+        manifest.user = app
+        client.changeBranch manifest, branch, (err, res, body) ->
+            if err or body.error?
+                callback makeError(err, body)
+            else
+                callback()
 
 waitUpdate = (callback) ->
     homeClient.get '', (err, res, body) ->

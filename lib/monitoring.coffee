@@ -4,7 +4,6 @@ program = require 'commander'
 async = require "async"
 fs = require "fs"
 axon = require 'axon'
-exec = require('child_process').exec
 spawn = require('child_process').spawn
 path = require('path')
 log = require('printit')()

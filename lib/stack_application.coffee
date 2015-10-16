@@ -5,7 +5,6 @@ async = require "async"
 fs = require "fs"
 axon = require 'axon'
 exec = require('child_process').exec
-spawn = require('child_process').spawn
 path = require('path')
 log = require('printit')()
 request = require("request-json-light")
@@ -42,7 +41,7 @@ msgRepoGit = (app) ->
 # Retrieve application manifest from
 #   * its package.json
 #   * and its git configuration
-retrieveManifest = (app) ->
+retrieveManifest = (app, callback) ->
     # Define path
     basePath =  path.join '/usr/local/cozy/apps', app
     configGit = path.join basePath, '.git', 'config'
@@ -51,18 +50,28 @@ retrieveManifest = (app) ->
     # Retrieve manifest from package.json
     manifest = JSON.parse(fs.readFileSync jsonPackage, 'utf8')
 
-    # Retrieve manifest from git config
-    config = fs.readFileSync configGit, 'utf8'
-    # Retrieve repository url
-    manifest.repository =
-        'url': config.split('url = ')[1].split('\n')[0]
-        'type': 'git'
-    # Retrieve branch
-    for part in config.split('[')
-        if part.indexOf('branch') is 0 and part.indexOf('branch "master"') is -1
-            #Specific branch
-            manifest.repository.branch = part.split('"]')[0].replace('branch "', '')
-    return manifest
+    # Retrieve url for git config
+    command = "cd #{basePath} && git config --get remote.origin.url"
+    exec command, (err, body) ->
+        return callback err if err?
+        manifest.repository =
+            type: 'git'
+            url: body.replace '\n', ''
+
+        # Retrieve branch from git config
+        command = "cd #{basePath} && git branch"
+        exec "cd #{basePath} && git branch", (err, body) ->
+            return callback err if err?
+            # Body as form as :
+            ##  <other_branch>
+            ##* <current_branch>
+            ##  <other_branch>
+            body = body.split '\n'
+            for branch in body
+                if branch.indexOf('*') isnt -1
+                    manifest.repository.branch = branch.replace '* ', ''
+                    callback null, manifest
+
 
 
 # Install stack application
@@ -128,14 +137,14 @@ module.exports.stop = (app, callback) ->
 module.exports.update = (app, callback) ->
     manifest.name = app
     # Retrieve manifest
-    manifest = retrieveManifest(app)
-    manifest.name = app
-    manifest.user = app
-    client.lightUpdate manifest, (err, res, body) ->
-        if err or body.error?
-            callback makeError(err, body)
-        else
-            callback()
+    retrieveManifest app, (err, manifest) ->
+        manifest.name = app
+        manifest.user = app
+        client.lightUpdate manifest, (err, res, body) ->
+            if err or body.error?
+                callback makeError(err, body)
+            else
+                callback()
 
 # Change stack application branch
 module.exports.changeBranch = (app, branch, callback) ->

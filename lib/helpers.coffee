@@ -2,12 +2,15 @@ fs = require "fs"
 log = require('printit')()
 request = require("request-json-light")
 
-couchdbHost = process.env.COUCH_HOST or 'localhost'
-couchdbPort = process.env.COUCH_PORT or '5984'
+try
+    config = JSON.parse(fs.readFileSync '/etc/cozy/controller.json', 'utf8')
+couchdbHost = process.env.COUCH_HOST or config?.env?['data-system']?.COUCH_HOST  or 'localhost'
+couchdbPort = process.env.COUCH_PORT or config?.env?['data-system']?.COUCH_PORT  or '5984'
 indexerHost = process.env.INDEXER_HOST or 'localhost'
 indexerPort = process.env.INDEXER_PORT or '9102'
 postfixHost = process.env.POSTFIX_HOST or 'localhost'
 postfixPort = process.env.POSTFIX_PORT or '25'
+module.exports.dbName = process.env.DB_NAME or config?.env?['data-system']?.DB_NAME  or 'cozy'
 
 couchUrl = "http://#{couchdbHost}:#{couchdbPort}/"
 dataSystemUrl = "http://localhost:9101/"
@@ -47,7 +50,7 @@ getToken = module.exports.getToken = ->
             return null
 
 
-module.exports.getAuthCouchdb = (exit=true) ->
+getAuthCouchdb = module.exports.getAuthCouchdb = (exit=true) ->
     try
         data = fs.readFileSync '/etc/cozy/couchdb.login', 'utf8', (err, data) ->
         username = data.split('\n')[0]
@@ -99,9 +102,12 @@ module.exports.handleError = (err, body, msg) ->
 
 
 token = getToken()
+couchClient = request.newClient couchUrl
+[id, pwd] = getAuthCouchdb()
+couchClient.setBasicAuth id, pwd
 module.exports.clients =
     'home': request.newClient homeUrl
-    'couch': request.newClient couchUrl
+    'couch': couchClient
     'ds': request.newClient dataSystemUrl
     'data-system': request.newClient dataSystemUrl
     'index': request.newClient indexerUrl
@@ -109,3 +115,4 @@ module.exports.clients =
     'controller': new ControllerClient(token: token)
     'postfix': request.newClient postfixUrl
     'mta': request.newClient postfixUrl
+

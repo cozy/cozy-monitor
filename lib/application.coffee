@@ -2,6 +2,7 @@ async = require "async"
 fs = require "fs"
 axon = require 'axon'
 spawn = require('child_process').spawn
+exec = require('child_process').exec
 path = require('path')
 log = require('printit')()
 request = require("request-json-light")
@@ -17,6 +18,14 @@ makeError = helpers.makeError
 getToken = helpers.getToken
 
 # Applications helpers #
+
+
+# Define random function for application's token
+randomString = (length) ->
+    string = ""
+    while (string.length < length)
+        string = string + Math.random().toString(36).substr(2)
+    return string.substr 0, length
 
 setIcon = (manifest, callback) ->
     homeClient.headers['content-type'] = 'application/json'
@@ -86,6 +95,42 @@ waitInstallComplete = (slug, timeout, callback) ->
                     callback err, body
             else
                 callback err, body
+
+
+
+
+# Retrieve application manifest from
+#   * its package.json
+#   * and its git configuration
+retrieveManifestFromDisk = (app, callback) ->
+    # Define path
+    basePath =  path.join '/usr/local/cozy/apps', app
+    configGit = path.join basePath, '.git', 'config'
+    jsonPackage = path.join basePath, 'package.json'
+
+    # Retrieve manifest from package.json
+    manifest = JSON.parse(fs.readFileSync jsonPackage, 'utf8')
+
+    # Retrieve url for git config
+    command = "cd #{basePath} && git config --get remote.origin.url"
+    exec command, (err, body) ->
+        return callback err if err?
+        manifest.git = body.replace '\n', ''
+
+        # Retrieve branch from git config
+        command = "cd #{basePath} && git branch"
+        exec "cd #{basePath} && git branch", (err, body) ->
+            return callback err if err?
+            # Body as form as :
+            ##  <other_branch>
+            ##* <current_branch>
+            ##  <other_branch>
+            body = body.split '\n'
+            for branch in body
+                if branch.indexOf('*') isnt -1
+                    manifest.branch = branch.replace '* ', ''
+                    callback null, manifest
+
 
 
 msgHomeNotStarted = (app) ->
@@ -322,6 +367,50 @@ module.exports.reinstall = (app, options, callback) ->
                 else
                     log.info '     -> OK'
                 callback err
+
+# Intall application <app> from disk to database.
+module.exports.installFromDisk = (app, callback) ->
+    options = {'headers': {'content-type': 'application/json'}}
+    retrieveManifestFromDisk app, (err, manifest) ->
+
+        # Create application document
+        appli =
+            docType: "application"
+            displayName: manifest.displayName or manifest.name.replace 'cozy-', ''
+            name: manifest.name.replace 'cozy-', ''
+            slug: manifest.name.replace 'cozy-', ''
+            version: manifest.version
+            isStoppable: false
+            git: manifest.git
+            branch: manifest.branch
+            state: 'installed'
+            iconPath: "img/apps/#{app}.svg"
+            iconType: 'svg'
+            port: null
+        clientCouch = helpers.clients.couch
+        clientCouch.post helpers.dbName, appli, options, (err, res, app) ->
+            return callback err if err?
+            return callback app.error if app.error?
+
+            # Create access document
+            access =
+                docType: 'Access'
+                login: appli.name
+                token: randomString()
+                permissions: manifest['cozy-permissions']
+                app: app.id
+            clientCouch.post helpers.dbName, access, options, (err, res, body) ->
+                return callback err if err?
+                return callback app.error if app.error?
+
+                # Add icon
+                homePath = '/usr/local/cozy/apps/home/client/app/assets'
+                iconPath = path.join homePath, appli.iconPath
+                urlPath = "#{helpers.dbName}/#{app.id}/icon.svg?rev=#{app.rev}"
+                clientCouch.putFile urlPath, iconPath, (err, res, body) ->
+                    callback()
+
+
 
 # Install without home (usefull for relocation)
 module.exports.installController = (app, callback) ->

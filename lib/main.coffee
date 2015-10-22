@@ -28,6 +28,8 @@ db = require './database'
 logError = helpers.logError
 clients = helpers.clients
 
+STACK = ['data-system', 'home', 'proxy']
+
 program
     .version(version)
     .usage('<action> <app>')
@@ -55,7 +57,7 @@ program
             err = new Error "Controller should be installed with command " +
                 "'npm -g install cozy-controller'"
             logError err, 'Install failed for controller'
-        if name in ['data-system', 'home', 'proxy']
+        if name in STACK
             installation = stackApplication.install
         else
             installation = application.install
@@ -71,7 +73,7 @@ program
     .command("install-cozy-stack")
     .description("Install cozy via the Cozy Controller")
     .action () ->
-        async.eachSeries ['data-system', 'home', 'proxy'], (app, cb) ->
+        async.eachSeries STACK, (app, cb) ->
             log.info "Install started for #{app}..."
             stackApplication.install app, {}, (err) ->
                 if err?
@@ -93,7 +95,7 @@ program
     .description("Remove application")
     .action (app) ->
         log.info "Uninstall started for #{app}..."
-        if app in ['data-system', 'home', 'proxy']
+        if app in STACK
             uninstallation = stackApplication.uninstall
         else
             uninstallation = application.uninstall
@@ -110,7 +112,7 @@ program
     .description("Start application")
     .action (app) ->
         log.info "Starting #{app}..."
-        if app in ['data-system', 'home', 'proxy']
+        if app in STACK
             start = stackApplication.start
         else
             start = application.start
@@ -126,7 +128,7 @@ program
     .description("Start application")
     .action (app) ->
         log.info "Restart #{app}..."
-        if app in ['data-system', 'home', 'proxy']
+        if app in STACK
             start = stackApplication.start
         else
             start = application.start
@@ -141,7 +143,7 @@ program
     .command("restart-cozy-stack")
     .description("Restart cozy through controller")
     .action () ->
-        async.eachSeries ['data-system', 'home', 'proxy'], (app, cb) ->
+        async.eachSeries STACK, (app, cb) ->
             log.info "Restart #{app}..."
             stackApplication.start app, (err) ->
                 if err?
@@ -162,7 +164,7 @@ program
     .description("Stop application")
     .action (app) ->
         log.info "Stopping #{app}..."
-        if app in ['data-system', 'home', 'proxy']
+        if app in STACK
             stop = stackApplication.stop
         else
             stop = application.stop
@@ -208,7 +210,7 @@ program
             err = new Error "Controller should be updated with command " +
                 "'npm -g update cozy-controller'"
             logError err, 'Update failed for controller'
-        if app in ['data-system', 'home', 'proxy']
+        if app in STACK
             update = stackApplication.update
         else
             update = application.update
@@ -290,6 +292,40 @@ program
                 logError err, "Start failed for #{app}."
             else
                 log.info "#{app} successfully started."
+
+
+# Init database
+# Usefull to generate new Cozy with an empty database
+# Add all user application installed on disk in database
+program
+    .command("init-db [path]")
+    .description("Install application")
+    .action (path) ->
+        # Check if database is empty
+        clientCouch = helpers.clients.couch
+        clientCouch.get "#{helpers.dbName}/_design/application/_view/all", {}, (err, res, body) ->
+            if not err? and body.total_rows isnt 0
+                log.error "Your database isn't empty"
+                #return
+
+            path = path or '/usr/local/cozy/apps'
+            apps = fs.readdirSync path
+            async.eachSeries apps, (app, cb) ->
+                if app is 'stack.json'
+                    cb()
+                else if app in STACK
+                    cb()
+                else
+                    application.installFromDisk app, cb
+            , (err) ->
+                if err?
+                    log.error err
+                    log.error 'Error in database initialization'
+                else
+                    log.info 'Database successfully initialized'
+
+
+
 
 # Reinstall all user applications (usefull for cozy relocation)
 program

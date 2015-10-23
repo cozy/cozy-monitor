@@ -168,7 +168,7 @@ waitUpdate = (callback) ->
 
 # Update all stack
 module.exports.updateAll = (callback) ->
-    client.updateStack (err, res, body) ->
+    client.updateStack "blockMonitor": true, (err, res, body) ->
         if not res?
             waitUpdate callback
         else if err or body.error?

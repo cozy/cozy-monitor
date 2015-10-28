@@ -374,6 +374,11 @@ module.exports.getVersion = (app, callback) ->
     callback app.version
 
 
+# Callback application needs update
+module.exports.needsUpdate = (app, callback) ->
+    callback app.needsUpdate
+
+
 # Callback application state
 module.exports.check = (raw, app, url, callback=null) ->
     colors.enabled = not raw

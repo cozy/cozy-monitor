@@ -400,10 +400,15 @@ program
                 if err?
                     log.error "Error when retrieving user application."
                 else
-                async.forEachSeries apps, (app, cb)->
-                    application.getVersion app, (version)->
-                        log.raw "#{app.name}: #{version}"
-                        cb()
+                    async.forEachSeries apps, (app, cb)->
+                        application.getVersion app, (version)->
+                            application.needsUpdate app, (update)->
+                                if update
+                                    available = " (update available)"
+                                else
+                                    available = ""
+                                log.raw "#{app.name}: #{version} #{available}"
+                                cb()
 
 
 ## Monitoring ##

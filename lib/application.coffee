@@ -158,7 +158,12 @@ install = module.exports.install = (app, options, callback) ->
             manifest.git =
                 "https://github.com/cozy/cozy-#{app}.git"
         else
-            manifest.git = options.repo
+            repo = options.repo.split '@'
+            manifest.git = repo[0]
+            if repo.length is 2 and not options.branch?
+                options.branch = repo[1]
+            if manifest.git.indexOf('.git') is -1
+                manifest.git += '.git'
 
         if options.branch?
             manifest.branch = options.branch

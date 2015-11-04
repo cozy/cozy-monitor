@@ -48,8 +48,6 @@ program
     .action (name, options) ->
         if name.indexOf('https://') isnt -1
             return log.info 'Use option -r to specify application repository'
-        if options.repo and options.repo.indexOf('.git') is -1
-            options.repo = options.repo + '.git'
         log.info "Install started for #{name}..."
         if name is 'controller'
             err = new Error "Controller should be installed with command " +

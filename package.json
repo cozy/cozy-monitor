@@ -1,6 +1,6 @@
 {
   "name": "cozy-monitor",
-  "version": "1.2.29",
+  "version": "1.2.30",
   "description": "Tool to manage you Cozy Platform from the command line.",
   "author": "Cozy Cloud <contact@cozycloud.cc> (http://cozycloud.cc)",
   "licenses": [

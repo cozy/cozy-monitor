@@ -383,17 +383,27 @@ program
 program
     .command("versions")
     .description("Display applications versions")
-    .action () ->
-        log.raw ''
-        log.raw 'Cozy Stack:'.bold
+    .option('--json', 'Display result in JSON')
+    .action (options) ->
+        if options.json?
+            res = {}
+        else
+            log.raw ''
+            log.raw 'Cozy Stack:'.bold
         async.forEachSeries cozyStack, (app, cb) ->
             stackApplication.getVersion app, (version) ->
-                log.raw "#{app}: #{version}"
+                if options.json?
+                    res[app] = version
+                else
+                    log.raw "#{app}: #{version}"
                 cb()
         , (err) ->
-            log.raw "monitor: #{version}"
-            log.raw ''
-            log.raw "Other applications: ".bold
+            if options.json?
+                res.monitor = version
+            else
+                log.raw "monitor: #{version}"
+                log.raw ''
+                log.raw "Other applications: ".bold
             application.getApps (err, apps) ->
                 if err?
                     log.error "Error when retrieving user application."
@@ -402,11 +412,17 @@ program
                         application.getVersion app, (version)->
                             application.needsUpdate app, (update)->
                                 if update
-                                    available = " (update available)"
+                                    avail = " (update available)"
                                 else
-                                    available = ""
-                                log.raw "#{app.name}: #{version} #{available}"
+                                    avail = ""
+                                if options.json?
+                                    res[app.name] = version
+                                else
+                                    log.raw "#{app.name}: #{version} #{avail}"
                                 cb()
+                    , (err) ->
+                        if options.json?
+                            log.raw JSON.stringify(res, null, 2)
 
 
 ## Monitoring ##

@@ -421,7 +421,7 @@ program
                                     log.raw "#{app.name}: #{version} #{avail}"
                                 cb()
                     , (err) ->
-                        if options.json?
+                        if options.json
                             log.raw JSON.stringify(res, null, 2)
 
 
@@ -465,11 +465,18 @@ program
 program
     .command("status")
     .description("Give current state of cozy platform applications")
+    .option('--json', 'Display result in JSON')
     .option('-r, --raw', "Don't display color")
     .action (options) ->
-        monitoring.status options.raw, (err) ->
+        opt =
+            raw: options.raw
+            json: options.json
+        monitoring.status opt, (err, res) ->
             if err?
                 logError err, "Cannot display status"
+            else
+                if options.json
+                    log.raw JSON.stringify(res, null, 2)
 
 
 program

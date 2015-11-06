@@ -385,18 +385,21 @@ module.exports.needsUpdate = (app, callback) ->
 
 
 # Callback application state
-module.exports.check = (raw, app, url, callback=null) ->
-    colors.enabled = not raw
-    statusClient = request.newClient url
-    statusClient.get "", (err, res) ->
-        badStatusCode = res? and not res.statusCode in [200,403]
-        econnRefused = err? and err.code is 'ECONNREFUSED'
-        if badStatusCode or econnRefused
-            log.raw "#{app}: " + "down".red
-            callback 'down' if callback?
-        else
-            log.raw "#{app}: " + "up".green
-            callback 'up' if callback?
+module.exports.check = (options, app, url) ->
+    (callback) ->
+        colors.enabled = not options.raw? and not options.json?
+        statusClient = request.newClient url
+        statusClient.get "", (err, res) ->
+            badStatusCode = res? and not res.statusCode in [200,403]
+            econnRefused = err? and err.code is 'ECONNREFUSED'
+            if badStatusCode or econnRefused
+                if not options.json
+                    log.raw "#{app}: " + "down".red
+                callback null, [app, 'down'] if callback?
+            else
+                if not options.json
+                    log.raw "#{app}: " + "up".green
+                callback null, [app, 'up'] if callback?
 
 
 ## Usefull for application developpement

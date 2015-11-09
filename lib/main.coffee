@@ -458,9 +458,15 @@ program
 program
     .command("module-status <module>")
     .description("Give status of given in an easy to parse way.")
-    .action (module) ->
+    .option('--json', 'Display result in JSON')
+    .action (module, options) ->
         monitoring.moduleStatus module, (status) ->
-            log.info status
+            if options.json
+                res = {}
+                res[module] = status
+                console.log(JSON.stringify(res, null, 2))
+            else
+                log.info status
 
 program
     .command("status")
@@ -561,7 +567,8 @@ program
 program
     .command("views-list [database]")
     .description("List infos on all views")
-    .action (database) ->
+    .option('--json', 'Display result in JSON')
+    .action (database, options) ->
         database ?= "cozy"
         db.listAllViews database, (err, infos)->
             if err?
@@ -573,12 +580,15 @@ program
                         return -1
                     else
                         return 1
-                infos.map (info) ->
-                    name = "#{info.name}                    "
-                    size = "          #{humanize.filesize info.size}"
-                    console.log """
-                        #{name.substr(0, 20)} #{info.hash} #{size.substr -15}
-                    """
+                if options.json
+                    console.log(JSON.stringify(info, null, 2))
+                else
+                    infos.map (info) ->
+                        name = "#{info.name}                    "
+                        size = "          #{humanize.filesize info.size}"
+                        console.log """
+                          #{name.substr(0, 20)} #{info.hash} #{size.substr -15}
+                        """
                 process.exit 0
 
 

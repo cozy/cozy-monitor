@@ -410,16 +410,15 @@ program
                 else
                     async.forEachSeries apps, (app, cb)->
                         application.getVersion app, (version)->
-                            application.needsUpdate app, (update)->
-                                if update
-                                    avail = " (update available)"
-                                else
-                                    avail = ""
-                                if options.json?
-                                    res[app.name] = version
-                                else
-                                    log.raw "#{app.name}: #{version} #{avail}"
-                                cb()
+                            if app.needsUpdate
+                                avail = " (update available)"
+                            else
+                                avail = ""
+                            if options.json?
+                                res[app.name] = version
+                            else
+                                log.raw "#{app.name}: #{version} #{avail}"
+                            cb()
                     , (err) ->
                         if options.json
                             log.raw JSON.stringify(res, null, 2)

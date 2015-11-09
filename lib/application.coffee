@@ -379,18 +379,13 @@ module.exports.getVersion = (app, callback) ->
     callback app.version
 
 
-# Callback application needs update
-module.exports.needsUpdate = (app, callback) ->
-    callback app.needsUpdate
-
-
 # Callback application state
 module.exports.check = (options, app, url) ->
     (callback) ->
         colors.enabled = not options.raw? and not options.json?
         statusClient = request.newClient url
         statusClient.get "", (err, res) ->
-            badStatusCode = res? and not res.statusCode in [200,403]
+            badStatusCode = res? and not res.statusCode in [200, 403]
             econnRefused = err? and err.code is 'ECONNREFUSED'
             if badStatusCode or econnRefused
                 if not options.json

@@ -214,7 +214,7 @@ module.exports.check = (options, app, path="") ->
     (callback) ->
         colors.enabled = not options.raw and not options.json
         helpers.clients[app].get path, (err, res) ->
-            badStatusCode = res? and not res.statusCode in [200,403]
+            badStatusCode = res? and not res.statusCode in [200, 403]
             econnRefused = err? and err.code is 'ECONNREFUSED'
             if badStatusCode or econnRefused
                 if not options.json

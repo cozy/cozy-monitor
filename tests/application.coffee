@@ -40,8 +40,8 @@ describe "Application management", ->
                     done()
 
             it "And photos should be started", (done) ->
-                application.check raw:true, 'photos', 'http://localhost:9119', (state) ->
-                    state.should.equal 'up'
+                application.check raw: true, 'photos', 'http://localhost:9119', (err, state) ->
+                    state[1].should.equal 'up'
                     done()
 
         describe "Install with options", ->
@@ -65,8 +65,8 @@ describe "Application management", ->
                     done()
 
             it "And calendar should be started", (done) ->
-                application.check raw:true, 'calendar', 'http://localhost:9113', (state) ->
-                    state.should.equal 'up'
+                application.check raw: true, 'calendar', 'http://localhost:9113', (err, state) ->
+                    state[1].should.equal 'up'
                     done()
 
             it "And displayName should be 'test'", (done) ->
@@ -125,8 +125,8 @@ describe "Application management", ->
                 should.not.exist @err
 
             it "And photos should be started", (done) ->
-                application.check raw:true, 'photos', 'http://localhost:9119', (state) ->
-                    state.should.equal 'up'
+                application.check raw: true, 'photos', 'http://localhost:9119', (err, state) ->
+                    state[1].should.equal 'up'
                     done()
 
         describe "Try to restart a application which isn't installed", ->
@@ -156,8 +156,8 @@ describe "Application management", ->
                 should.not.exist @err
 
             it "And photos should be stopped", (done) ->
-                application.check raw:true, 'photos', 'http://localhost:9119', (state) ->
-                    state.should.equal 'down'
+                application.check raw: true, 'photos', 'http://localhost:9119', (err, state) ->
+                    state[1].should.equal 'down'
                     done()
 
         describe "Try to stop application undefined", ->
@@ -188,8 +188,8 @@ describe "Application management", ->
                 should.not.exist @err
 
             it "And photos should be stopped", (done) ->
-                application.check raw:true, 'photos', 'http://localhost:9119', (state) ->
-                    state.should.equal 'down'
+                application.check raw: true, 'photos', 'http://localhost:9119', (err, state) ->
+                    state[1].should.equal 'down'
                     done()
 
         describe "Restop application undefined", ->
@@ -220,8 +220,8 @@ describe "Application management", ->
                 should.not.exist @err
 
             it "And photos should be started", (done) ->
-                application.check raw:true, 'photos', 'http://localhost:9119', (state) ->
-                    state.should.equal 'up'
+                application.check raw: true, 'photos', 'http://localhost:9119', (err, state) ->
+                    state[1].should.equal 'up'
                     done()
 
         describe "Try to start an application undefined", ->
@@ -251,8 +251,8 @@ describe "Application management", ->
                 should.not.exist @err
 
             it "And photos should be started", (done) ->
-                application.check raw:true, 'photos', 'http://localhost:9119', (state) ->
-                    state.should.equal 'up'
+                application.check raw: true, 'photos', 'http://localhost:9119', (err, state) ->
+                    state[1].should.equal 'up'
                     done()
 
         describe "Update an application undefined", ->
@@ -288,8 +288,8 @@ describe "Application management", ->
                     done()
 
             it "And photos should be started", (done) ->
-                application.check raw:true, 'photos', 'http://localhost:9119', (state) ->
-                    state.should.equal 'up'
+                application.check raw: true, 'photos', 'http://localhost:9119', (err, state) ->
+                    state[1].should.equal 'up'
                     done()
 
         describe "Try to reinstall an application undefined", ->
@@ -339,8 +339,8 @@ describe "Application management", ->
                 should.not.exist @err
 
             it "And photos should be stopped", (done) ->
-                application.check raw:true, 'photos', 'http://localhost:9119', (state) ->
-                    state.should.equal 'down'
+                application.check raw: true, 'photos', 'http://localhost:9119', (err, state) ->
+                    state[1].should.equal 'down'
                     done()
 
             it "And photos should be uninstall", (done) ->

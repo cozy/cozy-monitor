@@ -580,7 +580,11 @@ program
                     else
                         return 1
                 if options.json
-                    console.log(JSON.stringify(info, null, 2))
+                    res = {}
+                    infos.map (info) ->
+                        res[info.name] = info
+                        res[info.name].human = humanize.filesize info.size
+                    console.log(JSON.stringify(res, null, 2))
                 else
                     infos.map (info) ->
                         name = "#{info.name}                    "

@@ -117,17 +117,20 @@ module.exports.moduleStatus = (module, callback) ->
             callback "up"
 
 # Log all applications status
-module.exports.status = (raw, callback) ->
-    colors.enabled = not raw
+module.exports.status = (options, callback) ->
+    colors.enabled = not options.raw? and not options.json?
     async.series [
-        stackApplication.check raw, "mta"
-        stackApplication.check raw, "couch"
-        stackApplication.check raw, "controller", "version"
-        stackApplication.check raw, "data-system"
-        stackApplication.check raw, "home"
-        stackApplication.check raw, "proxy", "routes"
-        stackApplication.check raw, "index"
-    ], ->
+        stackApplication.check options, "mta"
+        stackApplication.check options, "couch"
+        stackApplication.check options, "controller", "version"
+        stackApplication.check options, "data-system"
+        stackApplication.check options, "home"
+        stackApplication.check options, "proxy", "routes"
+        stackApplication.check options, "index"
+    ], (err, stack) ->
+        res = {}
+        stack.forEach (app) ->
+            res[app[0]] = app[1]
         funcs = []
         application.getApps (err, apps) ->
             if err?
@@ -136,12 +139,18 @@ module.exports.status = (raw, callback) ->
             else
                 for app in apps
                     if app.state is 'stopped'
-                        log.raw "#{app.name}: " + "stopped".grey
+                        if options.json
+                            res[app.name] = "stopped"
+                        else
+                            log.raw "#{app.name}: " + "stopped".grey
                     else
                         url = "http://localhost:#{app.port}/"
-                        func = application.check raw, app.name, url
+                        func = application.check options, app.name, url
                         funcs.push func
-                async.series funcs, ->
+                async.series funcs, (err, apps) ->
+                    apps.forEach (app) ->
+                        res[app[0]] = app[1]
+                    callback null, res
 
 # Display application logs
 module.exports.log = (app, type, callback) ->

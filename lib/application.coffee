@@ -188,6 +188,22 @@ module.exports.getApps = (callback) ->
                         # Other pbs: credentials, view, ...
                         callback makeError(error, apps)
 
+
+retrieveGit = (app, options, callback) ->
+    if options.repo
+        callback options.repo
+    else
+        homeClient.get 'api/applications/market', (err, res, market) ->
+            async.filter market, (appli, cb) ->
+                cb appli.name is app
+            , (appliMarket) ->
+                if appliMarket.length > 0
+                    callback appliMarket[0].git
+                else
+                    callback "https://github.com/cozy/cozy-#{app}.git"
+
+
+
 # Install application <app>
 install = module.exports.install = (app, options, callback) ->
     recoverManifest = (callback) ->
@@ -198,19 +214,14 @@ install = module.exports.install = (app, options, callback) ->
         else
             manifest.displayName = app
         manifest.user = app
-
-        unless options.repo?
-            manifest.git =
-                "https://github.com/cozy/cozy-#{app}.git"
-        else
-            manifest.git = options.repo
-
-        if options.branch?
-            manifest.branch = options.branch
-        path = "api/applications/install"
-        setIcon manifest, (icon) ->
-            manifest.icon = icon
-            callback manifest
+        retrieveGit app, options, (git) ->
+            manifest.git = git
+            if options.branch?
+                manifest.branch = options.branch
+            path = "api/applications/install"
+            setIcon manifest, (icon) ->
+                manifest.icon = icon
+                callback manifest
 
     recoverManifest (manifest) ->
         homeClient.headers['content-type'] = 'application/json'

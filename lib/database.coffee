@@ -27,20 +27,32 @@ request = require("request-json-light")
 # Configure couchClient
 configureCouchClient = (callback) ->
     [username, password] = getAuthCouchdb()
-    couchClient.setBasicAuth username, password
+    # Only set auth if database has a password
+    if username or password
+        couchClient.setBasicAuth username, password
 
 # Wait end of compaction
-waitCompactComplete = (client, found, callback) ->
+# First must be true on first call, false on subsequents, otherwise, if
+# compaction takes less than 500ms, this function never returns
+waitCompactComplete = (client, found, type, callback, first = true) ->
+    types =
+        base: "database_compaction"
+        view: "view_compaction"
     setTimeout ->
         client.get '_active_tasks', (err, res, body) ->
-            exist = false
-            for task in body
-                if task.type is "database_compaction"
-                    exist = true
-            if (not exist) and found
-                callback true
+            console.log body
+            if err?
+                callback err
             else
-                waitCompactComplete(client, exist, callback)
+                exist = first
+                for task in body
+                    if task.type is types[type]
+                        exist = true
+                console.log exist, found
+                if (not exist) and found
+                    callback()
+                else
+                    waitCompactComplete(client, exist, type, callback, false)
     , 500
 
 # Prepare cozy database
@@ -58,7 +70,9 @@ prepareCozyDatabase = (username, password, callback) ->
         else
             callback 'Cannot create database'
 
-    couchClient.setBasicAuth username, password
+    # Only set auth if database has a password
+    if username or password
+        couchClient.setBasicAuth username, password
 
     # Remove cozy database
     couchClient.del "cozy", (err, res, body) ->
@@ -92,19 +106,21 @@ module.exports.compact = (database, callback)->
         if err or not body.ok
             callback makeError(err, body)
         else
-            waitCompactComplete couchClient, false, (success) ->
+            waitCompactComplete couchClient, false, "base", callback
 
 # Comapct view <view> in database <database>
 compactViews = module.exports.compactViews = (view, database, callback) ->
     [username, password] = getAuthCouchdb()
-    couchClient.setBasicAuth username, password
+    # Only set auth if database has a password
+    if username or password
+        couchClient.setBasicAuth username, password
     path = "#{database}/_compact/#{view}"
     couchClient.headers['content-type'] = 'application/json'
     couchClient.post path, {}, (err, res, body) ->
         if err or not body.ok
             callback makeError(err, body)
         else
-            callback()
+            waitCompactComplete couchClient, false, "view", callback
 
 # Compact all views in database
 module.exports.compactAllViews = (database, callback) ->

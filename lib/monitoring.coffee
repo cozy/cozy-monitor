@@ -144,8 +144,7 @@ module.exports.status = (options, callback) ->
                             log.raw "#{app.name}: " + "stopped".grey
                     # don't need to check app if static
                     else if app.type is 'static'
-                        colors.enabled = not raw
-                        log.raw "#{app.name}: " + "up".green
+                        log.raw "#{app.name}: " + "up".green + " (static)".blue
                     else
                         url = "http://localhost:#{app.port}/"
                         func = application.check options, app.name, url

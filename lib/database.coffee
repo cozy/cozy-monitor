@@ -34,25 +34,29 @@ configureCouchClient = (callback) ->
 # Wait end of compaction
 # First must be true on first call, false on subsequents, otherwise, if
 # compaction takes less than 500ms, this function never returns
-waitCompactComplete = (client, found, type, callback, first = true) ->
+waitCompactComplete = (client, found, type, first, callback) ->
+    # 'first' parameter is optional, default to true
+    if callback?
+        isFirst = first
+    else
+        isFirst  = true
+        callback = first
     types =
         base: "database_compaction"
         view: "view_compaction"
     setTimeout ->
         client.get '_active_tasks', (err, res, body) ->
-            console.log body
             if err?
                 callback err
             else
-                exist = first
+                exist = isFirst
                 for task in body
                     if task.type is types[type]
                         exist = true
-                console.log exist, found
                 if (not exist) and found
                     callback()
                 else
-                    waitCompactComplete(client, exist, type, callback, false)
+                    waitCompactComplete(client, exist, type, false, callback)
     , 500
 
 # Prepare cozy database

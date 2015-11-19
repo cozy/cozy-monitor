@@ -84,8 +84,6 @@ waitInstallComplete = (slug, timeout, callback) ->
         , timeout
 
     socket.on 'application.update', (id) ->
-        clearTimeout timeoutId
-        socket.close()
 
         dsClient.setBasicAuth 'home', token if token = getToken()
         dsClient.get "data/#{id}/", (err, response, body) ->
@@ -93,8 +91,10 @@ waitInstallComplete = (slug, timeout, callback) ->
                 dsClient.setBasicAuth 'home', ''
                 dsClient.get "data/#{id}/", (err, response, body) ->
                     callback err, body
-            else
+            else if body.state is 'installed'
                 callback err, body
+                clearTimeout timeoutId
+                socket.close()
 
 
 
@@ -191,8 +191,10 @@ module.exports.getApps = (callback) ->
 
 retrieveGit = (app, options, callback) ->
     if options.repo
+        # If repository is specified callback it
         callback options.repo
     else
+        # Check if application exists in market
         homeClient.get 'api/applications/market', (err, res, market) ->
             async.filter market, (appli, cb) ->
                 cb appli.name is app
@@ -200,6 +202,7 @@ retrieveGit = (app, options, callback) ->
                 if appliMarket.length > 0
                     callback appliMarket[0].git
                 else
+                    # Callback default repository
                     callback "https://github.com/cozy/cozy-#{app}.git"
 
 
@@ -216,9 +219,18 @@ install = module.exports.install = (app, options, callback) ->
         manifest.user = app
         retrieveGit app, options, (git) ->
             manifest.git = git
+            # Check if repository have option branch after '@'
+            repo = git.split '@'
+            manifest.git = repo[0]
+            if repo.length is 2 and not options.branch?
+                options.branch = repo[1]
+            # Add ;git if it omitted
+            if manifest.git.indexOf('.git') is -1
+                manifest.git += '.git'
             if options.branch?
                 manifest.branch = options.branch
             path = "api/applications/install"
+            # Retrieve application icon
             setIcon manifest, (icon) ->
                 manifest.icon = icon
                 callback manifest
@@ -475,18 +487,21 @@ module.exports.getVersion = (app, callback) ->
 
 
 # Callback application state
-module.exports.check = (raw, app, url, callback=null) ->
-    colors.enabled = not raw
-    statusClient = request.newClient url
-    statusClient.get "", (err, res) ->
-        badStatusCode = res? and not res.statusCode in [200,403]
-        econnRefused = err? and err.code is 'ECONNREFUSED'
-        if badStatusCode or econnRefused
-            log.raw "#{app}: " + "down".red
-            callback 'down' if callback?
-        else
-            log.raw "#{app}: " + "up".green
-            callback 'up' if callback?
+module.exports.check = (options, app, url) ->
+    (callback) ->
+        colors.enabled = not options.raw? and not options.json?
+        statusClient = request.newClient url
+        statusClient.get "", (err, res) ->
+            badStatusCode = res? and not res.statusCode in [200, 403]
+            econnRefused = err? and err.code is 'ECONNREFUSED'
+            if badStatusCode or econnRefused
+                if not options.json
+                    log.raw "#{app}: " + "down".red
+                callback null, [app, 'down'] if callback?
+            else
+                if not options.json
+                    log.raw "#{app}: " + "up".green
+                callback null, [app, 'up'] if callback?
 
 
 ## Usefull for application developpement

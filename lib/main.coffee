@@ -50,8 +50,6 @@ program
     .action (name, options) ->
         if name.indexOf('https://') isnt -1
             return log.info 'Use option -r to specify application repository'
-        if options.repo and options.repo.indexOf('.git') is -1
-            options.repo = options.repo + '.git'
         log.info "Install started for #{name}..."
         if name is 'controller'
             err = new Error "Controller should be installed with command " +
@@ -421,25 +419,45 @@ program
 program
     .command("versions")
     .description("Display applications versions")
-    .action () ->
-        log.raw ''
-        log.raw 'Cozy Stack:'.bold
+    .option('--json', 'Display result in JSON')
+    .action (options) ->
+        if options.json?
+            res = {}
+        else
+            log.raw ''
+            log.raw 'Cozy Stack:'.bold
         async.forEachSeries cozyStack, (app, cb) ->
             stackApplication.getVersion app, (version) ->
-                log.raw "#{app}: #{version}"
+                if options.json?
+                    res[app] = version
+                else
+                    log.raw "#{app}: #{version}"
                 cb()
         , (err) ->
-            log.raw "monitor: #{version}"
-            log.raw ''
-            log.raw "Other applications: ".bold
+            if options.json?
+                res.monitor = version
+            else
+                log.raw "monitor: #{version}"
+                log.raw ''
+                log.raw "Other applications: ".bold
             application.getApps (err, apps) ->
                 if err?
                     log.error "Error when retrieving user application."
                 else
-                async.forEachSeries apps, (app, cb)->
-                    application.getVersion app, (version)->
-                        log.raw "#{app.name}: #{version}"
-                        cb()
+                    async.forEachSeries apps, (app, cb)->
+                        application.getVersion app, (version)->
+                            if app.needsUpdate
+                                avail = " (update available)"
+                            else
+                                avail = ""
+                            if options.json?
+                                res[app.name] = version
+                            else
+                                log.raw "#{app.name}: #{version} #{avail}"
+                            cb()
+                    , (err) ->
+                        if options.json
+                            log.raw JSON.stringify(res, null, 2)
 
 
 ## Monitoring ##
@@ -475,18 +493,31 @@ program
 program
     .command("module-status <module>")
     .description("Give status of given in an easy to parse way.")
-    .action (module) ->
+    .option('--json', 'Display result in JSON')
+    .action (module, options) ->
         monitoring.moduleStatus module, (status) ->
-            log.info status
+            if options.json
+                res = {}
+                res[module] = status
+                console.log(JSON.stringify(res, null, 2))
+            else
+                log.info status
 
 program
     .command("status")
     .description("Give current state of cozy platform applications")
+    .option('--json', 'Display result in JSON')
     .option('-r, --raw', "Don't display color")
     .action (options) ->
-        monitoring.status options.raw, (err) ->
+        opt =
+            raw: options.raw
+            json: options.json
+        monitoring.status opt, (err, res) ->
             if err?
                 logError err, "Cannot display status"
+            else
+                if options.json
+                    log.raw JSON.stringify(res, null, 2)
 
 
 program
@@ -571,7 +602,8 @@ program
 program
     .command("views-list [database]")
     .description("List infos on all views")
-    .action (database) ->
+    .option('--json', 'Display result in JSON')
+    .action (database, options) ->
         database ?= "cozy"
         db.listAllViews database, (err, infos)->
             if err?
@@ -583,12 +615,19 @@ program
                         return -1
                     else
                         return 1
-                infos.map (info) ->
-                    name = "#{info.name}                    "
-                    size = "          #{humanize.filesize info.size}"
-                    console.log """
-                        #{name.substr(0, 20)} #{info.hash} #{size.substr -15}
-                    """
+                if options.json
+                    res = {}
+                    infos.map (info) ->
+                        res[info.name] = info
+                        res[info.name].human = humanize.filesize info.size
+                    console.log(JSON.stringify(res, null, 2))
+                else
+                    infos.map (info) ->
+                        name = "#{info.name}                    "
+                        size = "          #{humanize.filesize info.size}"
+                        console.log """
+                          #{name.substr(0, 20)} #{info.hash} #{size.substr -15}
+                        """
                 process.exit 0
 
 

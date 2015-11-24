@@ -1,6 +1,7 @@
 language: node_js
 node_js:
     - "0.10"
+    - "0.12"
 services:
     - couchdb
 env:
@@ -19,4 +20,8 @@ before_install:
 script: 'npm test'
 
 after_failure:
+    - ps aux | grep controller
     - cat forever-ds.log
+    - cat forever-ds-err.log
+    - curl http://localhost:9002/
+    - netstat -lntp

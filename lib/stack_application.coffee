@@ -145,14 +145,24 @@ module.exports.update = (app, callback) ->
             if err or body.error?
                 callback makeError(err, body)
             else
-                # remove update notification
-                notifier = new NotificationsHelper 'home'
-                notificationSlug = """
-                  home_update_notification_app_#{app}
-                """
-                notifier.destroy notificationSlug, (err) ->
-                    log.error err if err?
-                    callback()
+                # check whether other stack applications need update
+                getVersions (err, versions) ->
+                    if err
+                        callback err
+                    else
+                        needsUpdate = versions.some (app) ->
+                            return app.needsUpdate
+                        if needsUpdate > 0
+                            callback()
+                        else
+                            # remove update notification
+                            notifier = new NotificationsHelper 'home'
+                            notificationSlug = """
+                              home_update_notification_app_#{app}
+                            """
+                            notifier.destroy notificationSlug, (err) ->
+                                log.error err if err?
+                                callback()
 
 # Change stack application branch
 module.exports.changeBranch = (app, branch, callback) ->
@@ -218,7 +228,7 @@ module.exports.getVersion = getVersion = (name, callback) ->
                 callback "unknown"
 
 # Get version of every stack application, using the Home API by default
-module.exports.getVersions = (callback) ->
+module.exports.getVersions = getVersions = (callback) ->
     cozyStack = ['controller', 'data-system', 'home', 'proxy', 'indexer']
     homeClient.get '/api/applications/stack', (err, res, body) ->
         if err?

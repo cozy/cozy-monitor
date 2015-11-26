@@ -193,7 +193,7 @@ getVersionIndexer = (callback) ->
             callback "unknown"
 
 # Callback application version
-module.exports.getVersion = (name, callback) ->
+module.exports.getVersion = getVersion = (name, callback) ->
     if name is "indexer"
         getVersionIndexer callback
     else
@@ -216,6 +216,38 @@ module.exports.getVersion = (name, callback) ->
                 callback data.version
             else
                 callback "unknown"
+
+# Get version of every stack application, using the Home API by default
+module.exports.getVersions = (callback) ->
+    cozyStack = ['controller', 'data-system', 'home', 'proxy', 'indexer']
+    homeClient.get '/api/applications/stack', (err, res, body) ->
+        if err?
+            callback MakeError(err, null)
+        else
+            res = {}
+            body.rows.forEach (app) ->
+                needsUpdate = false
+                currVersion = app.version.split '.'
+                lastVersion = app.lastVersion.split '.'
+                if lastVersion[0] > currVersion[0]
+                    needsUpdate = true
+                else if lastVersion[1] > currVersion[1]
+                    needsUpdate = true
+                else if lastVersion[2] > currVersion[2]
+                    needsUpdate = true
+                res[app.name] =
+                    name: app.name
+                    version: app.version
+                    lastVersion: app.lastVersion
+                    needsUpdate: needsUpdate
+
+            async.map cozyStack, (app, cb) ->
+                if res[app]?
+                    cb null, res[app]
+                else
+                    getVersion app, (version) ->
+                        cb null, name: app, version: version, needsUpdate: false
+            , callback
 
 # Callback application status
 module.exports.check = (options, app, path="") ->

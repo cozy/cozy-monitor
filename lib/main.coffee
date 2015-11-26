@@ -390,14 +390,19 @@ program
         else
             log.raw ''
             log.raw 'Cozy Stack:'.bold
-        async.forEachSeries cozyStack, (app, cb) ->
-            stackApplication.getVersion app, (version) ->
-                if options.json?
-                    res[app] = version
-                else
-                    log.raw "#{app}: #{version}"
-                cb()
-        , (err) ->
+        stackApplication.getVersions (err, versions) ->
+            if err?
+                log.error "Error when retrieving stack applications."
+            else
+                versions.forEach (app) ->
+                    if app.needsUpdate
+                        avail = " (update available: #{app.lastVersion})"
+                    else
+                        avail = ""
+                    if options.json?
+                        res[app.name] = app.version
+                    else
+                        log.raw "#{app.name}: #{app.version} #{avail}"
             if options.json?
                 res.monitor = version
             else

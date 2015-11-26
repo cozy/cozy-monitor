@@ -1,5 +1,4 @@
 colors = require "colors"
-
 program = require 'commander'
 async = require "async"
 fs = require "fs"
@@ -143,6 +142,9 @@ module.exports.status = (options, callback) ->
                             res[app.name] = "stopped"
                         else
                             log.raw "#{app.name}: " + "stopped".grey
+                    # don't need to check app if static
+                    else if app.type is 'static'
+                        log.raw "#{app.name}: " + "up".green + " (static)".blue
                     else
                         url = "http://localhost:#{app.port}/"
                         func = application.check options, app.name, url

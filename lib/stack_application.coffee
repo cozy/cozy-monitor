@@ -158,7 +158,7 @@ module.exports.update = (app, callback) ->
                             # remove update notification
                             notifier = new NotificationsHelper 'home'
                             notificationSlug = """
-                              home_update_notification_app_#{app}
+                              home_update_notification_stack
                             """
                             notifier.destroy notificationSlug, (err) ->
                                 log.error err if err?

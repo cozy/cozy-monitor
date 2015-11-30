@@ -52,12 +52,11 @@ getToken = module.exports.getToken = ->
 
 getAuthCouchdb = module.exports.getAuthCouchdb = (exit=true) ->
     try
-        data = fs.readFileSync '/etc/cozy/couchdb.login', 'utf8', (err, data) ->
+        data = fs.readFileSync '/etc/cozy/coucb.login', 'utf8', (err, data) ->
         username = data.split('\n')[0]
         password = data.split('\n')[1]
         return [username, password]
     catch err
-        console.log err
         log.error """
 Cannot read database credentials in /etc/cozy/couchdb.login.
 """
@@ -103,8 +102,8 @@ module.exports.handleError = (err, body, msg) ->
 
 token = getToken()
 couchClient = request.newClient couchUrl
-[id, pwd] = getAuthCouchdb()
-couchClient.setBasicAuth id, pwd
+[id, pwd] = getAuthCouchdb(false)
+couchClient.setBasicAuth id, pwd if id isnt ''
 module.exports.clients =
     'home': request.newClient homeUrl
     'couch': couchClient

@@ -312,7 +312,7 @@ describe "Application management", ->
             @timeout 2 * MINUTE
             application.getApps (err, apps) =>
                 if err?
-                    log.error "Error when retrieve user application."
+                    console.log "Error when retrieve user application."
                 else
                 for app in apps
                     if app.name is "photos"

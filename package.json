@@ -40,10 +40,11 @@
     "coffee-script": "1.9.0",
     "colors": "1.1.2",
     "commander": "1.0.5",
-    "cozy-clients": "1.0.4",
+    "cozy-clients": "1.0.5",
+    "cozy-notifications-helper": "1.0.2",
     "humanize": "0.0.9",
-    "printit": "0.1.3",
-    "request-json-light": "0.5.10",
+    "printit": "0.1.14",
+    "request-json-light": "0.5.22",
     "shelljs": "0.3.0"
   },
   "devDependencies": {

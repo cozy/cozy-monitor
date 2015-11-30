@@ -419,6 +419,8 @@ module.exports.installFromDisk = (app, callback) ->
             iconType: 'svg'
             port: null
         clientCouch = helpers.clients.couch
+        [id, pwd] = helpers.getAuthCouchdb(false)
+        couchClient.setBasicAuth id, pwd if id isnt ''
         clientCouch.post helpers.dbName, appli, options, (err, res, app) ->
             return callback err if err?
             return callback app.error if app.error?

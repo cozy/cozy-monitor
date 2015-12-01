@@ -147,7 +147,8 @@ module.exports.update = (app, callback) ->
                 # check whether other stack applications need update
                 getVersions (err, versions) ->
                     if err
-                        callback err
+                        # Data-system can be updated even if home is stopped.
+                        callback()
                     else
                         needsUpdate = versions.some (app) ->
                             return app.needsUpdate

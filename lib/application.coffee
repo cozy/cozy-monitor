@@ -7,7 +7,6 @@ path = require('path')
 log = require('printit')()
 request = require("request-json-light")
 colors = require "colors"
-NotificationsHelper = require 'cozy-notifications-helper'
 
 helpers = require './helpers'
 homeClient = helpers.clients.home
@@ -299,7 +298,7 @@ stop = module.exports.stop = (app, callback) ->
             for manifest in apps.rows when manifest.name is app
                 find = true
                 path = "api/applications/#{app}/stop"
-                homeClient.post path, app, (err, res, body) ->
+                homeClient.post path, {}, (err, res, body) ->
                     if err? or body.error?
                         callback makeError(err, body)
                     else
@@ -326,6 +325,10 @@ module.exports.update = (app, callback) ->
                             callback makeError(err, body)
                         else
                             # remove update notification
+                            process.env.NAME = "home"
+                            process.env.TOKEN = helpers.getToken()
+                            process.env.NODE_ENV = "production"
+                            NotificationsHelper = require 'cozy-notifications-helper'
                             notifier = new NotificationsHelper 'home'
                             notificationSlug = """
                               home_update_notification_app_#{app}

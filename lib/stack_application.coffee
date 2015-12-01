@@ -8,7 +8,6 @@ exec = require('child_process').exec
 path = require('path')
 log = require('printit')()
 request = require("request-json-light")
-NotificationsHelper = require 'cozy-notifications-helper'
 
 
 helpers = require './helpers'
@@ -155,7 +154,12 @@ module.exports.update = (app, callback) ->
                         if needsUpdate > 0
                             callback()
                         else
+                            # Force authentication
+                            process.env.NAME = "home"
+                            process.env.TOKEN = helpers.getToken()
+                            process.env.NODE_ENV = "production"
                             # remove update notification
+                            NotificationsHelper = require 'cozy-notifications-helper'
                             notifier = new NotificationsHelper 'home'
                             notificationSlug = """
                               home_update_notification_stack
@@ -232,7 +236,7 @@ module.exports.getVersions = getVersions = (callback) ->
     cozyStack = ['controller', 'data-system', 'home', 'proxy', 'indexer']
     homeClient.get '/api/applications/stack', (err, res, body) ->
         if err?
-            callback MakeError(err, null)
+            callback makeError(err, null)
         else
             res = {}
             body.rows.forEach (app) ->

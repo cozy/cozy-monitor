@@ -107,8 +107,6 @@ module.exports.getRoutes = (callback) ->
 module.exports.moduleStatus = (module, callback) ->
     if module is "data-system"
         module = 'ds'
-    if module is 'indexer'
-        module = 'index'
     helpers.clients[module].get '', (err, res) ->
         if not res? or not res.statusCode in [200, 401, 403]
             callback "down"
@@ -125,7 +123,6 @@ module.exports.status = (options, callback) ->
         stackApplication.check options, "data-system"
         stackApplication.check options, "home"
         stackApplication.check options, "proxy", "routes"
-        stackApplication.check options, "index"
     ], (err, stack) ->
         res = {}
         stack.forEach (app) ->

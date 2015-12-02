@@ -6,15 +6,12 @@ try
     config = JSON.parse(fs.readFileSync '/etc/cozy/controller.json', 'utf8')
 couchdbHost = process.env.COUCH_HOST or config?.env?['data-system']?.COUCH_HOST  or 'localhost'
 couchdbPort = process.env.COUCH_PORT or config?.env?['data-system']?.COUCH_PORT  or '5984'
-indexerHost = process.env.INDEXER_HOST or 'localhost'
-indexerPort = process.env.INDEXER_PORT or '9102'
 postfixHost = process.env.POSTFIX_HOST or 'localhost'
 postfixPort = process.env.POSTFIX_PORT or '25'
 module.exports.dbName = process.env.DB_NAME or config?.env?['data-system']?.DB_NAME  or 'cozy'
 
 couchUrl = "http://#{couchdbHost}:#{couchdbPort}/"
 dataSystemUrl = "http://localhost:9101/"
-indexerUrl = "http://#{indexerHost}:#{indexerPort}/"
 controllerUrl = "http://localhost:9002/"
 homeUrl = "http://localhost:9103/"
 proxyUrl = "http://localhost:9104/"
@@ -106,7 +103,6 @@ module.exports.clients =
     'couch': request.newClient couchUrl
     'ds': request.newClient dataSystemUrl
     'data-system': request.newClient dataSystemUrl
-    'index': request.newClient indexerUrl
     'proxy': request.newClient proxyUrl
     'controller': new ControllerClient(token: token)
     'postfix': request.newClient postfixUrl

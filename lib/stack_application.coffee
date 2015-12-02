@@ -12,7 +12,6 @@ request = require("request-json-light")
 
 helpers = require './helpers'
 homeClient = helpers.clients.home
-indexClient = helpers.clients.index
 client = helpers.clients.controller
 makeError = helpers.makeError
 
@@ -199,42 +198,31 @@ module.exports.updateAll = (callback) ->
         else
             callback()
 
-# Callback indexer version
-getVersionIndexer = (callback) ->
-    indexClient.get '', (err, res, body) ->
-        if body? and body.split('v')[1]?
-            callback  body.split('v')[1]
-        else
-            callback "unknown"
-
 # Callback application version
 module.exports.getVersion = getVersion = (name, callback) ->
-    if name is "indexer"
-        getVersionIndexer callback
+    if name is "controller"
+        path = "/usr/local/lib/node_modules/cozy-controller/package.json"
     else
-        if name is "controller"
-            path = "/usr/local/lib/node_modules/cozy-controller/package.json"
+        path = "#{appsPath}/#{name}/#{name}/cozy-#{name}/package.json"
+    if fs.existsSync path
+        data = fs.readFileSync path, 'utf8'
+        data = JSON.parse data
+        callback data.version
+    else
+        if name is 'controller'
+            path = "/usr/lib/node_modules/cozy-controller/package.json"
         else
-            path = "#{appsPath}/#{name}/#{name}/cozy-#{name}/package.json"
+            path = "#{appsPath}/#{name}/package.json"
         if fs.existsSync path
             data = fs.readFileSync path, 'utf8'
             data = JSON.parse data
             callback data.version
         else
-            if name is 'controller'
-                path = "/usr/lib/node_modules/cozy-controller/package.json"
-            else
-                path = "#{appsPath}/#{name}/package.json"
-            if fs.existsSync path
-                data = fs.readFileSync path, 'utf8'
-                data = JSON.parse data
-                callback data.version
-            else
-                callback "unknown"
+            callback "unknown"
 
 # Get version of every stack application, using the Home API by default
 module.exports.getVersions = getVersions = (callback) ->
-    cozyStack = ['controller', 'data-system', 'home', 'proxy', 'indexer']
+    cozyStack = ['controller', 'data-system', 'home', 'proxy']
     homeClient.get '/api/applications/stack', (err, res, body) ->
         if err?
             callback makeError(err, null)

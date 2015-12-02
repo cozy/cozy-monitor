@@ -324,10 +324,11 @@ module.exports.update = (app, callback) ->
                         if err or body.error
                             callback makeError(err, body)
                         else
-                            # remove update notification
+                            # Force authentication
                             process.env.NAME = "home"
                             process.env.TOKEN = helpers.getToken()
                             process.env.NODE_ENV = "production"
+                            # remove update notification
                             NotificationsHelper = require 'cozy-notifications-helper'
                             notifier = new NotificationsHelper 'home'
                             notificationSlug = """
@@ -456,30 +457,31 @@ module.exports.installController = (app, callback) ->
         manifest.name = app.slug
         manifest.user = app.slug
         manifest.repository.url = app.git
-        manifest.password = app.password
-        if app.branch?
-            manifest.repository.branch = app.branch
-        # Install (or start) application
-        client.start manifest, (err, res, body) ->
-            if err or body.error
-                log.error '     -> KO'
-                callback makeError(err, body)
-            else
-                log.info '     -> OK'
-                if body.drone.port isnt app.port and app.state is 'installed'
-                    # Update port if it has changed
-                    app.port = body.drone.port
-                    log.info "    * update port"
-                    dsClient.setBasicAuth 'home', token if token = getToken()
-                    dsClient.put "data/#{app.id}/", app, (err, res, body) ->
-                        if err or body?.error
-                            log.error '     -> KO'
-                            callback makeError(err, body)
-                        else
-                            log.info '     -> OK'
-                            callback()
+        dsClient.setBasicAuth 'home', token if token = getToken()
+        dsClient.post 'request/access/byApp/', key: app.id, (err, res, body) ->
+            manifest.password = body[0].value.token
+            if app.branch?
+                manifest.repository.branch = app.branch
+            # Install (or start) application
+            client.start manifest, (err, res, body) ->
+                if err or body.error
+                    log.error '     -> KO'
+                    callback makeError(err, body)
                 else
-                    callback()
+                    log.info '     -> OK'
+                    if body.drone.port isnt app.port and app.state is 'installed'
+                        # Update port if it has changed
+                        app.port = body.drone.port
+                        log.info "    * update port"
+                        dsClient.put "data/#{app.id}/", app, (err, res, body) ->
+                            if err or body?.error
+                                log.error '     -> KO'
+                                callback makeError(err, body)
+                            else
+                                log.info '     -> OK'
+                                callback()
+                    else
+                        callback()
 
 # Stop application without home (usefull for relocation)
 module.exports.stopController = (app, callback) ->

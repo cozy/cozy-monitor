@@ -400,7 +400,7 @@ program
 
 # Versions
 
-cozyStack = ['controller', 'data-system', 'home', 'proxy', 'indexer']
+cozyStack = ['controller', 'data-system', 'home', 'proxy']
 
 program
     .command("versions-stack")

@@ -230,18 +230,19 @@ module.exports.getVersions = getVersions = (callback) ->
             res = {}
             body.rows.forEach (app) ->
                 needsUpdate = false
-                currVersion = app.version.split '.'
-                lastVersion = app.lastVersion.split '.'
-                if lastVersion[0] > currVersion[0]
-                    needsUpdate = true
-                else if lastVersion[1] > currVersion[1]
-                    needsUpdate = true
-                else if lastVersion[2] > currVersion[2]
-                    needsUpdate = true
+                if app.version? and app.lastVersion?
+                    currVersion = app.version.split '.'
+                    lastVersion = app.lastVersion.split '.'
+                    if lastVersion[0] > currVersion[0]
+                        needsUpdate = true
+                    else if lastVersion[1] > currVersion[1]
+                        needsUpdate = true
+                    else if lastVersion[2] > currVersion[2]
+                        needsUpdate = true
                 res[app.name] =
                     name: app.name
-                    version: app.version
-                    lastVersion: app.lastVersion
+                    version: app.version or 'unknown'
+                    lastVersion: app.lastVersion or 'unknown'
                     needsUpdate: needsUpdate
 
             async.map cozyStack, (app, cb) ->

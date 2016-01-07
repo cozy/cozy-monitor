@@ -15,7 +15,7 @@ Run following command to see all available actions:
     cozy-monitor --help
 
 Or browse the online
-[documentation](http://cozy.io/host/manage.html##applications-management).
+[documentation](https://docs.cozy.io/en/host/manage.html##applications-management).
 
 ## Contribution
 

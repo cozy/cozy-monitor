@@ -10,8 +10,11 @@ describe "Application management", ->
     before (done) ->
         @timeout 2 * MINUTE
         stackApplication.install 'data-system', {}, (err) ->
+            should.not.exist err
             stackApplication.install 'home', {}, (err) ->
+                should.not.exist err
                 stackApplication.install 'proxy', {}, (err) ->
+                    should.not.exist err
                     done()
 
     after (done) ->
@@ -39,9 +42,12 @@ describe "Application management", ->
                     exist.should.equal true
                     done()
 
+            it "Wait 3 more minutes for debug", (done) ->
+                @timeout 5 * MINUTE
+                setTimeout done, 3 * MINUTE
+
             it "And photos should be started", (done) ->
                 application.check(raw: true, 'photos', 'http://localhost:9119') (err, state) ->
-                    console.log(err, state)
                     state[1].should.equal 'up'
                     done()
 

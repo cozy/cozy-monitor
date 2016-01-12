@@ -239,13 +239,10 @@ install = module.exports.install = (app, options, callback) ->
                 manifest.icon = icon
                 callback manifest
 
-    console.log new Date(), 'install', app
     recoverManifest (manifest) ->
-        console.log new Date(), 'manifest', manifest
         what = "api/applications/install"
         homeClient.headers['content-type'] = 'application/json'
         homeClient.post what, manifest, (err, res, body) ->
-            console.log new Date(), 'install', err, body
             if err or body.error
                 if err?.code is 'ECONNREFUSED'
                     err = makeError msgHomeNotStarted(app), null
@@ -257,7 +254,6 @@ install = module.exports.install = (app, options, callback) ->
             else
                 slug = body.app.slug
                 waitInstallComplete slug, options.timeout, (err, appresult) ->
-                    console.log new Date(), 'done', err, appresult
                     if err
                         callback makeError(err, null)
                     else if appresult.state is 'installed'
@@ -516,16 +512,14 @@ module.exports.check = (options, app, url) ->
         colors.enabled = not options.raw? and not options.json?
         statusClient = request.newClient url
         statusClient.get "", (err, res) ->
-            badStatusCode = res? and not res.statusCode in [200, 403]
-            econnRefused = err? and err.code is 'ECONNREFUSED'
-            if badStatusCode or econnRefused
-                if not options.json
-                    log.raw "#{app}: " + "down".red
-                callback null, [app, 'down'] if callback?
-            else
+            if res?.statusCode in [200, 403]
                 if not options.json
                     log.raw "#{app}: " + "up".green
-                callback null, [app, 'up'] if callback?
+                callback? null, [app, 'up']
+            else
+                if not options.json
+                    log.raw "#{app}: " + "down".red
+                callback? null, [app, 'down']
 
 
 ## Usefull for application developpement

@@ -12,25 +12,37 @@ services:
 env:
     global:
         - NODE_ENV=test
+        - CXX=g++-4.8
+addons:
+    apt:
+        sources:
+            - ubuntu-toolchain-r-test
+        packages:
+            - gcc-4.8
+            - g++-4.8
 
 before_install:
     - travis_retry npm -g install npm@latest-2
     - travis_retry npm install forever mocha coffee-script -g
     - travis_retry npm install cozy-controller
     - sudo sed -i -e 's/^Defaults\tsecure_path.*$//' /etc/sudoers
-    - sudo forever start -o forever-ds.log node_modules/cozy-controller/bin/cozy-controller
+    - sudo forever start -o forever-c.log -e forever-c-err.log node_modules/cozy-controller/bin/cozy-controller
     - ps aux | grep controller
     - sleep 5
-    - cat forever-ds.log
-    - curl http://localhost:9002/
+    - cat forever-c.log
+    - sudo chmod a+r /etc/cozy/stack.token
 
 script: 'npm test'
 
 after_failure:
     - ps aux | grep controller
-    - cat forever-ds.log
-    - cat forever-ds-err.log
+    - cat forever-c.log
+    - cat forever-c-err.log
     - curl http://localhost:9002/
     - sudo netstat -lntp
     - ls -l /etc/cozy/
     - cat /etc/cozy/stack.token
+    - ls -l /usr/local/var/log/cozy/
+    - cat /usr/local/var/log/cozy/home.log
+    - cat /usr/local/var/log/cozy/home-err.log
+    - cat /usr/local/var/log/cozy/calendar-err.log

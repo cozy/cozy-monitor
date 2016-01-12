@@ -54,6 +54,7 @@ waitInstallComplete = (slug, timeout, callback) ->
     """
     unless timeout?
         timeout = 240000
+    console.log 'waitInstallComplete', slug, timeout
     if timeout isnt 'false'
         timeoutId = setTimeout ->
             socket.close()
@@ -84,12 +85,15 @@ waitInstallComplete = (slug, timeout, callback) ->
         , timeout
 
     socket.on 'application.update', (id) ->
+        console.log 'application.update', id
 
         dsClient.setBasicAuth 'home', token if token = getToken()
         dsClient.get "data/#{id}/", (err, response, body) ->
+            console.log "get data/#{id}/", err, response.statusCode, body
             if response.statusCode is 401
                 dsClient.setBasicAuth 'home', ''
                 dsClient.get "data/#{id}/", (err, response, body) ->
+                    console.log "2 get data/#{id}/", err, response.statusCode, body
                     callback err, body
             else if body.state is 'installed'
                 callback err, body

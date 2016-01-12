@@ -27,19 +27,20 @@ before_install:
     - travis_retry npm install forever mocha coffee-script -g
     - travis_retry npm install cozy-controller
     - sudo sed -i -e 's/^Defaults\tsecure_path.*$//' /etc/sudoers
-    - sudo forever start -o forever-ds.log -e forever-ds-err.log node_modules/cozy-controller/bin/cozy-controller
+    - sudo forever start -o forever-c.log -e forever-c-err.log node_modules/cozy-controller/bin/cozy-controller
     - ps aux | grep controller
     - sleep 5
-    - cat forever-ds.log
+    - cat forever-c.log
     - sudo chmod a+r /etc/cozy/stack.token
 
 script: 'npm test'
 
 after_failure:
     - ps aux | grep controller
-    - cat forever-ds.log
-    - cat forever-ds-err.log
+    - cat forever-c.log
+    - cat forever-c-err.log
     - curl http://localhost:9002/
     - sudo netstat -lntp
     - ls -l /etc/cozy/
     - cat /etc/cozy/stack.token
+    - cat /usr/local/var/log/cozy/*home*.log

@@ -32,3 +32,5 @@ after_failure:
     - cat forever-ds-err.log
     - curl http://localhost:9002/
     - sudo netstat -lntp
+    - ls -l /etc/cozy/
+    - cat /etc/cozy/stack.token

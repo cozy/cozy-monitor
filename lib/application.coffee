@@ -234,15 +234,18 @@ install = module.exports.install = (app, options, callback) ->
                 manifest.git += '.git'
             if options.branch?
                 manifest.branch = options.branch
-            path = "api/applications/install"
             # Retrieve application icon
             setIcon manifest, (icon) ->
                 manifest.icon = icon
                 callback manifest
 
+    console.log new Date(), 'install', app
     recoverManifest (manifest) ->
+        console.log new Date(), 'manifest', manifest
+        what = "api/applications/install"
         homeClient.headers['content-type'] = 'application/json'
-        homeClient.post path, manifest, (err, res, body) ->
+        homeClient.post what, manifest, (err, res, body) ->
+            console.log new Date(), 'install', err, body
             if err or body.error
                 if err?.code is 'ECONNREFUSED'
                     err = makeError msgHomeNotStarted(app), null
@@ -254,6 +257,7 @@ install = module.exports.install = (app, options, callback) ->
             else
                 slug = body.app.slug
                 waitInstallComplete slug, options.timeout, (err, appresult) ->
+                    console.log new Date(), 'done', err, appresult
                     if err
                         callback makeError(err, null)
                     else if appresult.state is 'installed'
@@ -266,8 +270,8 @@ install = module.exports.install = (app, options, callback) ->
 
 # Uninstall application <app>
 uninstall = module.exports.uninstall = (app, callback) ->
-    path = "api/applications/#{app}/uninstall"
-    homeClient.del path, (err, res, body) ->
+    what = "api/applications/#{app}/uninstall"
+    homeClient.del what, (err, res, body) ->
         if err or body.error
             callback makeError(err, body)
         else
@@ -281,8 +285,8 @@ start = module.exports.start = (app, callback) ->
         if apps? and apps.rows?
             for manifest in apps.rows when manifest.name is app
                 find = true
-                path = "api/applications/#{manifest.slug}/start"
-                homeClient.post path, manifest, (err, res, body) ->
+                what = "api/applications/#{manifest.slug}/start"
+                homeClient.post what, manifest, (err, res, body) ->
                     if err or body.error
                         callback makeError(err, body)
                     else
@@ -302,8 +306,8 @@ stop = module.exports.stop = (app, callback) ->
         if apps?.rows?
             for manifest in apps.rows when manifest.name is app
                 find = true
-                path = "api/applications/#{app}/stop"
-                homeClient.post path, {}, (err, res, body) ->
+                what = "api/applications/#{app}/stop"
+                homeClient.post what, {}, (err, res, body) ->
                     if err? or body.error?
                         callback makeError(err, body)
                     else
@@ -324,8 +328,8 @@ module.exports.update = (app, callback) ->
             for manifest in apps.rows
                 if manifest.name is app
                     find = true
-                    path = "api/applications/#{manifest.slug}/update"
-                    homeClient.put path, manifest, (err, res, body) ->
+                    what = "api/applications/#{manifest.slug}/update"
+                    homeClient.put what, manifest, (err, res, body) ->
                         if err or body.error
                             callback makeError(err, body)
                         else
@@ -358,8 +362,8 @@ module.exports.changeBranch = (app, branch, callback) ->
             for manifest in apps.rows
                 if manifest.name is app
                     find = true
-                    path = "api/applications/#{manifest.slug}/branch/#{branch}"
-                    homeClient.put path, manifest, (err, res, body) ->
+                    what = "api/applications/#{manifest.slug}/branch/#{branch}"
+                    homeClient.put what, manifest, (err, res, body) ->
                         if err or body.error
                             callback makeError(err, body)
                         else

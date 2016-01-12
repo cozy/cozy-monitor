@@ -29,7 +29,7 @@ describe "Application management", ->
 
         describe "Photos installation ", ->
             it "When I send a request to install photos", (done) ->
-                @timeout 3 * MINUTE
+                @timeout 5 * MINUTE
                 application.install 'photos', {}, (err) =>
                     @err = err
                     done()
@@ -286,7 +286,7 @@ describe "Application management", ->
                 should.not.exist @err
 
 
-            it "And data-system should be install", (done) ->
+            it "And photos should be installed", (done) ->
                 fs.exists '/usr/local/cozy/apps/photos', (exist) ->
                     exist.should.equal true
                     done()

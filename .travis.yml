@@ -35,3 +35,4 @@ after_failure:
     - sudo netstat -lntp
     - ls -l /etc/cozy/
     - cat /etc/cozy/stack.token
+    - cat /usr/local/var/log/cozy/proxy*.log

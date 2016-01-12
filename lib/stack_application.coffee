@@ -82,20 +82,17 @@ module.exports.install = (app, options, callback) ->
     if options.branch?
         manifest.repository.branch = options.branch
     client.clean manifest, (err, res, body) ->
-        if err or body.error
-            callback makeError(err, body)
-        else
-            client.start manifest, (err, res, body) ->
-                if err or body.error
-                    if err?.code is 'ECONNREFUSED'
-                        err = makeError msgControllerNotStarted(app), null
-                    else if body?.message?.indexOf('Not Found') isnt -1
-                        err = makeError msgRepoGit(app), null
-                    else
-                        err = makeError err, body
-                    callback err
+        client.start manifest, (err, res, body) ->
+            if err or body.error
+                if err?.code is 'ECONNREFUSED'
+                    err = makeError msgControllerNotStarted(app), null
+                else if body?.message?.indexOf('Not Found') isnt -1
+                    err = makeError msgRepoGit(app), null
                 else
-                    callback()
+                    err = makeError err, body
+                callback err
+            else
+                callback()
 
 # Uninstall stack application
 module.exports.uninstall = (app, callback) ->

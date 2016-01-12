@@ -10,8 +10,11 @@ describe "Application management", ->
     before (done) ->
         @timeout 2 * MINUTE
         stackApplication.install 'data-system', {}, (err) ->
+            should.not.exist err
             stackApplication.install 'home', {}, (err) ->
+                should.not.exist err
                 stackApplication.install 'proxy', {}, (err) ->
+                    should.not.exist err
                     done()
 
     after (done) ->

@@ -1,18 +1,22 @@
 language: node_js
 matrix:
     allow_failures:
-        - node_js: "0.12"
+        - node_js: "5"
 node_js:
     - "0.10"
     - "0.12"
+    - "4"
+    - "5"
 services:
     - couchdb
 env:
     global:
         - NODE_ENV=test
+
 before_install:
-    - npm install forever mocha coffee-script -g
-    - npm install cozy-controller
+    - travis_retry npm -g install npm@latest-2
+    - travis_retry npm install forever mocha coffee-script -g
+    - travis_retry npm install cozy-controller
     - sudo sed -i -e 's/^Defaults\tsecure_path.*$//' /etc/sudoers
     - sudo forever start -o forever-ds.log node_modules/cozy-controller/bin/cozy-controller
     - ps aux | grep controller
@@ -27,4 +31,4 @@ after_failure:
     - cat forever-ds.log
     - cat forever-ds-err.log
     - curl http://localhost:9002/
-    - netstat -lntp
+    - sudo netstat -lntp

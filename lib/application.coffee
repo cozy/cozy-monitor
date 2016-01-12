@@ -196,14 +196,19 @@ retrieveGit = (app, options, callback) ->
     else
         # Check if application exists in market
         homeClient.get 'api/applications/market', (err, res, market) ->
-            async.filter market, (appli, cb) ->
-                cb appli.name is app
-            , (appliMarket) ->
-                if appliMarket.length > 0
-                    callback appliMarket[0].git
-                else
-                    # Callback default repository
-                    callback "https://github.com/cozy/cozy-#{app}.git"
+            if err
+                log.error "Can't fetch the market"
+                log.error err
+                callback "https://github.com/cozy/cozy-#{app}.git"
+            else
+                async.filter market, (appli, cb) ->
+                    cb appli.name is app
+                , (appliMarket) ->
+                    if appliMarket.length > 0
+                        callback appliMarket[0].git
+                    else
+                        # Callback default repository
+                        callback "https://github.com/cozy/cozy-#{app}.git"
 
 
 

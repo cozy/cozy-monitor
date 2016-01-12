@@ -43,4 +43,6 @@ after_failure:
     - sudo netstat -lntp
     - ls -l /etc/cozy/
     - cat /etc/cozy/stack.token
-    - cat /usr/local/var/log/cozy/*home*.log
+    - ls -alR /usr/local/var/log
+    - cat /usr/local/var/log/cozy/home.log
+    - cat /usr/local/var/log/cozy/home-err.log

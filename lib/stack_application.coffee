@@ -87,8 +87,6 @@ module.exports.install = (app, options, callback) ->
         else
             client.start manifest, (err, res, body) ->
                 if err or body.error
-                    console.log err
-                    console.log body
                     if err?.code is 'ECONNREFUSED'
                         err = makeError msgControllerNotStarted(app), null
                     else if body?.message?.indexOf('Not Found') isnt -1

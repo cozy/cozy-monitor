@@ -58,8 +58,7 @@ retrieveManifest = (app, callback) ->
             url: body.replace '\n', ''
 
         # Retrieve branch from git config
-        command = "cd #{basePath} && git branch"
-        exec "cd #{basePath} && git branch", (err, body) ->
+        exec command, (err, body) ->
             return callback err if err?
             # Body as form as :
             ##  <other_branch>
@@ -78,25 +77,27 @@ module.exports.install = (app, options, callback) ->
     # Create manifest
     manifest.name = app
     manifest.user = app
-    unless options.repo?
-        manifest.repository.url =
+    manifest.repository.url = options.repo or
             "https://github.com/cozy/cozy-#{app}.git"
-    else
-        manifest.repository.url = options.repo
     if options.branch?
         manifest.repository.branch = options.branch
     client.clean manifest, (err, res, body) ->
-        client.start manifest, (err, res, body) ->
-            if err or body.error
-                if err?.code is 'ECONNREFUSED'
-                    err = makeError msgControllerNotStarted(app), null
-                else if body?.message?.indexOf('Not Found') isnt -1
-                    err = makeError msgRepoGit(app), null
+        if err or body.error
+            callback makeError(err, body)
+        else
+            client.start manifest, (err, res, body) ->
+                if err or body.error
+                    console.log err
+                    console.log body
+                    if err?.code is 'ECONNREFUSED'
+                        err = makeError msgControllerNotStarted(app), null
+                    else if body?.message?.indexOf('Not Found') isnt -1
+                        err = makeError msgRepoGit(app), null
+                    else
+                        err = makeError err, body
+                    callback err
                 else
-                    err = makeError err, body
-                callback err
-            else
-                callback()
+                    callback()
 
 # Uninstall stack application
 module.exports.uninstall = (app, callback) ->

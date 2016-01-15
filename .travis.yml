@@ -50,6 +50,8 @@ after_failure:
     - sudo netstat -lntp
     - ls -l /etc/cozy/
     - cat /etc/cozy/stack.token
-    - ls -alR /usr/local/var/log
+    - ls -l /usr/local/var/log/cozy/
     - cat /usr/local/var/log/cozy/home.log
+    - cat /usr/local/var/log/cozy/home.log-backup
     - cat /usr/local/var/log/cozy/home-err.log
+    - cat /usr/local/var/log/cozy/home-err.log-backup

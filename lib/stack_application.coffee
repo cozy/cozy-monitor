@@ -58,6 +58,7 @@ retrieveManifest = (app, callback) ->
             url: body.replace '\n', ''
 
         # Retrieve branch from git config
+        command = "cd #{basePath} && git branch"
         exec command, (err, body) ->
             return callback err if err?
             # Body as form as :

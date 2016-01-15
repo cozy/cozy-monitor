@@ -516,20 +516,23 @@ module.exports.getVersion = (app, callback) ->
 
 # Callback application state
 module.exports.check = (options, app, url) ->
+    console.log 'check', app
     (callback) ->
         colors.enabled = not options.raw? and not options.json?
         statusClient = request.newClient url
+        console.log 'get', url
         statusClient.get "", (err, res) ->
+            console.log 'got', err, res?.statusCode
             badStatusCode = res? and not res.statusCode in [200, 403]
             econnRefused = err? and err.code is 'ECONNREFUSED'
             if badStatusCode or econnRefused
                 if not options.json
                     log.raw "#{app}: " + "down".red
-                callback null, [app, 'down'] if callback?
+                callback? null, [app, 'down']
             else
                 if not options.json
                     log.raw "#{app}: " + "up".green
-                callback null, [app, 'up'] if callback?
+                callback? null, [app, 'up']
 
 
 ## Usefull for application developpement

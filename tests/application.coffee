@@ -37,7 +37,7 @@ describe "Application management", ->
             it "Then error should not exist", ->
                 should.not.exist @err
 
-            it "And photos should be install", (done) ->
+            it "And photos should be installed", (done) ->
                 fs.exists '/usr/local/cozy/apps/photos', (exist) ->
                     exist.should.equal true
                     done()
@@ -49,11 +49,12 @@ describe "Application management", ->
                     done()
 
         describe "Install with options", ->
+            repo = 'https://github.com/nono/cozy-calendar.git'
 
-            it "When I send a request to install photos with options", (done) ->
-                @timeout 3 * MINUTE
+            it "When I send a request to install calendar with options", (done) ->
+                @timeout 5 * MINUTE
                 options =
-                    "repo": 'https://github.com/poupotte/cozy-calendar.git'
+                    "repo": repo
                     "branch": 'standalone'
                     "displayName": 'test'
                 application.install 'calendar', options, (err) =>
@@ -63,7 +64,7 @@ describe "Application management", ->
             it "Then error should not exist", ->
                 should.not.exist @err
 
-            it "And calendar should be install", (done) ->
+            it "And calendar should be installed", (done) ->
                 fs.exists '/usr/local/cozy/apps/calendar', (exist) ->
                     exist.should.equal true
                     done()
@@ -81,15 +82,15 @@ describe "Application management", ->
                             app.displayName.should.equal 'test'
                             done()
 
-            it "And repository should be 'https://github.com/poupotte/cozy-calendar.git'", ->
-                @app.git.should.equal 'https://github.com/poupotte/cozy-calendar.git'
+            it "And repository should be '#{repo}'", ->
+                @app.git.should.equal repo
 
             it "And branch should be 'standalone'", ->
                 @app.branch.should.equal 'standalone'
 
         describe "Try to install an application already installed", ->
             it "When I send a request to install photos", (done) ->
-                @timeout 3 * MINUTE
+                @timeout 5 * MINUTE
                 application.install 'photos', {}, (err) =>
                     @err = err
                     done()
@@ -112,7 +113,7 @@ describe "Application management", ->
             it "Then error should exist", ->
                 should.exist @err
 
-            it "And error should explain repo doesn't exist", ->
+            it "And error should explain that repo doesn't exist", ->
                 @err.msg
                 @err.toString().indexOf("Default git repo https://github.com/cozy/cozy-test.git doesn't exist").should.not.equal -1
 
@@ -133,7 +134,7 @@ describe "Application management", ->
                     state[1].should.equal 'up'
                     done()
 
-        describe "Try to restart a application which isn't installed", ->
+        describe "Try to restart a application that is not installed", ->
             it "When I send a request to restart", (done) ->
                 @timeout 2 * MINUTE
                 application.restart 'test', (err) =>
@@ -347,7 +348,7 @@ describe "Application management", ->
                     state[1].should.equal 'down'
                     done()
 
-            it "And photos should be uninstall", (done) ->
+            it "And photos should be uninstalled", (done) ->
                 fs.exists '/usr/local/cozy/apps/photos', (exist) ->
                     exist.should.equal false
                     done()

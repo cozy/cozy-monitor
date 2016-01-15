@@ -523,16 +523,14 @@ module.exports.check = (options, app, url) ->
         console.log 'get', url
         statusClient.get "", (err, res) ->
             console.log 'got', err, res?.statusCode
-            badStatusCode = res? and not res.statusCode in [200, 403]
-            econnRefused = err? and err.code is 'ECONNREFUSED'
-            if badStatusCode or econnRefused
-                if not options.json
-                    log.raw "#{app}: " + "down".red
-                callback? null, [app, 'down']
-            else
+            if res?.statusCode in [200, 403]
                 if not options.json
                     log.raw "#{app}: " + "up".green
                 callback? null, [app, 'up']
+            else
+                if not options.json
+                    log.raw "#{app}: " + "down".red
+                callback? null, [app, 'down']
 
 
 ## Usefull for application developpement

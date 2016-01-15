@@ -54,6 +54,7 @@ waitInstallComplete = (slug, timeout, callback) ->
     """
     unless timeout?
         timeout = 240000
+    console.log 'waitInstallComplete', slug, timeout
     if timeout isnt 'false'
         timeoutId = setTimeout ->
             socket.close()
@@ -84,11 +85,15 @@ waitInstallComplete = (slug, timeout, callback) ->
         , timeout
 
     socket.on 'application.update', (id) ->
+        console.log 'application.update', id
+
         dsClient.setBasicAuth 'home', token if token = getToken()
         dsClient.get "data/#{id}/", (err, response, body) ->
+            console.log "get data/#{id}/", err, response.statusCode, body
             if response.statusCode is 401
                 dsClient.setBasicAuth 'home', ''
                 dsClient.get "data/#{id}/", (err, response, body) ->
+                    console.log "2 get data/#{id}/", err, response.statusCode, body
                     callback err, body
             else if body.state is 'installed'
                 callback err, body
@@ -238,10 +243,13 @@ install = module.exports.install = (app, options, callback) ->
                 manifest.icon = icon
                 callback manifest
 
+    console.log new Date(), 'install', app
     recoverManifest (manifest) ->
+        console.log new Date(), 'manifest', manifest
         what = "api/applications/install"
         homeClient.headers['content-type'] = 'application/json'
         homeClient.post what, manifest, (err, res, body) ->
+            console.log new Date(), 'install', err, body
             if err or body.error
                 if err?.code is 'ECONNREFUSED'
                     err = makeError msgHomeNotStarted(app), null
@@ -253,6 +261,7 @@ install = module.exports.install = (app, options, callback) ->
             else
                 slug = body.app.slug
                 waitInstallComplete slug, options.timeout, (err, appresult) ->
+                    console.log new Date(), 'done', err, appresult
                     if err
                         callback makeError(err, null)
                     else if appresult.state is 'installed'

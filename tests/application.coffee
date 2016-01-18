@@ -31,28 +31,19 @@ describe "Application management", ->
             it "When I send a request to install photos", (done) ->
                 @timeout 5 * MINUTE
                 application.install 'photos', {}, (err) =>
-                    console.log 'installed', err
                     @err = err
                     done()
 
             it "Then error should not exist", ->
-                console.log 'Then err should not exist', @err
                 should.not.exist @err
 
             it "And photos should be installed", (done) ->
-                console.log 'And photos should be installed...'
                 fs.exists '/usr/local/cozy/apps/photos', (exist) ->
                     exist.should.equal true
                     done()
 
-            it "Wait 3 more minutes for debug", (done) ->
-                @timeout 5 * MINUTE
-                setTimeout done, 3 * MINUTE
-
-            it.skip "And photos should be started", (done) ->
-                console.log 'App photos should be started...'
+            it "And photos should be started", (done) ->
                 application.check(raw: true, 'photos', 'http://localhost:9119') (err, state) ->
-                    console.log(err, state)
                     state[1].should.equal 'up'
                     done()
 

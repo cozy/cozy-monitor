@@ -52,6 +52,5 @@ after_failure:
     - cat /etc/cozy/stack.token
     - ls -l /usr/local/var/log/cozy/
     - cat /usr/local/var/log/cozy/home.log
-    - cat /usr/local/var/log/cozy/home.log-backup
     - cat /usr/local/var/log/cozy/home-err.log
-    - cat /usr/local/var/log/cozy/home-err.log-backup
+    - cat /usr/local/var/log/cozy/calendar-err.log

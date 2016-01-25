@@ -10,7 +10,7 @@ describe "Stack application management", ->
 
     describe "Install", ->
         it "When I send a request to install data-system", (done) ->
-            @timeout 2 * MINUTE
+            @timeout 3 * MINUTE
             stackApplication.install 'data-system', {}, (err) =>
                 @err = err
                 done()
@@ -30,7 +30,7 @@ describe "Stack application management", ->
 
     describe "Stop", ->
         it "When I send a request to stop data-system", (done) ->
-            @timeout 2 * MINUTE
+            @timeout 3 * MINUTE
             stackApplication.stop 'data-system', (err) =>
                 @err = err
                 done()

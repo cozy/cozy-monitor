@@ -2,13 +2,8 @@
   "name": "cozy-monitor",
   "version": "1.2.33",
   "description": "Tool to manage you Cozy Platform from the command line.",
-  "author": "Cozy Cloud <contact@cozycloud.cc> (http://cozycloud.cc)",
-  "licenses": [
-    {
-      "type": "LGPL v3",
-      "url": "http://www.gnu.org/licenses/lgpl-3.0.html"
-    }
-  ],
+  "author": "Cozy Cloud <contact@cozycloud.cc> (https://cozy.io)",
+  "license": "LGPL-3.0",
   "main": "./lib/main",
   "scripts": {
     "lint": "coffeelint -f coffeelint.json lib/",
@@ -21,7 +16,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/mycozycloud/cozy-monitor"
+    "url": "https://github.com/cozy/cozy-monitor"
   },
   "keywords": [
     "deploy",
@@ -30,13 +25,13 @@
     "paas",
     "application"
   ],
-  "engines": {
-    "node": "0.10"
-  },
+  "engines": [
+    "node >= 0.10.0"
+  ],
   "dependencies": {
     "always-tail": "0.1.1",
     "async": "0.9.0",
-    "axon": "~0.6.1",
+    "axon": "0.6.1",
     "coffee-script": "1.9.0",
     "colors": "1.1.2",
     "commander": "1.0.5",

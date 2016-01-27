@@ -59,7 +59,7 @@ retrieveManifest = (app, callback) ->
 
         # Retrieve branch from git config
         command = "cd #{basePath} && git branch"
-        exec "cd #{basePath} && git branch", (err, body) ->
+        exec command, (err, body) ->
             return callback err if err?
             # Body as form as :
             ##  <other_branch>
@@ -78,11 +78,8 @@ module.exports.install = (app, options, callback) ->
     # Create manifest
     manifest.name = app
     manifest.user = app
-    unless options.repo?
-        manifest.repository.url =
+    manifest.repository.url = options.repo or
             "https://github.com/cozy/cozy-#{app}.git"
-    else
-        manifest.repository.url = options.repo
     if options.branch?
         manifest.repository.branch = options.branch
     client.clean manifest, (err, res, body) ->

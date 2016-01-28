@@ -454,7 +454,7 @@ program
                     async.forEachSeries apps, (app, cb)->
                         application.getVersion app, (version)->
                             if app.needsUpdate
-                                avail = " (update available)"
+                                avail = " (update available: #{app.lastVersion})"
                             else
                                 avail = ""
                             if options.json?

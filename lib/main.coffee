@@ -248,18 +248,20 @@ program
             if err?
                 logError err, "Retrieve applications failed."
             else
-                async.eachSeries apps, (app, cb) ->
-                    log.info "Update #{app.slug} ..."
-                    application.update app.slug, (err) ->
+                async.mapSeries apps, (app, cb) ->
+                    log.info "Update #{app.name} ..."
+                    application.update app.name, (err) ->
                         if err?
-                            logError err, "Update failed for #{app.slug}."
-                            cb err
+                            log.error err
+                            log.error "Update failed for #{app.slug}."
+                            cb null, app.name
                         else
                             log.info "...ok"
-                            cb()
-                , (err) ->
-                    if err?
-                        logError err, "Update failed."
+                            cb null, null
+                , (err, res) ->
+                    res = res.filter (name) -> return name?
+                    if res.length > 0
+                        logError err, "Update failed for #{res.join ', '}"
                     else
                         log.info "All applications successfully updated."
 
@@ -452,7 +454,7 @@ program
                     async.forEachSeries apps, (app, cb)->
                         application.getVersion app, (version)->
                             if app.needsUpdate
-                                avail = " (update available)"
+                                avail = " (update available: #{app.lastVersion})"
                             else
                                 avail = ""
                             if options.json?

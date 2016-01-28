@@ -171,6 +171,8 @@ manifest =
 module.exports.getApps = (callback) ->
     homeClient.get "api/applications/", (error, res, apps) ->
         if apps? and apps.rows?
+            # sort apps by name
+            apps.rows.sort (a, b) -> if a.name < b.name then -1 else 1
             callback null, apps.rows
         else
             # Check if couch is available

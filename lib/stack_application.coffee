@@ -148,7 +148,7 @@ module.exports.update = (app, callback) ->
                     else
                         needsUpdate = versions.some (app) ->
                             return app.needsUpdate
-                        if needsUpdate > 0
+                        if needsUpdate
                             callback()
                         else
                             # Force authentication

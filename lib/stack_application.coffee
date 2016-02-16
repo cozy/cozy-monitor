@@ -58,18 +58,11 @@ retrieveManifest = (app, callback) ->
             url: body.replace '\n', ''
 
         # Retrieve branch from git config
-        command = "cd #{basePath} && git branch"
+        command = "cd #{basePath} && git rev-parse --abbrev-ref HEAD"
         exec command, (err, body) ->
             return callback err if err?
-            # Body as form as :
-            ##  <other_branch>
-            ##* <current_branch>
-            ##  <other_branch>
-            body = body.split '\n'
-            for branch in body
-                if branch.indexOf('*') isnt -1
-                    manifest.repository.branch = branch.replace '* ', ''
-                    callback null, manifest
+            manifest.repository.branch = body.replace '\n', ''
+            callback null, manifest
 
 
 

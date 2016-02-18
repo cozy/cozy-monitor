@@ -552,9 +552,9 @@ program
             request += "http://localhost:5984/cozy/#{url}"
         else
             request += "http://#{user}:#{pwd}@localhost:5984/cozy/#{url}"
-        options =
+        requestOptions =
             maxBuffer: 10*1024*1024
-        child = exec request, options, (err, stdout, stderr) ->
+        child = exec request, requestOptions, (err, stdout, stderr) ->
             if options.pretty?
                 try
                     console.log JSON.stringify(JSON.parse(stdout), null, 2)

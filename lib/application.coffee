@@ -25,18 +25,6 @@ randomString = (length) ->
         string = string + Math.random().toString(36).substr(2)
     return string.substr 0, length
 
-setIcon = (manifest, callback) ->
-    homeClient.headers['content-type'] = 'application/json'
-    homeClient.get 'api/applications/market', (err, res, body) ->
-        found = false
-        if body?
-            for app in body
-                if app.name is manifest.name
-                    found = true
-                    callback app.icon
-        if not found
-            callback ''
-
 waitInstallComplete = (slug, timeout, callback) ->
     axon   = require 'axon'
     socket = axon.socket 'sub-emitter'
@@ -101,7 +89,7 @@ msgHomeNotStarted = (app) ->
             Install operation cannot be performed.
         """
 
-msgRepoGit = (app) ->
+msgRepoGit = (app, manifest) ->
     return """
             Install home failed for #{app}.
             Default git repo #{manifest.git} doesn't exist.
@@ -153,57 +141,52 @@ module.exports.getApps = (callback) ->
                         callback makeError(error, apps)
 
 
-retrieveGit = (app, options, callback) ->
+recoverManifest = (app, options, callback) ->
+    # Create manifest
+    manifest.name = app
+    manifest.user = app
+    if options.displayName?
+        manifest.displayName = options.displayName
+    else
+        manifest.displayName = app
+
     if options.repo
         # If repository is specified callback it
-        callback options.repo
+        manifest.git = options.repo
+        manifest.branch = options.branch
+
+        # Check if repository have option branch after '@'
+        repo = options.repo.split '@'
+        manifest.git = repo[0]
+        if repo.length is 2 and not options.branch?
+            manifest.branch = repo[1]
+
+        # Add .git if it omitted
+        if manifest.git.indexOf('.git') is -1
+            manifest.git += '.git'
+
+        # Retrieve application icon
+        homeClient.get 'api/applications/market', (err, res, market) ->
+            apps = market?.filter? (appli) -> appli.name is app
+            manifest.icon = apps?[0]?.icon or ''
+            callback null, manifest
+
     else
+
+        manifest.package = "cozy-#{app}"
+
         # Check if application exists in market
         homeClient.get 'api/applications/market', (err, res, market) ->
-            if err
-                log.error "Can't fetch the market"
-                log.error err
-                callback "https://github.com/cozy/cozy-#{app}.git"
-            else
-                async.filter market, (appli, cb) ->
-                    cb appli.name is app
-                , (appliMarket) ->
-                    if appliMarket.length > 0
-                        callback appliMarket[0].git
-                    else
-                        # Callback default repository
-                        callback "https://github.com/cozy/cozy-#{app}.git"
+            apps = market?.filter? (appli) -> appli.name is app
+            callback null, apps?[0] or manifest
+
 
 
 
 # Install application <app>
 install = module.exports.install = (app, options, callback) ->
-    recoverManifest = (callback) ->
-        # Create manifest
-        manifest.name = app
-        if options.displayName?
-            manifest.displayName = options.displayName
-        else
-            manifest.displayName = app
-        manifest.user = app
-        retrieveGit app, options, (git) ->
-            manifest.git = git
-            # Check if repository have option branch after '@'
-            repo = git.split '@'
-            manifest.git = repo[0]
-            if repo.length is 2 and not options.branch?
-                options.branch = repo[1]
-            # Add ;git if it omitted
-            if manifest.git.indexOf('.git') is -1
-                manifest.git += '.git'
-            if options.branch?
-                manifest.branch = options.branch
-            # Retrieve application icon
-            setIcon manifest, (icon) ->
-                manifest.icon = icon
-                callback manifest
-
-    recoverManifest (manifest) ->
+    recoverManifest app, options, (err, manifest) ->
+        return callback err if err
         what = "api/applications/install"
         homeClient.headers['content-type'] = 'application/json'
         homeClient.post what, manifest, (err, res, body) ->
@@ -211,7 +194,7 @@ install = module.exports.install = (app, options, callback) ->
                 if err?.code is 'ECONNREFUSED'
                     err = makeError msgHomeNotStarted(app), null
                 else if body?.message?.indexOf('Not Found') isnt -1
-                    err = makeError msgRepoGit(app), null
+                    err = makeError msgRepoGit(app, manifest), null
                 else
                     err = makeError err, body
                 callback err
@@ -516,7 +499,7 @@ removeApp = (apps, name, callback) ->
 # * Start application with environment variable
 # * When application is stopped : remove application in database and reset proxy
 module.exports.startStandalone = (port, callback) ->
-    recoverManifest = (cb) ->
+    recoverStandaloneManifest = (cb) ->
         unless fs.existsSync 'package.json'
             log.error "Cannot read package.json. " +
                 "This function should be called in root application folder."
@@ -589,7 +572,7 @@ module.exports.startStandalone = (port, callback) ->
         removeFromDatabase()
     log.info "Retrieve application manifest..."
     # Recover application manifest
-    recoverManifest (manifest, access) ->
+    recoverStandaloneManifest (manifest, access) ->
         # Add/Replace application in database
         putInDatabase manifest, access, (err) ->
             return callback err if err?

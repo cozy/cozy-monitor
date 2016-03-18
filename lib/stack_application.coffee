@@ -26,7 +26,7 @@ msgRepoGit = (app, manifest) ->
         """
 
 
-makeManifest = (app) ->
+makeManifest = (app, options) ->
     # Create manifest
     manifest =
        "domain": "localhost"
@@ -37,12 +37,24 @@ makeManifest = (app) ->
 
     manifest.name = app
     manifest.user = app
-    manifest.package = "cozy-#{app}"
+
+    if options?.repo or options?.branch
+        manifest.repository.type = "git"
+        manifest.repository.url = options.repo or
+                         "https://github.com/cozy/cozy-#{app}.git"
+        if options.branch?
+            manifest.repository.branch = options.branch
+
+    else
+        manifest.repository = null
+        manifest.package = "cozy-#{app}"
+
+    return manifest
 
 
 # Install stack application
 module.exports.install = (app, options, callback) ->
-    manifest = makeManifest app
+    manifest = makeManifest app, options
     client.clean manifest, (err, res, body) ->
         client.start manifest, (err, res, body) ->
             if err or body.error

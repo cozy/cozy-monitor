@@ -1,6 +1,8 @@
 fs = require "fs"
 log = require('printit')()
 request = require("request-json-light")
+exec = require('child_process').exec
+path = require 'path'
 
 try
     config = JSON.parse(fs.readFileSync '/etc/cozy/controller.json', 'utf8')
@@ -108,3 +110,37 @@ module.exports.clients =
     'postfix': request.newClient postfixUrl
     'mta': request.newClient postfixUrl
 
+
+
+exports.retrieveManifestFromDisk = (app, callback) ->
+    # Define path
+    basePath =  path.join '/usr/local/cozy/apps', app
+    jsonPackage = path.join basePath, 'package.json'
+
+    # Retrieve manifest from package.json
+    manifest = JSON.parse(fs.readFileSync jsonPackage, 'utf8')
+
+    if manifest.name is 'cozy-controller-fake-package.json'
+
+        moduleDirectory = path.join basePath, 'node_modules'
+        packages = fs.readdirSync moduleDirectory
+        packageName = packages[0]
+        jsonPackage =  path.join moduleDirectory, packageName, 'package.json'
+        manifest = JSON.parse(fs.readFileSync jsonPackage, 'utf8')
+        manifest.package = manifest.name
+
+    else
+        # Retrieve url for git config
+        command = "cd #{basePath} && git config --get remote.origin.url"
+        exec command, (err, body) ->
+            return callback err if err?
+            manifest.repository =
+                type: 'git'
+                url: body.replace '\n', ''
+
+            # Retrieve branch from git config
+            command = "cd #{basePath} && git rev-parse --abbrev-ref HEAD"
+            exec command, (err, body) ->
+                return callback err if err?
+                manifest.repository.branch = body.replace '\n', ''
+                callback null, manifest

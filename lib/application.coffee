@@ -2,18 +2,17 @@ async = require "async"
 fs = require "fs"
 axon = require 'axon'
 spawn = require('child_process').spawn
-exec = require('child_process').exec
 path = require('path')
 log = require('printit')()
 request = require("request-json-light")
 colors = require "colors"
+utils = require './utils'
 
 helpers = require './helpers'
 homeClient = helpers.clients.home
 proxyClient = helpers.clients.proxy
 dsClient = helpers.clients.ds
 client = helpers.clients.controller
-handleError = helpers.handleError
 makeError = helpers.makeError
 getToken = helpers.getToken
 
@@ -95,35 +94,6 @@ waitInstallComplete = (slug, timeout, callback) ->
                 callback err, body
                 clearTimeout timeoutId
                 socket.close()
-
-
-
-
-# Retrieve application manifest from
-#   * its package.json
-#   * and its git configuration
-retrieveManifestFromDisk = (app, callback) ->
-    # Define path
-    basePath =  path.join '/usr/local/cozy/apps', app
-    configGit = path.join basePath, '.git', 'config'
-    jsonPackage = path.join basePath, 'package.json'
-
-    # Retrieve manifest from package.json
-    manifest = JSON.parse(fs.readFileSync jsonPackage, 'utf8')
-
-    # Retrieve url for git config
-    command = "cd #{basePath} && git config --get remote.origin.url"
-    exec command, (err, body) ->
-        return callback err if err?
-        manifest.git = body.replace '\n', ''
-
-        # Retrieve branch from git config
-        command = "cd #{basePath} && git rev-parse --abbrev-ref HEAD"
-        exec command, (err, body) ->
-            return callback err if err?
-            manifest.repository.branch = body.replace '\n', ''
-            callback null, manifest
-
 
 
 msgHomeNotStarted = (app) ->
@@ -406,7 +376,7 @@ module.exports.reinstall = (app, options, callback) ->
 # Intall application <app> from disk to database.
 module.exports.installFromDisk = (app, callback) ->
     options = {'headers': {'content-type': 'application/json'}}
-    retrieveManifestFromDisk app, (err, manifest) ->
+    helpers.retrieveManifestFromDisk app, (err, manifest) ->
 
         # Create application document
         appli =
@@ -416,6 +386,7 @@ module.exports.installFromDisk = (app, callback) ->
             slug: manifest.name.replace 'cozy-', ''
             version: manifest.version
             isStoppable: false
+            package: manifest.package
             git: manifest.git
             branch: manifest.branch
             state: 'installed'
@@ -424,6 +395,7 @@ module.exports.installFromDisk = (app, callback) ->
             port: null
         clientCouch = helpers.clients.couch
         [id, pwd] = helpers.getAuthCouchdb(false)
+
         couchClient.setBasicAuth id, pwd if id isnt ''
         clientCouch.post helpers.dbName, appli, options, (err, res, app) ->
             return callback err if err?
@@ -457,6 +429,7 @@ module.exports.installController = (app, callback) ->
         manifest.name = app.slug
         manifest.user = app.slug
         manifest.repository.url = app.git
+        manifest.package = app.package
         dsClient.setBasicAuth 'home', token if token = getToken()
         dsClient.post 'request/access/byApp/', key: app.id, (err, res, body) ->
             manifest.password = body[0].value.token

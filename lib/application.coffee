@@ -162,13 +162,13 @@ recoverManifest = (app, options, callback) ->
             manifest.branch = repo[1]
 
         # Add .git if it omitted
-        if manifest.git.indexOf('.git') is -1
+        if manifest.slice(-4) isnt '.git'
             manifest.git += '.git'
 
         # Retrieve application icon
         homeClient.get 'api/applications/market', (err, res, market) ->
-            apps = market?.filter? (appli) -> appli.name is app
-            manifest.icon = apps?[0]?.icon or ''
+            app = market?.find? (appli) -> appli.name is app
+            manifest.icon = app?.icon or ''
             callback null, manifest
 
     else
@@ -177,8 +177,8 @@ recoverManifest = (app, options, callback) ->
 
         # Check if application exists in market
         homeClient.get 'api/applications/market', (err, res, market) ->
-            apps = market?.filter? (appli) -> appli.name is app
-            callback null, apps?[0] or manifest
+            app = market?.find? (appli) -> appli.name is app
+            callback null, app or manifest
 
 
 

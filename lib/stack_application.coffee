@@ -37,17 +37,7 @@ makeManifest = (app) ->
 
     manifest.name = app
     manifest.user = app
-
-    if options.repo or options.branch
-        manifest.repository.type = "git"
-        manifest.repository.url = options.repo or
-                         "https://github.com/cozy/cozy-#{app}.git"
-        if options.branch?
-            manifest.repository.branch = options.branch
-
-    else
-        manifest.repository = null
-        manifest.package = "cozy-#{app}"
+    manifest.package = "cozy-#{app}"
 
 
 # Install stack application

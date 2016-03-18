@@ -129,6 +129,8 @@ exports.retrieveManifestFromDisk = (app, callback) ->
         manifest = JSON.parse(fs.readFileSync jsonPackage, 'utf8')
         manifest.package = manifest.name
 
+        callback null, manifest
+
     else
         # Retrieve url for git config
         command = "cd #{basePath} && git config --get remote.origin.url"

@@ -6,7 +6,6 @@ path = require('path')
 log = require('printit')()
 request = require("request-json-light")
 colors = require "colors"
-utils = require './utils'
 
 helpers = require './helpers'
 homeClient = helpers.clients.home

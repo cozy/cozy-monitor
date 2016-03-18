@@ -1,14 +1,9 @@
 colors = require "colors"
 
-program = require 'commander'
 async = require "async"
 fs = require "fs"
-axon = require 'axon'
-exec = require('child_process').exec
 path = require('path')
 log = require('printit')()
-request = require("request-json-light")
-
 
 helpers = require './helpers'
 homeClient = helpers.clients.home
@@ -17,71 +12,54 @@ makeError = helpers.makeError
 
 appsPath = '/usr/local/cozy/apps'
 
-manifest =
-   "domain": "localhost"
-   "repository":
-       "type": "git"
-   "scripts":
-       "start": "build/server.js"
-
 msgControllerNotStarted = (app) ->
     return """
             Install failed for #{app}. The Cozy Controller looks not started.
             Install operation cannot be performed.
         """
 
-msgRepoGit = (app) ->
+msgRepoGit = (app, manifest) ->
     return """
             Install failed for #{app}.
             Default git repo #{manifest.repository.url} doesn't exist.
             You can use option -r to use a specific repo.
         """
 
-# Retrieve application manifest from
-#   * its package.json
-#   * and its git configuration
-retrieveManifest = (app, callback) ->
-    # Define path
-    basePath =  path.join '/usr/local/cozy/apps', app
-    configGit = path.join basePath, '.git', 'config'
-    jsonPackage = path.join basePath, 'package.json'
 
-    # Retrieve manifest from package.json
-    manifest = JSON.parse(fs.readFileSync jsonPackage, 'utf8')
+makeManifest = (app) ->
+    # Create manifest
+    manifest =
+       "domain": "localhost"
+       "repository":
+           "type": "git"
+       "scripts":
+           "start": "build/server.js"
 
-    # Retrieve url for git config
-    command = "cd #{basePath} && git config --get remote.origin.url"
-    exec command, (err, body) ->
-        return callback err if err?
-        manifest.repository =
-            type: 'git'
-            url: body.replace '\n', ''
+    manifest.name = app
+    manifest.user = app
 
-        # Retrieve branch from git config
-        command = "cd #{basePath} && git rev-parse --abbrev-ref HEAD"
-        exec command, (err, body) ->
-            return callback err if err?
-            manifest.repository.branch = body.replace '\n', ''
-            callback null, manifest
+    if options.repo or options.branch
+        manifest.repository.type = "git"
+        manifest.repository.url = options.repo or
+                         "https://github.com/cozy/cozy-#{app}.git"
+        if options.branch?
+            manifest.repository.branch = options.branch
 
+    else
+        manifest.repository = null
+        manifest.package = "cozy-#{app}"
 
 
 # Install stack application
 module.exports.install = (app, options, callback) ->
-    # Create manifest
-    manifest.name = app
-    manifest.user = app
-    manifest.repository.url = options.repo or
-            "https://github.com/cozy/cozy-#{app}.git"
-    if options.branch?
-        manifest.repository.branch = options.branch
+    manifest = makeManifest app
     client.clean manifest, (err, res, body) ->
         client.start manifest, (err, res, body) ->
             if err or body.error
                 if err?.code is 'ECONNREFUSED'
                     err = makeError msgControllerNotStarted(app), null
                 else if body?.message?.indexOf('Not Found') isnt -1
-                    err = makeError msgRepoGit(app), null
+                    err = makeError msgRepoGit(app, manifest), null
                 else
                     err = makeError err, body
                 callback err
@@ -90,8 +68,7 @@ module.exports.install = (app, options, callback) ->
 
 # Uninstall stack application
 module.exports.uninstall = (app, callback) ->
-    manifest.name = app
-    manifest.user = app
+    manifest = makeManifest app
     client.clean manifest, (err, res, body) ->
         if err or body.error?
             callback makeError(err, body)
@@ -100,10 +77,7 @@ module.exports.uninstall = (app, callback) ->
 
 # Restart stack application
 module.exports.start = (app, callback) ->
-    manifest.name = app
-    manifest.repository.url =
-        "https://github.com/cozy/cozy-#{app}.git"
-    manifest.user = app
+    manifest = makeManifest app
     client.stop app, (err, res, body) ->
         client.start manifest, (err, res, body) ->
             if err or body.error?
@@ -111,11 +85,8 @@ module.exports.start = (app, callback) ->
             else
                 callback()
 
-
 # Stop
 module.exports.stop = (app, callback) ->
-    manifest.name = app
-    manifest.user = app
     client.stop app, (err, res, body) ->
         if err or body.error?
             callback makeError(err, body)
@@ -124,9 +95,8 @@ module.exports.stop = (app, callback) ->
 
 # Update
 module.exports.update = (app, callback) ->
-    manifest.name = app
     # Retrieve manifest
-    retrieveManifest app, (err, manifest) ->
+    helpers.retrieveManifestFromDisk app, (err, manifest) ->
         manifest.name = app
         manifest.user = app
         client.lightUpdate manifest, (err, res, body) ->
@@ -160,9 +130,8 @@ module.exports.update = (app, callback) ->
 
 # Change stack application branch
 module.exports.changeBranch = (app, branch, callback) ->
-    manifest.name = app
     # Retrieve manifest
-    retrieveManifest app, (err, manifest) ->
+    helpers.retrieveManifestFromDisk app, (err, manifest) ->
         manifest.name = app
         manifest.user = app
         client.changeBranch manifest, branch, (err, res, body) ->

@@ -412,6 +412,7 @@ module.exports.installController = (app, callback) ->
         manifest.user = app.slug
         manifest.repository.url = app.git
         manifest.package = app.package
+        manifest.type = app.type
         dsClient.setBasicAuth 'home', token if token = getToken()
         dsClient.post 'request/access/byApp/', key: app.id, (err, res, body) ->
             manifest.password = body[0].value.token

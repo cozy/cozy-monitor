@@ -162,7 +162,7 @@ recoverManifest = (app, options, callback) ->
             manifest.branch = repo[1]
 
         # Add .git if it omitted
-        if manifest.slice(-4) isnt '.git'
+        if manifest.git.slice(-4) isnt '.git'
             manifest.git += '.git'
 
         # Retrieve application icon

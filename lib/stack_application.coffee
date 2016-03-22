@@ -21,7 +21,9 @@ msgControllerNotStarted = (app) ->
 msgRepoGit = (app, manifest) ->
     return """
             Install failed for #{app}.
-            Default git repo #{manifest.repository.url} doesn't exist.
+            Error not found with manifest
+                npm = #{manifest.package}
+                git = #{manifest.repository?.url}
             You can use option -r to use a specific repo.
         """
 

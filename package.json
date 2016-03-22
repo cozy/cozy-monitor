@@ -7,7 +7,7 @@
   "main": "./lib/main",
   "scripts": {
     "lint": "coffeelint -f coffeelint.json lib/",
-    "test": "mocha tests --reporter spec --compilers coffee:coffee-script/register --colors",
+    "test": "mocha tests --bail --reporter spec --compilers coffee:coffee-script/register --colors",
     "build": "coffee -c lib/*.coffee",
     "prepublish": "npm run build"
   },
@@ -43,7 +43,8 @@
     "shelljs": "0.3.0"
   },
   "devDependencies": {
+    "chai": "1.10.0",
     "coffeelint": "1.8.1",
-    "chai": "1.10.0"
+    "mocha": "2.4.5"
   }
 }

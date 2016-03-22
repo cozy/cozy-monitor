@@ -1,4 +1,3 @@
-async = require "async"
 fs = require "fs"
 axon = require 'axon'
 spawn = require('child_process').spawn
@@ -16,6 +15,12 @@ makeError = helpers.makeError
 getToken = helpers.getToken
 
 # Applications helpers #
+manifestBase = () ->
+   "domain": "localhost"
+   "repository":
+       "type": "git"
+   "scripts":
+       "start": "build/server.js"
 
 
 # Define random function for application's token
@@ -57,7 +62,7 @@ waitInstallComplete = (slug, timeout, callback) ->
                            app.port
 
                             isApp = true
-                            statusClient = request.newClient url
+                            statusClient = request.newClient undefined
                             statusClient.host = "http://localhost:#{app.port}/"
                             statusClient.get "", (err, res) ->
                                 if res?.statusCode in [200, 403]
@@ -108,13 +113,6 @@ msgInstallFailed = (app) ->
             Install home failed. Can't figure out the app state.
         """
 
-manifest =
-   "domain": "localhost"
-   "repository":
-       "type": "git"
-   "scripts":
-       "start": "build/server.js"
-
 # Applications functions #
 
 # Callback all application stored in database
@@ -143,6 +141,7 @@ module.exports.getApps = (callback) ->
 
 recoverManifest = (app, options, callback) ->
     # Create manifest
+    manifest = manifestBase()
     manifest.name = app
     manifest.user = app
     if options.displayName?
@@ -173,6 +172,7 @@ recoverManifest = (app, options, callback) ->
 
     else
 
+        manifest.git = "https://github.com/cozy/cozy-#{app}.git"
         manifest.package = "cozy-#{app}"
 
         # Check if application exists in market
@@ -184,7 +184,7 @@ recoverManifest = (app, options, callback) ->
 
 
 # Install application <app>
-install = module.exports.install = (app, options, callback) ->
+module.exports.install = install = (app, options, callback) ->
     recoverManifest app, options, (err, manifest) ->
         return callback err if err
         what = "api/applications/install"
@@ -193,7 +193,7 @@ install = module.exports.install = (app, options, callback) ->
             if err or body.error
                 if err?.code is 'ECONNREFUSED'
                     err = makeError msgHomeNotStarted(app), null
-                else if body?.message?.indexOf('Not Found') isnt -1
+                else if body?.message?.toLowerCase().indexOf('not found') isnt -1
                     err = makeError msgRepoGit(app, manifest), null
                 else
                     err = makeError err, body
@@ -378,7 +378,7 @@ module.exports.installFromDisk = (app, callback) ->
         clientCouch = helpers.clients.couch
         [id, pwd] = helpers.getAuthCouchdb(false)
 
-        couchClient.setBasicAuth id, pwd if id isnt ''
+        clientCouch.setBasicAuth id, pwd if id isnt ''
         clientCouch.post helpers.dbName, appli, options, (err, res, app) ->
             return callback err if err?
             return callback app.error if app.error?
@@ -408,6 +408,7 @@ module.exports.installController = (app, callback) ->
     log.info "    * install #{app.slug}"
     client.stop app.slug, (err, res, body) ->
         # Retrieve application manifest
+        manifest = manifestBase()
         manifest.name = app.slug
         manifest.user = app.slug
         manifest.repository.url = app.git
@@ -494,88 +495,92 @@ removeApp = (apps, name, callback) ->
     else
         callback()
 
+
+recoverStandaloneManifest = (port, cb) ->
+    unless fs.existsSync 'package.json'
+        log.error "Cannot read package.json. " +
+            "This function should be called in root application folder."
+    else
+        try
+            packagePath = path.relative __dirname, 'package.json'
+            manifest = require packagePath
+        catch err
+            log.raw err
+            log.error "Package.json isn't correctly formatted."
+            return
+
+        # Retrieve manifest from package.json
+        manifest.name = "#{manifest.name}test"
+        manifest.displayName =
+            manifest['cozy-displayName'] or manifest.name
+        manifest.state = "installed"
+        manifest.docType = "Application"
+        manifest.port = port
+        manifest.slug = manifest.name.replace 'cozy-', ''
+
+        access =
+            permissions: manifest['cozy-permissions']
+            password: randomString()
+            slug: manifest.slug
+
+        if manifest.slug in ['hometest', 'proxytest', 'data-systemtest']
+            log.error(
+                'Sorry, cannot start stack application without ' +
+                ' controller.')
+            cb()
+        else
+            cb(manifest, access)
+
+putInDatabase = (manifest, access, cb) ->
+    log.info "Add/replace application in database..."
+    token = getToken()
+    if token?
+        dsClient.setBasicAuth 'home', token
+        requestPath = "request/application/all/"
+        dsClient.post requestPath, {}, (err, response, apps) ->
+            log.error "Data-system looks down (not responding)." if err?
+            return cb() if err?
+            removeApp apps, manifest.name, () ->
+                dsClient.post "data/", manifest, (err, res, body) ->
+                    id = body._id
+                    if err
+                        log.error "Cannot add application in database."
+                        cb makeError(err, body)
+                    else
+                        access.app = id
+                        dsClient.post "access/", access, (err, res, body) ->
+                            if err
+                                msg = "Cannot add application in database."
+                                log.error msg
+                                cb makeError(err, body)
+                            else
+                                cb()
+
+
+
 ## Start applicationn without controller in a production environment.
 # * Add/Replace application in database (for home and proxy)
 # * Reset proxy
 # * Start application with environment variable
 # * When application is stopped : remove application in database and reset proxy
 module.exports.startStandalone = (port, callback) ->
-    recoverStandaloneManifest = (cb) ->
-        unless fs.existsSync 'package.json'
-            log.error "Cannot read package.json. " +
-                "This function should be called in root application folder."
-        else
-            try
-                packagePath = path.relative __dirname, 'package.json'
-                manifest = require packagePath
-            catch err
-                log.raw err
-                log.error "Package.json isn't correctly formatted."
-                return
 
-            # Retrieve manifest from package.json
-            manifest.name = "#{manifest.name}test"
-            manifest.displayName =
-                manifest['cozy-displayName'] or manifest.name
-            manifest.state = "installed"
-            manifest.docType = "Application"
-            manifest.port = port
-            manifest.slug = manifest.name.replace 'cozy-', ''
+    appmanifest = null
 
-            access =
-                permissions: manifest['cozy-permissions']
-                password: randomString()
-                slug: manifest.slug
-
-            if manifest.slug in ['hometest', 'proxytest', 'data-systemtest']
-                log.error(
-                    'Sorry, cannot start stack application without ' +
-                    ' controller.')
-                cb()
-            else
-                cb(manifest, access)
-
-
-    putInDatabase = (manifest, access, cb) ->
-        log.info "Add/replace application in database..."
-        token = getToken()
-        if token?
-            dsClient.setBasicAuth 'home', token
-            requestPath = "request/application/all/"
-            dsClient.post requestPath, {}, (err, response, apps) ->
-                log.error "Data-system looks down (not responding)." if err?
-                return cb() if err?
-                removeApp apps, manifest.name, () ->
-                    dsClient.post "data/", manifest, (err, res, body) ->
-                        id = body._id
-                        if err
-                            log.error "Cannot add application in database."
-                            cb makeError(err, body)
-                        else
-                            access.app = id
-                            dsClient.post "access/", access, (err, res, body) ->
-                                if err
-                                    msg = "Cannot add application in database."
-                                    log.error msg
-                                    cb makeError(err, body)
-                                else
-                                    cb()
-
-    id = 0
     process.on 'SIGINT', ->
         stopStandalone (err) ->
             if not err?
                 console.log "Application removed"
-        , manifest
+        , appmanifest
     process.on 'uncaughtException', (err) ->
         log.error 'uncaughtException'
         log.raw err
-        removeFromDatabase()
     log.info "Retrieve application manifest..."
     # Recover application manifest
-    recoverStandaloneManifest (manifest, access) ->
+    recoverStandaloneManifest port, (manifest, access) ->
         # Add/Replace application in database
-        putInDatabase manifest, access, (err) ->
+        appmanifest = manifest
+        putInDatabase appmanifest, access, (err) ->
             return callback err if err?
             # Reset proxy
             log.info "Reset proxy..."
@@ -643,7 +648,7 @@ stopStandalone = module.exports.stopStandalone = (callback, manifest=null) ->
                 return callback makeError("Data-system doesn't respond", null)
             removeApp apps, manifest.name, () ->
                 log.info "Reset proxy ..."
-                proxyClient.get "routes/reset", (err, res, body) ->
+                proxyClient.get "routes/reset", (err) ->
                     if err
                         log.error "Cannot reset routes."
                         callback makeError(err, null)

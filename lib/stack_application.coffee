@@ -21,7 +21,9 @@ msgControllerNotStarted = (app) ->
 msgRepoGit = (app, manifest) ->
     return """
             Install failed for #{app}.
-            Default git repo #{manifest.repository.url} doesn't exist.
+            Error not found with manifest
+                npm = #{manifest.package}
+                git = #{manifest.repository?.url}
             You can use option -r to use a specific repo.
         """
 
@@ -39,14 +41,14 @@ makeManifest = (app, options) ->
     manifest.user = app
 
     if options?.repo or options?.branch
-        manifest.repository.type = "git"
         manifest.repository.url = options.repo or
                          "https://github.com/cozy/cozy-#{app}.git"
+
         if options.branch?
             manifest.repository.branch = options.branch
 
     else
-        manifest.repository = null
+        manifest.repository.url = "https://github.com/cozy/cozy-#{app}.git"
         manifest.package = "cozy-#{app}"
 
     return manifest

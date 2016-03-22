@@ -117,7 +117,6 @@ describe "Application management", ->
                 should.exist @err
 
             it "And error should explain that repo doesn't exist", ->
-                @err.msg
                 @err.toString().indexOf("Default git repo https://github.com/cozy/cozy-test.git doesn't exist").should.not.equal -1
 
     describe "Restart", ->

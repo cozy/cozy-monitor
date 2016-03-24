@@ -331,12 +331,22 @@ program
 program
     .command('reinstall-missing-app')
     .description('Reinstall all user applications, usefull for cozy relocation')
-    .action () ->
+    .option('-s, --error-safe', 'Command won\'t stop if an error occurs')
+    .action (options) ->
         application.getApps (err, apps) ->
             if err?
                 logError err, "Retrieve applications failed."
             else
-                async.forEachSeries apps, (app, callback) ->
+                errors = []
+                async.forEachSeries apps, (app, next) ->
+
+                    if options['errorSafe']
+                        callback = (err) ->
+                            errors.push subject: app, error: err if err?
+                            next()
+                    else
+                        callback = next
+
                     switch app.state
                         when 'installed'
                             # if application is marked 'installed' :
@@ -367,12 +377,30 @@ program
                         else
                             callback()
                 , (err) ->
-                    if err?
+
+                    # If the errorSafe option is enabled and there is at least
+                    # one error, display them.
+                    if options['errorSafe'] and errors.length > 0
+                        for err in errors
+                            logError err, "An application has not been " + \
+                                          "reinstalled."
+
+                        # Command is errored only if all installation have
+                        # failed.
+                        if errors.length is apps.length
+                            process.exit 1
+                        else
+                            process.exit 0
+
+                    # Command is errored if there is an error when the errorSafe
+                    # options is not enabled.
+                    else if err?
                         logError err, "Reinstall missing app failed."
+                        process.exit 1
                     else
                         log.info "All missing applications successfully " +
-                            "reinstall."
-
+                                 "reinstall."
+                        process.exit 0
 
 
 ## Start applicationn without controller in a production environment.

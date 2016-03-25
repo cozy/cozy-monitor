@@ -175,7 +175,12 @@ module.exports.getVersion = getVersion = (name, callback) ->
     if name is "controller"
         path = "/usr/local/lib/node_modules/cozy-controller/package.json"
     else
-        path = "#{appsPath}/#{name}/#{name}/cozy-#{name}/package.json"
+        # Try to get manifest for a NPM application.
+        path = "#{appsPath}/#{name}/node_modules/cozy-#{name}/package.json"
+
+        # If it doesn't exist get the manifest from the git repo.
+        if not fs.existsSync path
+            path = "#{appsPath}/#{name}/#{name}/cozy-#{name}/package.json"
 
     if fs.existsSync path
         data = fs.readFileSync path, 'utf8'

@@ -70,6 +70,7 @@ module.exports.install = (app, options, callback) ->
             else
                 callback()
 
+
 # Uninstall stack application
 module.exports.uninstall = (app, callback) ->
     manifest = makeManifest app
@@ -78,6 +79,7 @@ module.exports.uninstall = (app, callback) ->
             callback makeError(err, body)
         else
             callback()
+
 
 # Restart stack application
 module.exports.start = (app, callback) ->
@@ -89,6 +91,7 @@ module.exports.start = (app, callback) ->
             else
                 callback()
 
+
 # Stop
 module.exports.stop = (app, callback) ->
     client.stop app, (err, res, body) ->
@@ -96,6 +99,7 @@ module.exports.stop = (app, callback) ->
             callback makeError(err, body)
         else
             callback()
+
 
 # Update
 module.exports.update = (app, callback) ->
@@ -132,6 +136,7 @@ module.exports.update = (app, callback) ->
                                 log.error err if err?
                                 callback()
 
+
 # Change stack application branch
 module.exports.changeBranch = (app, branch, callback) ->
     # Retrieve manifest
@@ -144,12 +149,14 @@ module.exports.changeBranch = (app, branch, callback) ->
             else
                 callback()
 
+
 waitUpdate = (callback) ->
     homeClient.get '', (err, res, body) ->
         if not res?
             waitUpdate callback
         else
             callback()
+
 
 # Update all stack
 module.exports.updateAll = (callback) ->
@@ -161,27 +168,33 @@ module.exports.updateAll = (callback) ->
         else
             callback()
 
+
 # Callback application version
 module.exports.getVersion = getVersion = (name, callback) ->
+
     if name is "controller"
         path = "/usr/local/lib/node_modules/cozy-controller/package.json"
     else
         path = "#{appsPath}/#{name}/#{name}/cozy-#{name}/package.json"
+
     if fs.existsSync path
         data = fs.readFileSync path, 'utf8'
         data = JSON.parse data
         callback data.version
+
     else
         if name is 'controller'
             path = "/usr/lib/node_modules/cozy-controller/package.json"
         else
             path = "#{appsPath}/#{name}/package.json"
+
         if fs.existsSync path
             data = fs.readFileSync path, 'utf8'
             data = JSON.parse data
             callback data.version
         else
             callback "unknown"
+
 
 # Get version of every stack application, using the Home API by default
 module.exports.getVersions = getVersions = (callback) ->
@@ -216,6 +229,7 @@ module.exports.getVersions = getVersions = (callback) ->
                         cb null, name: app, version: version, needsUpdate: false
             , callback
 
+
 # Callback application status
 module.exports.check = (options, app, path="") ->
     (callback) ->
@@ -232,3 +246,4 @@ module.exports.check = (options, app, path="") ->
                     log.raw "#{app}: " + "up".green
                 callback null, [app, 'up']
         , false
+

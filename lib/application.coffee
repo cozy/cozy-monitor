@@ -5,6 +5,7 @@ path = require('path')
 log = require('printit')()
 request = require("request-json-light")
 colors = require "colors"
+find = require 'lodash.find'
 
 helpers = require './helpers'
 homeClient = helpers.clients.home
@@ -150,37 +151,33 @@ recoverManifest = (app, options, callback) ->
         manifest.displayName = app
 
     if options.repo
-        # If repository is specified callback it
+        # If repository is specified callback it.
         manifest.git = options.repo
         manifest.branch = options.branch
 
-        # Check if repository have option branch after '@'
+        # Check if repository have option branch after '@'.
         repo = options.repo.split '@'
         manifest.git = repo[0]
         if repo.length is 2 and not options.branch?
             manifest.branch = repo[1]
 
-        # Add .git if it omitted
+        # Add .git if it is ommitted.
         if manifest.git.slice(-4) isnt '.git'
             manifest.git += '.git'
 
-        # Retrieve application icon
+        # Retrieve application icon.
         homeClient.get 'api/applications/market', (err, res, market) ->
-            app = market?.find? (appli) -> appli.name is app
+            app = find market, (appli) -> appli.name is app
             manifest.icon = app?.icon or ''
             callback null, manifest
 
     else
-
         manifest.git = "https://github.com/cozy/cozy-#{app}.git"
-        manifest.package = "cozy-#{app}"
 
         # Check if application exists in market
         homeClient.get 'api/applications/market', (err, res, market) ->
-            app = market?.find? (appli) -> appli.name is app
-            callback null, app or manifest
-
-
+            marketManifest = find market, (appli) -> appli.name is app
+            callback null, marketManifest or manifest
 
 
 # Install application <app>

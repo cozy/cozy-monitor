@@ -41,8 +41,11 @@ makeManifest = (app, options) ->
     manifest.user = app
 
     if options?.repo or options?.branch
-        manifest.repository.url = options.repo or
-                         "https://github.com/cozy/cozy-#{app}.git"
+        manifest.repository.url = \
+            options.repo or  "https://github.com/cozy/cozy-#{app}.git"
+
+        if manifest.repository.url.slice(-4) isnt '.git'
+            manifest.repository.url += '.git'
 
         if options.branch?
             manifest.repository.branch = options.branch

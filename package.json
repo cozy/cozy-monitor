@@ -4,11 +4,11 @@
   "description": "Tool to manage you Cozy Platform from the command line.",
   "author": "Cozy Cloud <contact@cozycloud.cc> (https://cozy.io)",
   "license": "LGPL-3.0",
-  "main": "./lib/main",
+  "main": "./lib/main.js",
   "scripts": {
     "lint": "coffeelint -f coffeelint.json lib/",
     "test": "mocha tests --bail --reporter spec --compilers coffee:coffee-script/register --colors",
-    "build": "coffee -c lib/*.coffee",
+    "build": "mkdir -p lib && coffee -o lib -c src/ ",
     "prepublish": "npm run build"
   },
   "bin": {

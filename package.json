@@ -8,7 +8,7 @@
   "scripts": {
     "lint": "coffeelint -f coffeelint.json lib/",
     "test": "mocha tests --bail --reporter spec --compilers coffee:coffee-script/register --colors",
-    "build": "mkdir -p lib && coffee -o lib -c src/ ",
+    "build": "mkdir -p lib && coffee -o lib -cb src/ ",
     "prepublish": "npm run build"
   },
   "bin": {

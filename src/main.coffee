@@ -377,13 +377,12 @@ program
                         else
                             callback()
                 , (err) ->
-
                     # If the errorSafe option is enabled and there is at least
                     # one error, display them.
                     if options['errorSafe'] and errors.length > 0
                         for err in errors
                             logError err, "An application has not been " + \
-                                          "reinstalled."
+                                          "reinstalled.", false
 
                         # Command is errored only if all installation have
                         # failed.

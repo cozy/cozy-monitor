@@ -75,11 +75,13 @@ module.exports.makeError = (err, body) ->
         else if body.error
             return new Error(body.error)
 
-module.exports.logError = (err, msg) ->
+module.exports.logError = (err, msg, doExit = true) ->
     log.error "An error occured:"
     log.error msg if msg?
     log.raw err
-    process.exit(1)
+
+    if doExit
+        process.exit(1)
 
 module.exports.handleError = (err, body, msg) ->
     log.error "An error occured:"

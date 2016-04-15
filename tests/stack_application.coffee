@@ -84,7 +84,7 @@ describe "Stack application management", ->
             should.exist @version
 
         it "And version should equal to data-system version", ->
-            manifest = require '/usr/local/cozy/apps/data-system/package.json'
+            manifest = require '/usr/local/cozy/apps/data-system/node_modules/cozy-data-system/package.json'
             manifest.version.should.equal @version
 
     describe "Uninstall", ->

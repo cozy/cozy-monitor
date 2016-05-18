@@ -82,9 +82,11 @@ waitInstallComplete = (slug, timeout, callback) ->
             if response.statusCode is 401
                 dsClient.setBasicAuth 'home', ''
                 dsClient.get "data/#{id}/", (err, response, body) ->
-                    callback err, body
+                    callback err, body if callback?
+                    callback = null
             else if body.state is 'installed'
-                callback err, body
+                callback err, body if callback?
+                callback = null
                 clearTimeout timeoutId
                 socket.close()
 
@@ -220,18 +222,18 @@ uninstall = module.exports.uninstall = (app, callback) ->
 
 # Start application <app>
 start = module.exports.start = (app, callback) ->
-    find = false
+    find_app = false
     homeClient.get "api/applications/", (err, res, apps) ->
         if apps? and apps.rows?
             for manifest in apps.rows when manifest.name is app
-                find = true
+                find_app = true
                 what = "api/applications/#{manifest.slug}/start"
                 homeClient.post what, manifest, (err, res, body) ->
                     if err or body.error
                         callback makeError(err, body)
                     else
                         callback()
-            unless find
+            unless find_app
                 msg= "application #{app} not found."
                 callback makeError(msg)
         else
@@ -241,18 +243,18 @@ start = module.exports.start = (app, callback) ->
 
 # Stop application <app>
 stop = module.exports.stop = (app, callback) ->
-    find = false
+    find_app = false
     homeClient.get "api/applications/", (err, res, apps) ->
         if apps?.rows?
             for manifest in apps.rows when manifest.name is app
-                find = true
+                find_app = true
                 what = "api/applications/#{app}/stop"
                 homeClient.post what, {}, (err, res, body) ->
                     if err? or body.error?
                         callback makeError(err, body)
                     else
                         callback()
-            unless find
+            unless find_app
                 err = "application #{app} not found"
                 callback makeError(err, null)
         else
@@ -262,12 +264,12 @@ stop = module.exports.stop = (app, callback) ->
 
 # Update application <app>
 module.exports.update = (app, callback) ->
-    find = false
+    find_app = false
     homeClient.get "api/applications/", (err, res, apps) ->
         if apps? and apps.rows?
             for manifest in apps.rows
                 if manifest.name is app
-                    find = true
+                    find_app = true
                     what = "api/applications/#{manifest.slug}/update"
                     homeClient.put what, manifest, (err, res, body) ->
                         if err or body.error
@@ -286,7 +288,7 @@ module.exports.update = (app, callback) ->
                             notifier.destroy notificationSlug, (err) ->
                                 log.error err if err?
                                 callback()
-            if not find
+            if not find_app
                 err = "Update failed: application #{app} not found."
                 callback makeError(err, null)
         else
@@ -296,19 +298,19 @@ module.exports.update = (app, callback) ->
 
 # Change stack application branch
 module.exports.changeBranch = (app, branch, callback) ->
-    find = false
+    find_app = false
     homeClient.get "api/applications/", (err, res, apps) ->
         if apps? and apps.rows?
             for manifest in apps.rows
                 if manifest.name is app
-                    find = true
+                    find_app = true
                     what = "api/applications/#{manifest.slug}/branch/#{branch}"
                     homeClient.put what, manifest, (err, res, body) ->
                         if err or body.error
                             callback makeError(err, body)
                         else
                             callback()
-            if not find
+            if not find_app
                 err = "Update failed: application #{app} not found."
                 callback makeError(err, null)
 

@@ -339,29 +339,41 @@ program
             else
                 errors = []
                 async.forEachSeries apps, (app, next) ->
-
                     if options['errorSafe']
                         callback = (err) ->
                             errors.push subject: app, error: err if err?
-                            next()
+                            next() if next?
+                            next = null
+                        displayError = (err) ->
+                            log.error err
+                            next() if next?
+                            next = null
+                        process.on 'uncaughtException', displayError
                     else
                         callback = next
-
                     switch app.state
                         when 'installed'
                             # if application is marked 'installed' :
                             #     reinstall it with controller
                             log.info "#{app.slug} : installed. Reinstall " +
                                 "application if necessary..."
-                            application.installController app, callback
+                            application.reinstall app.slug, app, callback
                         when 'stopped'
                             # if application is marked 'stopped' :
                             #     reinstall and then stop it with controller
                             log.info "#{app.slug} : stopped. Reinstall " +
                                 "application if necessary and stop it..."
-                            application.installController app, (err) ->
-                                return callback err if err?
-                                application.stopController app.slug, callback
+                            application.reinstall app.slug, app, (err) ->
+                                if err?
+                                    callback err
+                                else
+                                    log.info "    * stop #{app.slug}"
+                                    application.stop app.slug, (err) ->
+                                        if err?
+                                            log.info '     -> KO'
+                                        else
+                                            log.info '     -> OK'
+                                        callback err
                         when 'installing'
                             # if application is marked 'installing' :
                             #     reinstall with home
@@ -376,6 +388,7 @@ program
                             application.reinstall app.slug, app, callback
                         else
                             callback()
+
                 , (err) ->
                     # If the errorSafe option is enabled and there is at least
                     # one error, display them.

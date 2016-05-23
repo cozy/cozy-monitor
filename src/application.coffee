@@ -340,6 +340,7 @@ module.exports.restop = (app, callback) ->
 # Reinstall application <app>
 module.exports.reinstall = (app, options, callback) ->
     log.info "    * uninstall #{app}"
+    options.repo = options.git
     uninstall app, (err) ->
         if err
             log.error '     -> KO'

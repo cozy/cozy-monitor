@@ -342,10 +342,12 @@ program
                     if options['errorSafe']
                         callback = (err) ->
                             errors.push subject: app, error: err if err?
+                            process.removeListener 'uncaughtException', displayError
                             next() if next?
                             next = null
                         displayError = (err) ->
                             log.error err
+                            process.removeListener 'uncaughtException', displayError
                             next() if next?
                             next = null
                         process.on 'uncaughtException', displayError

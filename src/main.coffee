@@ -349,8 +349,9 @@ program
                             process.removeListener 'uncaughtException', displayError
                             if first_try and err?
                                 log.info 'npm cache clean'
-                                exec('npm cache clean')
-                                reinstallApplication false, app, next
+                                exec 'npm cache clean', (err, stdout, stderr) ->
+                                    log.error err if err?
+                                    reinstallApplication false, app, next
                             else
                                 next() if next?
                                 next = null
@@ -363,8 +364,9 @@ program
                     else
                         callback = (err) ->
                             if first_try and err?
-                                exec('npm cache clean')
-                                reinstallApplication false, app, next
+                                exec 'npm cache clean', (err, stdout, stderr) ->
+                                    log.error err if err?
+                                    reinstallApplication false, app, next
                             else
                                 next(err) if next?
                                 next = null

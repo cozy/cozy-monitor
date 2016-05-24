@@ -333,18 +333,27 @@ program
     .description('Reinstall all user applications, usefull for cozy relocation')
     .option('-s, --error-safe', 'Command won\'t stop if an error occurs')
     .action (options) ->
+        # Retrieve applications
         application.getApps (err, apps) ->
             if err?
                 logError err, "Retrieve applications failed."
             else
                 errors = []
-                async.forEachSeries apps, (app, next) ->
+                # Define reinstall application function
+                reinstallApplication = (first_try, app, next) ->
+
+                    ## Manage callback
                     if options['errorSafe']
                         callback = (err) ->
                             errors.push subject: app, error: err if err?
                             process.removeListener 'uncaughtException', displayError
-                            next() if next?
-                            next = null
+                            if first_try and err?
+                                log.info 'npm cache clean'
+                                exec('npm cache clean')
+                                reinstallApplication false, app, next
+                            else
+                                next() if next?
+                                next = null
                         displayError = (err) ->
                             log.error err
                             process.removeListener 'uncaughtException', displayError
@@ -352,7 +361,14 @@ program
                             next = null
                         process.on 'uncaughtException', displayError
                     else
-                        callback = next
+                        callback = (err) ->
+                            if first_try and err?
+                                exec('npm cache clean')
+                                reinstallApplication false, app, next
+                            else
+                                next(err) if next?
+                                next = null
+
                     switch app.state
                         when 'installed'
                             # if application is marked 'installed' :
@@ -391,6 +407,8 @@ program
                         else
                             callback()
 
+                async.forEachSeries apps, (app, next) ->
+                    reinstallApplication true, app, next
                 , (err) ->
                     # If the errorSafe option is enabled and there is at least
                     # one error, display them.

@@ -3,6 +3,7 @@ require "colors"
 program = require 'commander'
 async = require "async"
 fs = require "fs"
+qs = require 'querystring'
 axon = require 'axon'
 exec = require('child_process').exec
 spawn = require('child_process').spawn
@@ -118,7 +119,7 @@ compactViews = module.exports.compactViews = (view, database, callback) ->
     # Only set auth if database has a password
     if username or password
         couchClient.setBasicAuth username, password
-    path = "#{database}/_compact/#{view}"
+    path = "#{database}/_compact/#{qs.escape view}"
     couchClient.headers['content-type'] = 'application/json'
     couchClient.post path, {}, (err, res, body) ->
         if err or not body.ok

@@ -152,10 +152,11 @@ recoverManifest = (app, options, callback) ->
     else
         manifest.displayName = app
 
+    if options.branch
+        manifest.branch = options.branch
     if options.repo
         # If repository is specified callback it.
         manifest.git = options.repo
-        manifest.branch = options.branch
 
         # Check if repository have option branch after '@'.
         repo = options.repo.split '@'
@@ -175,11 +176,14 @@ recoverManifest = (app, options, callback) ->
 
     else
         manifest.git = "https://github.com/cozy/cozy-#{app}.git"
-
-        # Check if application exists in market
-        homeClient.get 'api/applications/market', (err, res, market) ->
-            marketManifest = find market, (appli) -> appli.name is app
-            callback null, marketManifest or manifest
+        if options.branch
+            callback null, manifest
+        else
+            # Check if application exists in market
+            # if user doesn't specify branch or repository
+            homeClient.get 'api/applications/market', (err, res, market) ->
+                marketManifest = find market, (appli) -> appli.name is app
+                callback null, marketManifest or manifest
 
 
 # Install application <app>

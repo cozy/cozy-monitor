@@ -152,39 +152,38 @@ recoverManifest = (app, options, callback) ->
     else
         manifest.displayName = app
 
-    if options.branch
-        manifest.branch = options.branch
-    if options.repo
-        # If repository is specified callback it.
-        manifest.git = options.repo
+    # Retrieve application manifest in market.
+    homeClient.get 'api/applications/market', (err, res, market) ->
+        marketManifest = find market, (appli) -> appli.name is app
 
-        # Check if repository have option branch after '@'.
-        repo = options.repo.split '@'
-        manifest.git = repo[0]
-        if repo.length is 2 and not options.branch?
-            manifest.branch = repo[1]
-
-        # Add .git if it is ommitted.
-        if manifest.git.slice(-4) isnt '.git'
-            manifest.git += '.git'
-
-        # Retrieve application icon.
-        homeClient.get 'api/applications/market', (err, res, market) ->
-            app = find market, (appli) -> appli.name is app
-            manifest.icon = app?.icon or ''
-            callback null, manifest
-
-    else
-        manifest.git = "https://github.com/cozy/cozy-#{app}.git"
-        if options.branch
-            callback null, manifest
-        else
+        if not (options.branch or options.repo)
             # Check if application exists in market
             # if user doesn't specify branch or repository
-            homeClient.get 'api/applications/market', (err, res, market) ->
-                marketManifest = find market, (appli) -> appli.name is app
-                callback null, marketManifest or manifest
+            callback null, marketManifest or manifest
 
+        else
+            manifest.icon = marketManifest?.icon or ''
+
+            # Check if user has specified a branch
+            if options.branch
+                manifest.git = marketManifest.git
+                manifest.branch = options.branch
+
+            # Check if user has specified a repository
+            if options.repo
+                # If repository is specified callback it.
+                manifest.git = options.repo
+
+                # Check if repository have option branch after '@'.
+                repo = options.repo.split '@'
+                manifest.git = repo[0]
+                if repo.length is 2 and not options.branch?
+                    manifest.branch = repo[1]
+
+                # Add .git if it is ommitted.
+                if manifest.git.slice(-4) isnt '.git'
+                    manifest.git += '.git'
+            callback null, manifest
 
 # Install application <app>
 module.exports.install = install = (app, options, callback) ->

@@ -151,6 +151,7 @@ recoverManifest = (app, options, callback) ->
         manifest.displayName = options.displayName
     else
         manifest.displayName = app
+    manifest.git = "https://github.com/cozy/cozy-#{app}.git"
 
     # Retrieve application manifest in market.
     homeClient.get 'api/applications/market', (err, res, market) ->

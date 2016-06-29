@@ -167,7 +167,7 @@ recoverManifest = (app, options, callback) ->
 
             # Check if user has specified a branch
             if options.branch
-                manifest.git = marketManifest.git
+                manifest.git = marketManifest.git if marketManifest?.git
                 manifest.branch = options.branch
 
             # Check if user has specified a repository

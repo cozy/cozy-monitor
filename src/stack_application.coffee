@@ -217,11 +217,11 @@ module.exports.getVersions = getVersions = (callback) ->
                 if app.version? and app.lastVersion?
                     currVersion = app.version.split '.'
                     lastVersion = app.lastVersion.split '.'
-                    if lastVersion[0] > currVersion[0]
+                    if parseInt(lastVersion[0], 10) > parseInt(currVersion[0], 10)
                         needsUpdate = true
-                    else if lastVersion[1] > currVersion[1]
+                    else if parseInt(lastVersion[1], 10) > parseInt(currVersion[1], 10)
                         needsUpdate = true
-                    else if lastVersion[2] > currVersion[2]
+                    else if parseInt(lastVersion[2], 10) > parseInt(currVersion[2], 10)
                         needsUpdate = true
                 res[app.name] =
                     name: app.name

@@ -10,11 +10,15 @@ couchdbHost = process.env.COUCH_HOST or config?.env?['data-system']?.COUCH_HOST 
 couchdbPort = process.env.COUCH_PORT or config?.env?['data-system']?.COUCH_PORT  or '5984'
 postfixHost = process.env.POSTFIX_HOST or 'localhost'
 postfixPort = process.env.POSTFIX_PORT or '25'
+controllerPort = process.env.CONTROLLER_PORT or '9002'
 module.exports.dbName = process.env.DB_NAME or config?.env?['data-system']?.DB_NAME  or 'cozy'
 
 couchUrl = "http://#{couchdbHost}:#{couchdbPort}/"
 dataSystemUrl = "http://localhost:9101/"
-controllerUrl = "http://localhost:9002/"
+controllerOptions = {
+    host: "localhost",
+    port: controllerPort
+}
 homeUrl = "http://localhost:9103/"
 proxyUrl = "http://localhost:9104/"
 postfixUrl = "http://#{postfixHost}:#{postfixPort}/"
@@ -101,14 +105,14 @@ module.exports.handleError = (err, body, msg) ->
     process.exit 1
 
 
-token = getToken()
+controllerOptions.token = getToken()
 module.exports.clients =
     'home': request.newClient homeUrl
     'couch': request.newClient couchUrl
     'ds': request.newClient dataSystemUrl
     'data-system': request.newClient dataSystemUrl
     'proxy': request.newClient proxyUrl
-    'controller': new ControllerClient(token: token)
+    'controller': new ControllerClient(controllerOptions)
     'postfix': request.newClient postfixUrl
     'mta': request.newClient postfixUrl
 

@@ -35,7 +35,7 @@
     "coffee-script": "1.10.0",
     "colors": "1.1.2",
     "commander": "2.9.0",
-    "cozy-clients": "1.0.5",
+    "cozy-clients": "1.0.6",
     "cozy-notifications-helper": "1.1.0",
     "humanize": "0.0.9",
     "lodash.find": "4.3.0",

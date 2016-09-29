@@ -14,7 +14,6 @@ module.exports.dbName = process.env.DB_NAME or config?.env?['data-system']?.DB_N
 
 couchUrl = "http://#{couchdbHost}:#{couchdbPort}/"
 dataSystemUrl = "http://localhost:9101/"
-controllerUrl = "http://localhost:9002/"
 homeUrl = "http://localhost:9103/"
 proxyUrl = "http://localhost:9104/"
 postfixUrl = "http://#{postfixHost}:#{postfixPort}/"
@@ -162,4 +161,3 @@ module.exports.retrieveManifestFromDisk = (app, callback) ->
                 return callback err if err?
                 manifest.repository.branch = body.replace '\n', ''
                 callback null, manifest
-

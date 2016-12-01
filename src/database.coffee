@@ -60,43 +60,6 @@ waitCompactComplete = (client, found, type, first, callback) ->
                     waitCompactComplete(client, exist, type, false, callback)
     , 500
 
-# Prepare cozy database
-#     * usefull for reverse backup
-prepareCozyDatabase = (username, password, callback) ->
-    createDatabase = (count, cb) ->
-        if count < 5
-            couchClient.put "cozy", {}, (err, res, body) ->
-                if res.statusCode is 412
-                    setTimeout () ->
-                        createDatabase count+1, cb
-                    , 5 * 1000
-                else
-                    callback err
-        else
-            callback 'Cannot create database'
-
-    # Only set auth if database has a password
-    if username or password
-        couchClient.setBasicAuth username, password
-
-    # Remove cozy database
-    couchClient.del "cozy", (err, res, body) ->
-        # Create new cozy database
-        createDatabase 0, (err) ->
-            # Add member in cozy database
-            data =
-                "admins":
-                    "names":[username]
-                    "roles":[]
-                "readers":
-                    "names":[username]
-                    "roles":[]
-            couchClient.put 'cozy/_security', data, (err, res, body)->
-                if err?
-                    console.log err
-                    process.exit 1
-                callback()
-
 
 ## Database functions ##
 
@@ -185,49 +148,3 @@ module.exports.cleanup = (database, callback) ->
         else
             callback()
 
-# Backup #
-
-# Backup database
-module.exports.backup = (data, callback) ->
-    configureCouchClient()
-    couchClient.post "_replicate", data, (err, res, body) ->
-        if err or not body.ok
-            callback makeError(err, body)
-        else
-            callback()
-
-# Reverse backup
-module.exports.reverseBackup = (backup, usernameBackup,  passwordBackup, cb) ->
-    [username, password] = getAuthCouchdb()
-    prepareCozyDatabase username, password, ->
-        toBase64 = (str) ->
-            new Buffer(str).toString('base64')
-
-        # Initialize creadentials for backup
-        credentials = "#{usernameBackup}:#{passwordBackup}"
-        basicCredentials = toBase64 credentials
-        authBackup = "Basic #{basicCredentials}"
-
-        # Initialize creadentials for cozy database
-        credentials = "#{username}:#{password}"
-        basicCredentials = toBase64 credentials
-        authCozy = "Basic #{basicCredentials}"
-
-        # Initialize data for replication
-        data =
-            'source':
-                'url': backup
-                'headers':
-                    'Authorization': authBackup
-            'target':
-                'url': "#{couchUrl}cozy"
-                'headers':
-                    'Authorization': authCozy
-
-        # Database replication
-        couchClient.headers['content-type'] = 'application/json'
-        couchClient.post "_replicate", data, (err, res, body) ->
-            if err or not body.ok
-                cb makeError(err, body)
-            else
-                cb()

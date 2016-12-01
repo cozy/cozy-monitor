@@ -715,37 +715,6 @@ program
                 log.info "Cleanup succeeded"
                 process.exit 0
 
-## Backup ##
-
-program
-    .command("backup <target>")
-    .description("Start couchdb replication to the target")
-    .action (target) ->
-        log.info "Backup database ..."
-        data =
-            source: "cozy"
-            target: target
-        db.backup data, (err) ->
-            if err?
-                logError err, "Cannot backup database"
-            else
-                log.info "Backup succeeded"
-                process.exit 0
-
-
-program
-    .command("reverse-backup <backup> <username> <password>")
-    .description("Start couchdb replication from target to cozy.
-        <backup> should be 'https://<ip>:<port>/<database>' ")
-    .action (backup, usernameBackup, passwordBackup) ->
-        log.info "Reverse backup..."
-        db.reverseBackup backup, usernameBackup, passwordBackup, (err) ->
-            if err?
-                logError err, "Cannot reverse backup"
-            else
-                log.info "Reverse backup succeeded"
-                process.exit 0
-
 
 ## Others ##
 

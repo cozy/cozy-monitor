@@ -17,10 +17,12 @@
   },
   "homepage": "https://github.com/AylinKocoglu/cozy-v2-export#readme",
   "dependencies": {
+    "async": "^2.5.0",
     "commander": "^2.11.0",
     "cozy-client-js": "^0.3.11",
     "cozy-clients": "^1.0.6",
     "printit": "^0.1.20",
-    "request-json-light": "^0.5.25"
+    "request-json-light": "^0.5.25",
+    "tar-stream": "^1.5.4"
   }
 }

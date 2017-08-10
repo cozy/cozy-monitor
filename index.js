@@ -21,9 +21,9 @@ getFiles = function(couchClient, callback) {
 
 	return couchClient.get('cozy/_design/file/_view/byfolder', function(err, res, body) {
 		if (err != null) {
-			return callback(err);
+			return callback(err, null);
 		} else {
-			return callback(body);
+			return callback(null, body);
 		}
 	});
 };
@@ -32,9 +32,9 @@ getContent = function(couchClient, binaryId, fileInfo, callback) {
 
 	return couchClient.saveFileAsStream('cozy/'+ binaryId + "/file", function(err, stream) {
 		if (err != null) {
-			return callback(err);
+			return callback(err, null);
 		} else {
-			return callback(stream);
+			return callback(null, stream);
 		}
 	});
 };
@@ -56,9 +56,9 @@ getDirs = function(couchClient, callback) {
 
 	return couchClient.get('cozy/_design/folder/_view/byfolder', function(err, res, body) {
 		if (err != null) {
-			return callback(err);
+			return callback(err, null);
 		} else {
-			return callback(body);
+			return callback(null, body);
 		}
 	});
 };
@@ -79,7 +79,10 @@ module.exports.exportDoc = function(couchClient, callback){
 
 
     //export and create dirs
-    getDirs(couchClient, function(dirs){
+    getDirs(couchClient, function(err, dirs){
+    	if (err != null) {
+    		return callback(err);
+    	}
     	if (!dirs.rows) {return null};
     	asyn.eachOf(dirs.rows, function(dir, callback){
     		if(dir.value){
@@ -89,14 +92,16 @@ module.exports.exportDoc = function(couchClient, callback){
     });
 
     // export and create files
-    getFiles(couchClient, function(files){
-
+    getFiles(couchClient, function(err, files){
+    	if (err != null) {
+    		return callback(err);
+    	} 
     	if (!files.rows) {return null};	
     	asyn.eachSeries(files.rows, function(file, callback){
     		if (file.value && file.value.binary && file.value.binary.file.id) {
     			var binaryId = file.value.binary.file.id;
     			var fileInfo = file.value;
-    			getContent(couchClient, binaryId, fileInfo, function(stream){
+    			getContent(couchClient, binaryId, fileInfo, function(err, stream){
     				createFile(pack, fileInfo, stream, callback);
     			});
     		}
@@ -105,10 +110,11 @@ module.exports.exportDoc = function(couchClient, callback){
     			return callback(err);
     		} 
     		log.info("All files have been exported successfully");
-    		return null;
+    		return callback(null);
     	});
 
     });
+    return callback(null);
 };
 
 

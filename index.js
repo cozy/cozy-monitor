@@ -77,26 +77,31 @@ module.exports.exportDoc = function(couchClient, callback){
 	var tarball = fs.createWriteStream('cozy.tar.gz');
 	pack.pipe(tarball);	
 
+	asyn.series([ function(callback){
 
     //export and create dirs
     getDirs(couchClient, function(err, dirs){
     	if (err != null) {
-    		return callback(err);
+    		return callback(err, null);
     	}
-    	if (!dirs.rows) {return null};
+    	if (!dirs.rows) {return null, null};
     	asyn.eachOf(dirs.rows, function(dir, callback){
     		if(dir.value){
     			createDir(pack, dir.value, callback);
     		}
     	});
     });
+    callback(null, "one")
+}
+    ,
 
+    function(callback){
     // export and create files
     getFiles(couchClient, function(err, files){
     	if (err != null) {
-    		return callback(err);
+    		return callback(err, null);
     	} 
-    	if (!files.rows) {return null};	
+    	if (!files.rows) {return null, null};	
     	asyn.eachSeries(files.rows, function(file, callback){
     		if (file.value && file.value.binary && file.value.binary.file.id) {
     			var binaryId = file.value.binary.file.id;
@@ -105,16 +110,23 @@ module.exports.exportDoc = function(couchClient, callback){
     				createFile(pack, fileInfo, stream, callback);
     			});
     		}
-    	}, function(err) {
+    	}, function(err, value) {
     		if (err != null) {
-    			return callback(err);
+    			return callback(err, null);
     		} 
     		log.info("All files have been exported successfully");
-    		return callback(null);
+    		return callback(null, "two");
     	});
 
     });
-    return callback(null);
+}
+    ], function(err, value){
+    	if (err != null){
+    		return err, null
+    	}else{
+    		return null, value
+    	}
+    });
+    return callback(null, null);
 };
-
 

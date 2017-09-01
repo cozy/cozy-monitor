@@ -21,6 +21,7 @@
     "commander": "^2.11.0",
     "cozy-client-js": "^0.3.11",
     "cozy-clients": "^1.0.6",
+    "gunzip-maybe": "^1.4.1",
     "printit": "^0.1.20",
     "request-json-light": "^0.5.25",
     "tar-stream": "^1.5.4"

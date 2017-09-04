@@ -53,6 +53,17 @@ getPhotos = function(couchClient, callback) {
     });
 };
 
+getCozyinstance = function(couchClient, callback) {
+
+    return couchClient.get('cozy/_design/cozyinstance/_view/all', function(err, res, body) {
+        if (err != null) {
+            return callback(err, null);
+        } else {
+            return callback(null, body);
+        }
+    });
+};
+
 getPhotoLength = function(couchClient, binaryId, callback) {
 
     return couchClient.get('cozy/' + binaryId, function(err, res, body) {
@@ -113,10 +124,10 @@ createFileStream = function(pack, fileInfo, stream, callback) {
 	}))
 };
 
-createPhotos = function(pack, photoInfo, stream, size, callback) {
+createPhotos = function(pack, photoInfo, photopath, stream, size, callback) {
 
     stream.pipe(pack.entry({ 
-        name: "Photos/Uploaded from Cozy Photos/" + photoInfo.title,
+        name: photopath + photoInfo.title,
         size: size,
         mode: 0755, 
         mtime: new Date(), 
@@ -129,7 +140,7 @@ createPhotos = function(pack, photoInfo, stream, size, callback) {
 createMetadata = function(pack, data, filename, callback){
 
     var entry = pack.entry({ 
-        name: 'metadata/album/' + filename,
+        name: '/metadata/album/' + filename,
         size: data.length,
         mode: 0755, 
         mtime: new Date(), 
@@ -147,7 +158,9 @@ exportDoc = module.exports.exportDoc = function(couchClient, callback){
 	var pack = tar.pack();
 	var tarball = fs.createWriteStream('cozy.tar.gz');
 	pack.pipe(gzip).on("error", function(err) { console.error(err) })
-    .pipe(tarball).on("error", function(err) { console.error(err) })	
+    .pipe(tarball).on("error", function(err) { console.error(err) })
+
+    var references = "";	
 
     asyn.series([ function(callback){
 
@@ -198,36 +211,58 @@ function(callback){
             return callback(err, null);
         }
         if (!photos.rows) {return null, null};
-        var references = "";
-        asyn.eachSeries(photos.rows, function(photo, callback){
-            if (photo.value && photo.value.binary && photo.value.binary.raw.id) {
-                var binaryId = photo.value.binary.raw.id;
-                var photoInfo = photo.value;
-                var data = {
-                    albumid: photoInfo.albumid,
-                    filepath: "Photos/Uploaded from Cozy Photos/" + photoInfo.title
-                };
-                references +=  JSON.stringify(data)+ "\n";
-                getContent(couchClient, binaryId, "raw", function(err, stream){
-                    getPhotoLength(couchClient, binaryId, function(err, size){
-                        if (err != null){
-                            return callback(err, null)
-                        }
-                        if (size != null){
-                            createPhotos(pack, photoInfo, stream, size, callback);
-                        }                        
-                    })
-                });
-            }
-        }, function(err, value) {
-            if (err != null) {
-                console.log("error photo")
+
+        getCozyinstance(couchClient, function(err, instance){
+            if (err != null){
                 return callback(err, null);
             }
-            createMetadata(pack, references, "references.json", function(){ 
-                log.info("All photos have been exported successfully");
-                return callback(null, "three");
-            })
+            if (instance.rows) {
+                var instanceInfo = instance.rows[0]
+                var name = "Uploaded from Cozy Photos/"
+                var photopath = "/Photos/" + name
+                if(instanceInfo.value && instanceInfo.value.docType == 'cozyinstance' && instanceInfo.value.locale == 'fr'){
+                    name = "Transferees depuis Cozy Photos/"
+                    photopath = "/Photos/"
+                }
+                var dirInfo = {
+                    path: "/Photos",
+                    name: name
+                }
+                createDir(pack, dirInfo, function(){
+                    asyn.eachSeries(photos.rows, function(photo, callback){
+
+                        if (photo.value && photo.value.binary && photo.value.binary.raw.id) {
+                            var binaryId = photo.value.binary.raw.id;
+                            var photoInfo = photo.value;
+                            var data = {
+                                albumid: photoInfo.albumid,
+                                filepath: photopath + photoInfo.title
+                            };
+                            references +=  JSON.stringify(data)+ "\n";
+                            getContent(couchClient, binaryId, "raw", function(err, stream){
+                                getPhotoLength(couchClient, binaryId, function(err, size){
+                                    if (err != null){
+                                        return callback(err, null)
+                                    }
+                                    if (size != null){
+                                        createPhotos(pack, photoInfo, photopath, stream, size, callback);
+                                    }                        
+                                })
+                            });
+                        }
+
+
+                    }, function(err, value) {
+                        if (err != null) {
+                            console.log("error photo")
+                            return callback(err, null);
+                        }
+                        log.info("All photos have been exported successfully");
+                        return callback(null, "three");
+                    });
+                })
+            };
+
         });
     });
 },function(callback){
@@ -238,6 +273,7 @@ function(callback){
         }
         if (!albums.rows) {return null, null};
         var albumsref = "";
+
         asyn.eachSeries(albums.rows, function(album, callback){
             if (album.value && album.value.title) {
                 var id = album.value._id;
@@ -256,19 +292,27 @@ function(callback){
             if (err != null) {
                 console.log("error albums")
                 return callback(err, null);
-            } 
-            createMetadata(pack, albumsref, "album.json", function(){
-                log.info("All albums have been exported successfully");
-                return callback(null, "four");
-            });
-            
+            }
+            var dirInfo = {
+                path: "/metadata",
+                name: "album/"
+            }
+            createDir(pack, dirInfo, function(){ 
+                createMetadata(pack, albumsref, "album.json", function(){
+                    createMetadata(pack, references, "references.json", function(){ 
+                        log.info("All albums have been exported successfully");
+                        return callback(null, "four");
+                    });
+                });
+            })
         });
+        
     })
     
 }
 
 ], function(err, value){
- if (err != null){
+   if (err != null){
     return err, null
 }else{
     pack.finalize()

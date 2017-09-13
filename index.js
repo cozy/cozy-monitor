@@ -1,4 +1,4 @@
-var program, fs, tar, zlib, log, helpers, asyn, request, gunzip, couchClient, getFiles, getDirs, getPhotos, getPhotoLength, getAlbums, getContent, createDir, createFileStream, createPhotos, createMetadata, createAlbums, exportDoc;
+var program, fs, tar, zlib, log, helpers, asyn, request, VCardParser, gunzip, couchClient, getFiles, getDirs, getAllElements, getPhotoLength, getContent, createDir, createFileStream, createPhotos, createMetadata, createAlbums, exportDoc;
 
 program = require('commander');
 
@@ -19,6 +19,8 @@ helpers = require('./helpers');
 asyn = require('async');
 
 request = require('request-json-light');
+
+VCardParser = require('cozy-vcard');
 
 couchClient = helpers.clients.couch;
 couchClient.headers['content-type'] = 'application/json';
@@ -45,20 +47,9 @@ getDirs = function (couchClient, callback) {
     });
 };
 
-getPhotos = function (couchClient, callback) {
+getAllElements = function (couchClient, element, callback) {
 
-    return couchClient.get('cozy/_design/photo/_view/all', function (err, res, body) {
-        if (err != null) {
-            return callback(err, null);
-        } else {
-            return callback(null, body);
-        }
-    });
-};
-
-getCozyinstance = function (couchClient, callback) {
-
-    return couchClient.get('cozy/_design/cozyinstance/_view/all', function (err, res, body) {
+    return couchClient.get('cozy/_design/' + element + '/_view/all', function (err, res, body) {
         if (err != null) {
             return callback(err, null);
         } else {
@@ -78,17 +69,6 @@ getPhotoLength = function (couchClient, binaryId, callback) {
             } else {
                 return callback(null, null)
             }
-        }
-    });
-};
-
-getAlbums = function (couchClient, callback) {
-
-    return couchClient.get('cozy/_design/album/_view/all', function (err, res, body) {
-        if (err != null) {
-            return callback(err, null);
-        } else {
-            return callback(null, body);
         }
     });
 };
@@ -140,10 +120,10 @@ createPhotos = function (pack, photoInfo, photopath, stream, size, callback) {
     }))
 };
 
-createMetadata = function (pack, data, filename, callback) {
+createMetadata = function (pack, data, dst, filename, callback) {
 
     var entry = pack.entry({
-        name: '/metadata/album/' + filename,
+        name: dst + filename,
         size: data.length,
         mode: 0755,
         mtime: new Date(),
@@ -217,7 +197,7 @@ exportDoc = module.exports.exportDoc = function (couchClient, callback) {
         },
         function (callback) {
             // export photos 
-            getPhotos(couchClient, function (err, photos) {
+            getAllElements(couchClient, "photo", function (err, photos) {
                 if (err != null) {
                     return callback(err, null);
                 }
@@ -225,7 +205,7 @@ exportDoc = module.exports.exportDoc = function (couchClient, callback) {
                     return null, null
                 };
 
-                getCozyinstance(couchClient, function (err, instance) {
+                getAllElements(couchClient, "cozyinstance", function (err, instance) {
                     if (err != null) {
                         return callback(err, null);
                     }
@@ -278,7 +258,7 @@ exportDoc = module.exports.exportDoc = function (couchClient, callback) {
         },
         function (callback) {
             //export album
-            getAlbums(couchClient, function (err, albums) {
+            getAllElements(couchClient, "album", function (err, albums) {
                 if (err != null) {
                     return callback(err, null)
                 }
@@ -311,8 +291,8 @@ exportDoc = module.exports.exportDoc = function (couchClient, callback) {
                         name: "album/"
                     }
                     createDir(pack, dirInfo, function () {
-                        createMetadata(pack, albumsref, "album.json", function () {
-                            createMetadata(pack, references, "references.json", function () {
+                        createMetadata(pack, albumsref, '/metadata/album/', "album.json", function () {
+                            createMetadata(pack, references, '/metadata/album/', "references.json", function () {
                                 log.info("All albums have been exported successfully");
                                 return callback(null, "four");
                             });
@@ -320,6 +300,40 @@ exportDoc = module.exports.exportDoc = function (couchClient, callback) {
                     })
                 });
             })
+        },
+        function (callback) {
+            //export contacts
+            getAllElements(couchClient, "contact", function (err, contacts) {
+                if (err != null) {
+                    return callback(err, null);
+                }
+                if (!contacts.rows) {
+                    return null, null
+                };
+                var dirInfo = {
+                    path: "/metadata",
+                    name: "contact/"
+                }
+                createDir(pack, dirInfo, function () {
+                    asyn.eachSeries(contacts.rows, function (contact, callback) {
+                        if (contact.value && contact.value.n) {
+                            var vcard = VCardParser.toVCF(contact.value);
+                            var n = contact.value.n
+                            n = n.replace(/;+|-/g, "_")
+                            filename = "Contact_" + n + ".vcf"
+                            createMetadata(pack, vcard, "/metadata/contact/", filename, callback)
+                        }
+
+                    }, function (err, value) {
+                        if (err != null) {
+                            return callback(err, null);
+                        }
+                        log.info("All contacts have been exported successfully");
+                        callback(null, "five")
+                    });
+                })
+
+            });
         }
 
     ], function (err, value) {

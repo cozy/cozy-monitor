@@ -215,7 +215,7 @@ exportDoc = module.exports.exportDoc = function (couchClient, callback) {
                         var photopath = "/Photos/" + name
                         if (instanceInfo.value && instanceInfo.value.docType == 'cozyinstance' && instanceInfo.value.locale == 'fr') {
                             name = "Transferees depuis Cozy Photos/"
-                            photopath = "/Photos/"
+                            photopath = "/Photos/" + name
                         }
                         var dirInfo = {
                             path: "/Photos",

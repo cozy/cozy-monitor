@@ -57,7 +57,7 @@ createFileStream = (pack, fileInfo, stream, callback) ->
         size: fileInfo.size
         mode: 0o755
         mtime: new Date
-        type: fileInfo.docType
+        type: fileInfo.docType.toLowerCase()
     }, callback)
 
 createPhotos = (pack, photoInfo, photopath, stream, size, callback) ->

@@ -37,11 +37,13 @@
     "commander": "2.9.0",
     "cozy-clients": "1.0.6",
     "cozy-notifications-helper": "1.1.0",
+    "cozy-vcard": "0.2.17",
     "humanize": "0.0.9",
     "lodash.find": "4.3.0",
     "printit": "0.1.19",
     "request-json-light": "0.5.22",
-    "shelljs": "0.6.0"
+    "shelljs": "0.6.0",
+    "tar-stream": "1.5.4"
   },
   "devDependencies": {
     "chai": "3.5.0",

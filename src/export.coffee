@@ -1,314 +1,232 @@
-program = undefined
-fs = undefined
-tar = undefined
-zlib = undefined
-log = undefined
-helpers = undefined
-asyn = undefined
-request = undefined
-VCardParser = undefined
-gunzip = undefined
-couchClient = undefined
-getFiles = undefined
-getDirs = undefined
-getAllElements = undefined
-getPhotoLength = undefined
-getContent = undefined
-createDir = undefined
-createFileStream = undefined
-createPhotos = undefined
-createMetadata = undefined
-createAlbums = undefined
-exportDoc = undefined
-program = require('commander')
-fs = require('fs')
-tar = require('tar-stream')
-zlib = require('zlib')
-gzip = zlib.createGzip(
-  level: 6
-  memLevel: 6)
+fs = require 'fs'
+tar = require 'tar-stream'
+zlib = require 'zlib'
+gzip = zlib.createGzip
+    level: 6
+    memLevel: 6
+
+async = require 'async'
+request = require 'request-json-light'
+vcardParser = require 'cozy-vcard'
 log = require('printit')()
-helpers = require('./helpers')
-asyn = require('async')
-request = require('request-json-light')
-VCardParser = require('cozy-vcard')
+
+helpers = require './helpers'
 couchClient = helpers.clients.couch
 couchClient.headers['content-type'] = 'application/json'
 
+configureCouchClient = ->
+    [username, password] = helpers.getAuthCouchdb()
+    # Only set auth if database has a password
+    if username or password
+        couchClient.setBasicAuth username, password
+
 getFiles = (couchClient, callback) ->
-  couchClient.get 'cozy/_design/file/_view/byfolder', (err, res, body) ->
-    if err != null
-      callback err, null
-    else
-      callback null, body
+    couchClient.get 'cozy/_design/file/_view/byfolder', (err, res, body) ->
+        callback err, body
 
 getDirs = (couchClient, callback) ->
-  couchClient.get 'cozy/_design/folder/_view/byfolder', (err, res, body) ->
-    if err != null
-      callback err, null
-    else
-      callback null, body
+    couchClient.get 'cozy/_design/folder/_view/byfolder', (err, res, body) ->
+        callback err, body
 
 getAllElements = (couchClient, element, callback) ->
-  couchClient.get 'cozy/_design/' + element + '/_view/all', (err, res, body) ->
-    if err != null
-      callback err, null
-    else
-      callback null, body
+    couchClient.get "cozy/_design/#{element}/_view/all", (err, res, body) ->
+        callback err, body
 
 getPhotoLength = (couchClient, binaryId, callback) ->
-  couchClient.get 'cozy/' + binaryId, (err, res, body) ->
-    if err != null
-      callback err, null
-    else
-      if body and body._attachments and body._attachments.raw and body._attachments.raw.length
-        callback null, body._attachments.raw.length
-      else
-        callback null, null
+    couchClient.get 'cozy/' + binaryId, (err, res, body) ->
+        callback err, body?._attachments?.raw?.length
 
 getContent = (couchClient, binaryId, type, callback) ->
-  couchClient.saveFileAsStream 'cozy/' + binaryId + '/' + type, (err, stream) ->
-    if err != null
-      callback err, null
-    else
-      callback null, stream
+    couchClient.saveFileAsStream "cozy/#{binaryId}/#{type}", (err, stream) ->
+        if err?
+            callback err
+        else
+            stream.on 'error', (err) -> log.error err
+            callback null, stream
 
 createDir = (pack, dirInfo, callback) ->
-  pack.entry {
-    name: dirInfo.path + '/' + dirInfo.name
-    mode: 0755
-    type: 'directory'
-  }, callback
-  return
+    pack.entry {
+        name: dirInfo.path + '/' + dirInfo.name
+        mode: 0o755
+        type: 'directory'
+    }, callback
 
 createFileStream = (pack, fileInfo, stream, callback) ->
-  stream.pipe pack.entry({
-    name: fileInfo.path + '/' + fileInfo.name
-    size: fileInfo.size
-    mode: 0755
-    mtime: new Date
-    type: fileInfo.docType
-  }, ->
-    callback.apply null, arguments
-    return
-  )
-  return
+    stream.pipe pack.entry({
+        name: fileInfo.path + '/' + fileInfo.name
+        size: fileInfo.size
+        mode: 0o755
+        mtime: new Date
+        type: fileInfo.docType
+    }, callback)
 
 createPhotos = (pack, photoInfo, photopath, stream, size, callback) ->
-  stream.pipe pack.entry({
-    name: photopath + photoInfo.title
-    size: size
-    mode: 0755
-    mtime: new Date
-    type: 'file'
-  }, ->
-    callback.apply null, arguments
-    return
-  )
-  return
+    stream.pipe pack.entry({
+        name: photopath + photoInfo.title
+        size: size
+        mode: 0o755
+        mtime: new Date
+        type: 'file'
+    }, callback)
 
 createMetadata = (pack, data, dst, filename, callback) ->
-  entry = pack.entry({
-    name: dst + filename
-    size: data.length
-    mode: 0755
-    mtime: new Date
-    type: 'file'
-  }, ->
-    callback.apply null, arguments
-  )
-  entry.write data
-  entry.end()
-  return
+    entry = pack.entry({
+        name: dst + filename
+        size: data.length
+        mode: 0o755
+        mtime: new Date
+        type: 'file'
+    }, callback)
+    entry.write data
+    entry.end()
 
-exportDoc =
-module.exports.exportDoc = (couchClient, callback) ->
-  pack = tar.pack()
-  tarball = fs.createWriteStream('cozy.tar.gz')
-  pack.pipe(gzip).on('error', (err) ->
-    console.error err
-    return
-  ).pipe(tarball).on 'error', (err) ->
-    console.error err
-    return
-  references = ''
-  asyn.series [
-    (callback) ->
-      #export and create dirs
-      getDirs couchClient, (err, dirs) ->
-        if err != null
-          return callback(err, null)
-        if !dirs.rows
-          return null
-          null
+module.exports.exportDoc = (filename, callback) ->
+    configureCouchClient()
+    pack = tar.pack()
+    tarball = fs.createWriteStream filename
+    pack.pipe(gzip).on('error', (err) ->
+        log.error err
+    ).pipe(tarball).on('error', (err) ->
+        log.error err
+    )
+    references = ''
+    locale = 'en'
+    async.series [
 
-        asyn.eachOf dirs.rows, (dir, callback) ->
-          if dir.value
-            createDir pack, dir.value, callback
-          return
-        return
-      log.info 'All directories have been exported successfully'
-      callback null, 'one'
-      return
-    (callback) ->
-      # export and create files
-      getFiles couchClient, (err, files) ->
-        if err != null
-          return callback(err, null)
-        if !files.rows
-          return null
-          null
+        # 1. export and create dirs
+        (next) ->
+            getDirs couchClient, (err, dirs) ->
+                return next err if err?
+                return next null unless dirs?.rows?
+                async.eachOf dirs.rows, (dir, key, cb) ->
+                    createDir pack, dir.value, cb
+                , (err) ->
+                    if err
+                        log.info 'Error while exporting directories: ', err
+                    else
+                        log.info 'Directories have been exported successfully'
+                    next err
 
-        asyn.eachSeries files.rows, ((file, callback) ->
-          if file.value and file.value.binary and file.value.binary.file.id
-            binaryId = file.value.binary.file.id
-            fileInfo = file.value
-            getContent couchClient, binaryId, 'file', (err, stream) ->
-              createFileStream pack, fileInfo, stream, callback
-              return
-          return
-        ), (err, value) ->
-          if err != null
-            return callback(err, null)
-          log.info 'All files have been exported successfully'
-          callback null, 'two'
-        return
-      return
-    (callback) ->
-      # export photos 
-      getAllElements couchClient, 'photo', (err, photos) ->
-        if err != null
-          return callback(err, null)
-        if !photos.rows
-          return null
-          null
+        # 2. export and create files
+        (next) ->
+            getFiles couchClient, (err, files) ->
+                return next err if err?
+                return next null unless files?.rows?
+                async.eachSeries files.rows, (file, cb) ->
+                    binaryId = file?.value?.binary?.file?.id
+                    return cb() unless binaryId?
+                    fileInfo = file?.value
+                    getContent couchClient, binaryId, 'file', (err, stream) ->
+                        return cb err if err?
+                        createFileStream pack, fileInfo, stream, cb
+                , (err, value) ->
+                    if err
+                        log.info 'Error while exporting files: ', err
+                    else
+                        log.info 'Files have been exported successfully'
+                    next err
 
-        getAllElements couchClient, 'cozyinstance', (err, instance) ->
-          if err != null
-            return callback(err, null)
-          if instance.rows
-            instanceInfo = instance.rows[0]
-            name = 'Uploaded from Cozy Photos/'
-            photopath = '/Photos/' + name
-            if instanceInfo.value and instanceInfo.value.docType == 'cozyinstance' and instanceInfo.value.locale == 'fr'
-              name = 'Transferees depuis Cozy Photos/'
-              photopath = '/Photos/' + name
-            dirInfo = 
-              path: '/Photos'
-              name: name
+        # 3. fetch the locale
+        (next) ->
+            getAllElements couchClient, 'cozyinstance', (err, instance) ->
+                locale = instance?.rows?[0].value?.locale
+                next null
+
+        # 4. export photos
+        (next) ->
+            getAllElements couchClient, 'photo', (err, photos) ->
+                return next err if err?
+                return next null unless photos?.rows?
+                name = 'Uploaded from Cozy Photos/'
+                photopath = '/Photos/' + name
+                if locale is 'fr'
+                    name = 'Transférées depuis Cozy Photos/'
+                dirInfo =
+                    path: '/Photos'
+                    name: name
+                createDir pack, dirInfo, ->
+                    async.eachSeries photos.rows, (photo, cb) ->
+                        binaryId = photo?.value?.binary?.raw?.id
+                        return cb() unless binaryId?
+                        photoInfo = photo?.value
+                        data =
+                            albumid: photoInfo.albumid
+                            filepath: photopath + photoInfo.title
+                        references += JSON.stringify(data) + '\n'
+                        getContent couchClient, binaryId, 'raw', (err, stream) ->
+                            return cb err if err?
+                            getPhotoLength couchClient, binaryId, (err, size) ->
+                                return cb err if err?
+                                createPhotos pack, photoInfo, photopath, stream, size, cb
+                    , (err, value) ->
+                        if err
+                            log.info 'Error while exporting photos: ', err
+                        else
+                            log.info 'Photos have been exported successfully'
+                        next err
+
+        # 5. export albums
+        (next) ->
+            getAllElements couchClient, 'album', (err, albums) ->
+                return next err if err?
+                return next null unless albums?.rows?
+                albumsref = ''
+                async.eachSeries albums.rows, (album, cb) ->
+                    return cb() unless album?.value?
+                    id = album.value._id
+                    rev = album.value._rev
+                    name = album.value.title
+                    data =
+                        _id: album.value._id
+                        _rev: album.value._rev
+                        name: album.value.title
+                        type: 'io.cozy.photos.albums'
+                    albumsref += JSON.stringify(data) + '\n'
+                    cb()
+                , (err, value) ->
+                    if err?
+                        log.info 'Error while exporting albums', err
+                        return next err
+                    dirInfo =
+                        path: '/metadata'
+                        name: 'album/'
+                    createDir pack, dirInfo, (err) ->
+                        return next err if err?
+                        createMetadata pack, albumsref, '/metadata/album/', 'album.json', (err) ->
+                            return next err if err?
+                            createMetadata pack, references, '/metadata/album/', 'references.json', (err) ->
+                                if err?
+                                    log.info 'Error while exporting albums: ', err
+                                else
+                                    log.info 'Albums have been exported successfully'
+                                next err
+
+        # 6. export contacts
+        (next) ->
+            getAllElements couchClient, 'contact', (err, contacts) ->
+                return next err if err?
+                return next null unless contacts?.rows?
+            dirInfo =
+                path: '/metadata'
+                name: 'contact/'
             createDir pack, dirInfo, ->
-              asyn.eachSeries photos.rows, ((photo, callback) ->
-                if photo.value and photo.value.binary and photo.value.binary.raw.id
-                  binaryId = photo.value.binary.raw.id
-                  photoInfo = photo.value
-                  data = 
-                    albumid: photoInfo.albumid
-                    filepath: photopath + photoInfo.title
-                  references += JSON.stringify(data) + '\n'
-                  getContent couchClient, binaryId, 'raw', (err, stream) ->
-                    getPhotoLength couchClient, binaryId, (err, size) ->
-                      if err != null
-                        return callback(err, null)
-                      if size != null
-                        createPhotos pack, photoInfo, photopath, stream, size, callback
-                      return
-                    return
-                return
-              ), (err, value) ->
-                if err != null
-                  console.log 'error photo'
-                  return callback(err, null)
-                log.info 'All photos have been exported successfully'
-                callback null, 'three'
-              return
-          return
-        return
-      return
-    (callback) ->
-      #export album
-      getAllElements couchClient, 'album', (err, albums) ->
-        if err != null
-          return callback(err, null)
-        if !albums.rows
-          return null
-          null
+                async.eachSeries contacts.rows, (contact, next) ->
+                    return next() unless contact?.value?
+                    vcard = vcardParser.toVCF contact.value
+                    n = contact.value.n
+                    n = n.replace /;+|-/g, '_'
+                    filename = "Contact_#{n}.vcf"
+                    createMetadata pack, vcard, '/metadata/contact/', filename, next
+                , (err, value) ->
+                    if err
+                        log.info 'Error while exporting contacts: ', err
+                    else
+                        log.info 'Contacts have been exported successfully'
+                    next err
 
-        albumsref = ''
-        asyn.eachSeries albums.rows, ((album, callback) ->
-          if album.value and album.value.title
-            id = album.value._id
-            rev = album.value._rev
-            name = album.value.title
-            data = 
-              _id: id
-              _rev: rev
-              name: name
-              type: 'io.cozy.photos.albums'
-            albumsref += JSON.stringify(data) + '\n'
-          callback()
-          return
-        ), (err, value) ->
-          if err != null
-            console.log 'error albums'
-            return callback(err, null)
-          dirInfo = 
-            path: '/metadata'
-            name: 'album/'
-          createDir pack, dirInfo, ->
-            createMetadata pack, albumsref, '/metadata/album/', 'album.json', ->
-              createMetadata pack, references, '/metadata/album/', 'references.json', ->
-                log.info 'All albums have been exported successfully'
-                callback null, 'four'
-              return
-            return
-          return
-        return
-      return
-    (callback) ->
-      #export contacts
-      getAllElements couchClient, 'contact', (err, contacts) ->
-        if err != null
-          return callback(err, null)
-        if !contacts.rows
-          return null
-          null
-
-        dirInfo = 
-          path: '/metadata'
-          name: 'contact/'
-        createDir pack, dirInfo, ->
-          asyn.eachSeries contacts.rows, ((contact, callback) ->
-            if contact.value and contact.value.n
-              vcard = VCardParser.toVCF(contact.value)
-              n = contact.value.n
-              n = n.replace(/;+|-/g, '_')
-              filename = 'Contact_' + n + '.vcf'
-              createMetadata pack, vcard, '/metadata/contact/', filename, callback
-            return
-          ), (err, value) ->
-            if err != null
-              return callback(err, null)
-            log.info 'All contacts have been exported successfully'
-            callback null, 'five'
-            return
-          return
-        return
-      return
-  ], (err, value) ->
-    if err != null
-      err
-      null
-    else
-      pack.finalize()
-      null
-      value
-  callback null, null
-
-exportDoc couchClient, (err, ok) ->
-  if err != null
-    err
-  else
-    ok
-
-# ---
-# generated by js2coffee 2.2.0
+    ], (err, value) ->
+        if err?
+            callback err
+        else
+            pack.finalize()
+            callback()

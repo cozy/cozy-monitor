@@ -1,10 +1,6 @@
 fs = require 'fs'
 tar = require 'tar-stream'
 zlib = require 'zlib'
-gzip = zlib.createGzip
-    level: 6
-    memLevel: 6
-
 async = require 'async'
 request = require 'request-json-light'
 vcardParser = require 'cozy-vcard'
@@ -83,12 +79,15 @@ createMetadata = (pack, data, dst, filename, callback) ->
 module.exports.exportDoc = (filename, callback) ->
     configureCouchClient()
     pack = tar.pack()
+    pack.on 'error', (err) -> log.error err
+    gzip = zlib.createGzip
+        level: 6
+        memLevel: 6
+    gzip.on 'error', (err) -> log.error err
     tarball = fs.createWriteStream filename
-    pack.pipe(gzip).on('error', (err) ->
-        log.error err
-    ).pipe(tarball).on('error', (err) ->
-        log.error err
-    )
+    tarball.on 'error', callback
+    tarball.on 'close', callback
+    pack.pipe(gzip).pipe(tarball)
     references = ''
     locale = 'en'
     async.series [
@@ -210,13 +209,13 @@ module.exports.exportDoc = (filename, callback) ->
                     path: '/metadata'
                     name: 'contact/'
                 createDir pack, dirInfo, ->
-                    async.eachSeries contacts.rows, (contact, next) ->
-                        return next() unless contact?.value?
+                    async.eachSeries contacts.rows, (contact, cb) ->
+                        return cb() unless contact?.value?
                         vcard = vcardParser.toVCF contact.value
                         n = contact.value.n
                         n = n.replace /;+|-/g, '_'
                         filename = "Contact_#{n}.vcf"
-                        createMetadata pack, vcard, '/metadata/contact/', filename, next
+                        createMetadata pack, vcard, '/metadata/contact/', filename, cb
                     , (err, value) ->
                         if err
                             log.info 'Error while exporting contacts: ', err
@@ -224,9 +223,8 @@ module.exports.exportDoc = (filename, callback) ->
                             log.info 'Contacts have been exported successfully'
                         next err
 
-    ], (err, value) ->
+    ], (err) ->
         if err?
             callback err
         else
             pack.finalize()
-            callback()

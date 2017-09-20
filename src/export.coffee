@@ -72,7 +72,7 @@ createPhotos = (pack, photoInfo, photopath, stream, size, callback) ->
 createMetadata = (pack, data, dst, filename, callback) ->
     entry = pack.entry({
         name: dst + filename
-        size: data.length
+        size: Buffer.byteLength(data, 'utf8')
         mode: 0o755
         mtime: new Date
         type: 'file'
@@ -206,23 +206,23 @@ module.exports.exportDoc = (filename, callback) ->
             getAllElements couchClient, 'contact', (err, contacts) ->
                 return next err if err?
                 return next null unless contacts?.rows?
-            dirInfo =
-                path: '/metadata'
-                name: 'contact/'
-            createDir pack, dirInfo, ->
-                async.eachSeries contacts.rows, (contact, next) ->
-                    return next() unless contact?.value?
-                    vcard = vcardParser.toVCF contact.value
-                    n = contact.value.n
-                    n = n.replace /;+|-/g, '_'
-                    filename = "Contact_#{n}.vcf"
-                    createMetadata pack, vcard, '/metadata/contact/', filename, next
-                , (err, value) ->
-                    if err
-                        log.info 'Error while exporting contacts: ', err
-                    else
-                        log.info 'Contacts have been exported successfully'
-                    next err
+                dirInfo =
+                    path: '/metadata'
+                    name: 'contact/'
+                createDir pack, dirInfo, ->
+                    async.eachSeries contacts.rows, (contact, next) ->
+                        return next() unless contact?.value?
+                        vcard = vcardParser.toVCF contact.value
+                        n = contact.value.n
+                        n = n.replace /;+|-/g, '_'
+                        filename = "Contact_#{n}.vcf"
+                        createMetadata pack, vcard, '/metadata/contact/', filename, next
+                    , (err, value) ->
+                        if err
+                            log.info 'Error while exporting contacts: ', err
+                        else
+                            log.info 'Contacts have been exported successfully'
+                        next err
 
     ], (err, value) ->
         if err?

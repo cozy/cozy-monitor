@@ -40,9 +40,9 @@ getContent = (couchClient, binaryId, type, callback) ->
             callback null, stream
 
 
-createDir = (pack, dirInfo, callback) ->
+createDir = (pack, name, callback) ->
     pack.entry {
-        name: dirInfo.path + '/' + dirInfo.name
+        name: name
         mode: 0o750
         type: 'directory'
     }, callback
@@ -50,30 +50,14 @@ createDir = (pack, dirInfo, callback) ->
 # Warning: we don't stream but use a buffer because we need the exact size for
 # the tarball header before starting to write data, and the size from couchdb
 # is not always reliable.
-createFileStream = (pack, fileInfo, stream, callback) ->
+createFileStream = (pack, name, stream, callback) ->
     chunks = []
     stream.on 'error', (err) -> callback err
     stream.on 'data', (chunk) -> chunks.push chunk
     stream.on 'end', ->
         buf = Buffer.concat chunks
         entry = pack.entry({
-            name: fileInfo.path + '/' + fileInfo.name
-            size: Buffer.byteLength(buf, 'binary')
-            mode: 0o640
-            mtime: new Date
-            type: fileInfo.docType.toLowerCase()
-        }, callback)
-        entry.write buf
-        entry.end()
-
-createPhotos = (pack, photoInfo, photopath, stream, callback) ->
-    chunks = []
-    stream.on 'error', (err) -> callback err
-    stream.on 'data', (chunk) -> chunks.push chunk
-    stream.on 'end', ->
-        buf = Buffer.concat chunks
-        entry = pack.entry({
-            name: photopath + photoInfo.title
+            name: name
             size: Buffer.byteLength(buf, 'binary')
             mode: 0o640
             mtime: new Date
@@ -82,9 +66,9 @@ createPhotos = (pack, photoInfo, photopath, stream, callback) ->
         entry.write buf
         entry.end()
 
-createMetadata = (pack, data, dst, filename, callback) ->
+createMetadata = (pack, name, data, callback) ->
     entry = pack.entry({
-        name: dst + filename
+        name: name
         size: Buffer.byteLength(data, 'utf8')
         mode: 0o640
         mtime: new Date
@@ -99,7 +83,7 @@ exportDirs = (pack, next) ->
         return next err if err?
         return next null unless dirs?.rows?
         async.eachOf dirs.rows, (dir, key, cb) ->
-            createDir pack, dir.value, cb
+            createDir pack, "files/#{dir.value.path}/#{dir.value.name}", cb
         , (err) ->
             if err
                 log.info 'Error while exporting directories: ', err
@@ -114,10 +98,10 @@ exportFiles = (pack, next) ->
         async.eachSeries files.rows, (file, cb) ->
             binaryId = file?.value?.binary?.file?.id
             return cb() unless binaryId?
-            fileInfo = file?.value
             getContent couchClient, binaryId, 'file', (err, stream) ->
                 return cb err if err?
-                createFileStream pack, fileInfo, stream, cb
+                name = "files/#{file.value.path}/#{file.value.name}"
+                createFileStream pack, name, stream, cb
         , (err, value) ->
             if err
                 log.info 'Error while exporting files: ', err
@@ -134,26 +118,22 @@ exportPhotos = (pack, references, next) ->
     getAllElements couchClient, 'photo', (err, photos) ->
         return next err if err?
         return next null unless photos?.rows?
-        name = 'Uploaded from Cozy Photos/'
-        if locale is 'fr'
-            name = 'Transférées depuis Cozy Photos/'
-        path = '/Photos/' + name
-        dirInfo =
-            path: '/Photos'
-            name: name
-        createDir pack, dirInfo, ->
+        dirname = 'Uploaded from Cozy Photos/'
+        dirname = 'Transférées depuis Cozy Photos/' if locale is 'fr'
+        dir = "files/Photos/#{dirname}"
+        createDir pack, dir, ->
             async.eachSeries photos.rows, (photo, cb) ->
                 info = photo?.value
-                info.title ||= info._id + ".jpg"
                 binaryId = (info?.binary?.raw || info?.binary?.file)?.id
                 return cb() unless binaryId?
+                name = info.title || (info._id + ".jpg")
                 data =
                     albumid: info.albumid
-                    filepath: path + info.title
+                    filepath: "Photos/#{dirname}/#{name}"
                 references.push JSON.stringify(data)
                 getContent couchClient, binaryId, 'raw', (err, stream) ->
                     return cb err if err?
-                    createPhotos pack, info, path, stream, cb
+                    createFileStream pack, "#{dir}/#{name}", stream, cb
             , (err, value) ->
                 if err
                     log.info 'Error while exporting photos: ', err
@@ -182,14 +162,12 @@ exportAlbums = (pack, references, next) ->
             if err?
                 log.info 'Error while exporting albums', err
                 return next err
-            dirInfo =
-                path: '/metadata'
-                name: 'album/'
-            createDir pack, dirInfo, (err) ->
+            createDir pack, 'albums', (err) ->
                 return next err if err?
-                createMetadata pack, albumsref, '/metadata/album/', 'album.json', (err) ->
+                createMetadata pack, 'albums/albums.json', albumsref, (err) ->
                     return next err if err?
-                    createMetadata pack, references.join('\n'), '/metadata/album/', 'references.json', (err) ->
+                    ref = references.join('\n')
+                    createMetadata pack, 'albums/references.json', ref, (err) ->
                         if err?
                             log.info 'Error while exporting albums: ', err
                         else
@@ -200,17 +178,14 @@ exportContacts = (pack, next) ->
     getAllElements couchClient, 'contact', (err, contacts) ->
         return next err if err?
         return next null unless contacts?.rows?
-        dirInfo =
-            path: '/metadata'
-            name: 'contact/'
-        createDir pack, dirInfo, ->
+        createDir pack, 'contacts', ->
             async.eachSeries contacts.rows, (contact, cb) ->
                 return cb() unless contact?.value?
                 vcard = vcardParser.toVCF contact.value
                 n = contact.value.n
                 n = n.replace /;+|-/g, '_'
                 filename = "Contact_#{n}.vcf"
-                createMetadata pack, vcard, '/metadata/contact/', filename, cb
+                createMetadata pack, "contacts/#{filename}", vcard, cb
             , (err, value) ->
                 if err
                     log.info 'Error while exporting contacts: ', err

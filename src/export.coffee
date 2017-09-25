@@ -32,7 +32,7 @@ getAllElements = (couchClient, element, callback) ->
         callback err, body
 
 getContent = (couchClient, binaryId, type, callback) ->
-    couchClient.saveFileAsStream "cozy/#{binaryId}/#{type}", (err, stream) ->
+    couchClient.saveFileAsStream "cozy/#{binaryId}/file", (err, stream) ->
         if err?
             callback err
         else
@@ -51,13 +51,14 @@ createDir = (pack, dirInfo, callback) ->
 # the tarball header before starting to write data, and the size from couchdb
 # is not always reliable.
 createFileStream = (pack, fileInfo, stream, callback) ->
-    buf = ''
+    chunks = []
     stream.on 'error', (err) -> callback err
-    stream.on 'data', (chunk) -> buf += chunk
+    stream.on 'data', (chunk) -> chunks.push chunk
     stream.on 'end', ->
+        buf = Buffer.concat chunks
         entry = pack.entry({
             name: fileInfo.path + '/' + fileInfo.name
-            size: Buffer.byteLength(buf, 'utf-8')
+            size: Buffer.byteLength(buf, 'binary')
             mode: 0o755
             mtime: new Date
             type: fileInfo.docType.toLowerCase()
@@ -66,13 +67,14 @@ createFileStream = (pack, fileInfo, stream, callback) ->
         entry.end()
 
 createPhotos = (pack, photoInfo, photopath, stream, callback) ->
-    buf = ''
+    chunks = []
     stream.on 'error', (err) -> callback err
-    stream.on 'data', (chunk) -> buf += chunk
+    stream.on 'data', (chunk) -> chunks.push chunk
     stream.on 'end', ->
+        buf = Buffer.concat chunks
         entry = pack.entry({
             name: photopath + photoInfo.title
-            size: Buffer.byteLength(buf, 'utf-8')
+            size: Buffer.byteLength(buf, 'binary')
             mode: 0o755
             mtime: new Date
             type: 'file'
@@ -83,7 +85,7 @@ createPhotos = (pack, photoInfo, photopath, stream, callback) ->
 createMetadata = (pack, data, dst, filename, callback) ->
     entry = pack.entry({
         name: dst + filename
-        size: Buffer.byteLength(data, 'utf8')
+        size: Buffer.byteLength(data, 'binary')
         mode: 0o755
         mtime: new Date
         type: 'file'
@@ -133,9 +135,9 @@ exportPhotos = (pack, references, next) ->
         return next err if err?
         return next null unless photos?.rows?
         name = 'Uploaded from Cozy Photos/'
-        path = '/Photos/' + name
         if locale is 'fr'
             name = 'Transférées depuis Cozy Photos/'
+        path = '/Photos/' + name
         dirInfo =
             path: '/Photos'
             name: name

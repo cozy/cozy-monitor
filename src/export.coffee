@@ -51,23 +51,38 @@ createDir = (pack, dirInfo, callback) ->
         type: 'directory'
     }, callback
 
+# Warning: we don't stream but use a buffer because we need the exact size for
+# the tarball header before starting to write data, and the size from couchdb
+# is not always reliable.
 createFileStream = (pack, fileInfo, stream, callback) ->
-    stream.pipe pack.entry({
-        name: fileInfo.path + '/' + fileInfo.name
-        size: fileInfo.size
-        mode: 0o755
-        mtime: new Date
-        type: fileInfo.docType.toLowerCase()
-    }, callback)
+    buf = ''
+    stream.on 'error', (err) -> callback err
+    stream.on 'data', (chunk) -> buf += chunk
+    stream.on 'end', ->
+        entry = pack.entry({
+            name: fileInfo.path + '/' + fileInfo.name
+            size: Buffer.byteLength(buf, 'utf-8')
+            mode: 0o755
+            mtime: new Date
+            type: fileInfo.docType.toLowerCase()
+        }, callback)
+        entry.write buf
+        entry.end()
 
 createPhotos = (pack, photoInfo, photopath, stream, size, callback) ->
-    stream.pipe pack.entry({
-        name: photopath + photoInfo.title
-        size: size
-        mode: 0o755
-        mtime: new Date
-        type: 'file'
-    }, callback)
+    buf = ''
+    stream.on 'error', (err) -> callback err
+    stream.on 'data', (chunk) -> buf += chunk
+    stream.on 'end', ->
+        entry = pack.entry({
+            name: photopath + photoInfo.title
+            size: size
+            mode: 0o755
+            mtime: new Date
+            type: 'file'
+        }, callback)
+        entry.write buf
+        entry.end()
 
 createMetadata = (pack, data, dst, filename, callback) ->
     entry = pack.entry({

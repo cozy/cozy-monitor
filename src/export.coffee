@@ -85,7 +85,7 @@ createPhotos = (pack, photoInfo, photopath, stream, callback) ->
 createMetadata = (pack, data, dst, filename, callback) ->
     entry = pack.entry({
         name: dst + filename
-        size: Buffer.byteLength(data, 'binary')
+        size: Buffer.byteLength(data, 'utf8')
         mode: 0o755
         mtime: new Date
         type: 'file'

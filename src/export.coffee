@@ -31,10 +31,6 @@ getAllElements = (couchClient, element, callback) ->
     couchClient.get "cozy/_design/#{element}/_view/all", (err, res, body) ->
         callback err, body
 
-getPhotoLength = (couchClient, binaryId, callback) ->
-    couchClient.get 'cozy/' + binaryId, (err, res, body) ->
-        callback err, body?._attachments?.raw?.length
-
 getContent = (couchClient, binaryId, type, callback) ->
     couchClient.saveFileAsStream "cozy/#{binaryId}/#{type}", (err, stream) ->
         if err?
@@ -69,14 +65,14 @@ createFileStream = (pack, fileInfo, stream, callback) ->
         entry.write buf
         entry.end()
 
-createPhotos = (pack, photoInfo, photopath, stream, size, callback) ->
+createPhotos = (pack, photoInfo, photopath, stream, callback) ->
     buf = ''
     stream.on 'error', (err) -> callback err
     stream.on 'data', (chunk) -> buf += chunk
     stream.on 'end', ->
         entry = pack.entry({
             name: photopath + photoInfo.title
-            size: size
+            size: Buffer.byteLength(buf, 'utf-8')
             mode: 0o755
             mtime: new Date
             type: 'file'
@@ -145,18 +141,17 @@ exportPhotos = (pack, references, next) ->
             name: name
         createDir pack, dirInfo, ->
             async.eachSeries photos.rows, (photo, cb) ->
-                binaryId = photo?.value?.binary?.raw?.id
+                info = photo?.value
+                info.title ||= info._id + ".jpg"
+                binaryId = (info?.binary?.raw || info?.binary?.file)?.id
                 return cb() unless binaryId?
-                photoInfo = photo?.value
                 data =
-                    albumid: photoInfo.albumid
-                    filepath: photopath + photoInfo.title
-                references += JSON.stringify(data) + '\n'
+                    albumid: info.albumid
+                    filepath: path + info.title
+                references.push JSON.stringify(data)
                 getContent couchClient, binaryId, 'raw', (err, stream) ->
                     return cb err if err?
-                    getPhotoLength couchClient, binaryId, (err, size) ->
-                        return cb err if err?
-                        createPhotos pack, photoInfo, path, stream, size, cb
+                    createPhotos pack, info, path, stream, cb
             , (err, value) ->
                 if err
                     log.info 'Error while exporting photos: ', err
@@ -192,7 +187,7 @@ exportAlbums = (pack, references, next) ->
                 return next err if err?
                 createMetadata pack, albumsref, '/metadata/album/', 'album.json', (err) ->
                     return next err if err?
-                    createMetadata pack, references, '/metadata/album/', 'references.json', (err) ->
+                    createMetadata pack, references.join('\n'), '/metadata/album/', 'references.json', (err) ->
                         if err?
                             log.info 'Error while exporting albums: ', err
                         else
@@ -234,7 +229,7 @@ module.exports.exportDoc = (filename, callback) ->
     tarball.on 'error', callback
     tarball.on 'close', callback
     pack.pipe(gzip).pipe(tarball)
-    references = ''
+    references = []
     async.series [
         (next) -> exportDirs(pack, next)
         (next) -> exportFiles(pack, next)

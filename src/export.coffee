@@ -43,7 +43,7 @@ getContent = (couchClient, binaryId, type, callback) ->
 createDir = (pack, dirInfo, callback) ->
     pack.entry {
         name: dirInfo.path + '/' + dirInfo.name
-        mode: 0o755
+        mode: 0o750
         type: 'directory'
     }, callback
 
@@ -59,7 +59,7 @@ createFileStream = (pack, fileInfo, stream, callback) ->
         entry = pack.entry({
             name: fileInfo.path + '/' + fileInfo.name
             size: Buffer.byteLength(buf, 'binary')
-            mode: 0o755
+            mode: 0o640
             mtime: new Date
             type: fileInfo.docType.toLowerCase()
         }, callback)
@@ -75,7 +75,7 @@ createPhotos = (pack, photoInfo, photopath, stream, callback) ->
         entry = pack.entry({
             name: photopath + photoInfo.title
             size: Buffer.byteLength(buf, 'binary')
-            mode: 0o755
+            mode: 0o640
             mtime: new Date
             type: 'file'
         }, callback)
@@ -86,7 +86,7 @@ createMetadata = (pack, data, dst, filename, callback) ->
     entry = pack.entry({
         name: dst + filename
         size: Buffer.byteLength(data, 'utf8')
-        mode: 0o755
+        mode: 0o640
         mtime: new Date
         type: 'file'
     }, callback)

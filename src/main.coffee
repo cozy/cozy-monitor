@@ -24,6 +24,7 @@ application = require './application'
 stackApplication = require './stack_application'
 monitoring = require './monitoring'
 db = require './database'
+exp = require './export'
 
 logError = helpers.logError
 clients = helpers.clients
@@ -717,6 +718,18 @@ program
 
 
 ## Others ##
+
+program
+    .command("export [tarball]")
+    .description("Export the files, photos, albums, and contacts to a tarball")
+    .action (filename) ->
+        filename ?= "cozy.tar.gz"
+        exp.exportDoc filename, (err) ->
+            if err?
+                logError err
+            else
+                log.info "Export succeeded"
+                process.exit 0
 
 program
     .command("reset-proxy")

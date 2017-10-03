@@ -35,6 +35,13 @@ getContent = (couchClient, binaryId, type, callback) ->
     couchClient.saveFileAsStream "cozy/#{binaryId}/file", (err, stream) ->
         if err?
             callback err
+        else if stream.statusCode is 404
+            couchClient.saveFileAsStream "cozy/#{binaryId}/raw", (err, raw) ->
+                if err?
+                    callback err
+                else
+                    raw.on 'error', (err) -> log.error err
+                    callback null, raw
         else
             stream.on 'error', (err) -> log.error err
             callback null, stream

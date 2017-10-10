@@ -46,6 +46,26 @@ getContent = (couchClient, binaryId, type, callback) ->
             stream.on 'error', (err) -> log.error err
             callback null, stream
 
+# Note: using offset is accidentally quadratic (sic)
+allDocuments = (couchClient, offset, forEach, done) ->
+    limit = 100
+    u = "cozy/_all_docs?include_docs=true&limit=#{limit}&offset=#{offset}"
+    couchClient.get u, (err, res, body) ->
+        if err?
+            done err
+        else
+            async.eachSeries body.rows, (row, cb) ->
+                forEach row.doc, cb
+            , (err) ->
+                if err
+                    done err
+                else if body.rows.length == limit && offset < 10000
+                    offset += limit
+                    allDocuments couchClient, offset, forEach, done
+                else
+                    done null
+
+
 
 createDir = (pack, name, callback) ->
     pack.entry {
@@ -73,7 +93,7 @@ createFileStream = (pack, name, stream, callback) ->
         entry.write buf
         entry.end()
 
-createMetadata = (pack, name, data, callback) ->
+createFile = (pack, name, data, callback) ->
     entry = pack.entry({
         name: name
         size: Buffer.byteLength(data, 'utf8')
@@ -89,7 +109,7 @@ exportDirs = (pack, next) ->
     getDirs couchClient, (err, dirs) ->
         return next err if err?
         return next null unless dirs?.rows?
-        async.eachOf dirs.rows, (dir, key, cb) ->
+        async.eachSeries dirs.rows, (dir, cb) ->
             createDir pack, "files/#{dir.value.path}/#{dir.value.name}", cb
         , (err) ->
             if err
@@ -171,10 +191,10 @@ exportAlbums = (pack, references, next) ->
                 return next err
             createDir pack, 'albums', (err) ->
                 return next err if err?
-                createMetadata pack, 'albums/albums.json', albumsref, (err) ->
+                createFile pack, 'albums/albums.json', albumsref, (err) ->
                     return next err if err?
                     ref = references.join('\n')
-                    createMetadata pack, 'albums/references.json', ref, (err) ->
+                    createFile pack, 'albums/references.json', ref, (err) ->
                         if err?
                             log.info 'Error while exporting albums: ', err
                         else
@@ -192,13 +212,45 @@ exportContacts = (pack, next) ->
                 n = contact.value.n || contact.id
                 n = n.replace /;+|-/g, '_'
                 filename = "Contact_#{n}.vcf"
-                createMetadata pack, "contacts/#{filename}", vcard, cb
+                createFile pack, "contacts/#{filename}", vcard, cb
             , (err, value) ->
                 if err
                     log.info 'Error while exporting contacts: ', err
                 else
                     log.info 'Contacts have been exported successfully'
                 next err
+
+
+exportOthers = (pack, next) ->
+    doctypes = {}
+    other = "Other"
+    other = "Autres" if locale is "fr"
+    saveFile = (doc, doctype, callback) ->
+        name = "files/#{other}/#{doctype}/#{doc._id}"
+        data = JSON.stringify doc
+        createFile pack, name, data, callback
+    save = (doc, callback) ->
+        return callback() unless doc.docType?
+        doctype = doc.docType.toLowerCase()
+        return callback() if doctype == "file" || doctype == "folder"
+        return callback() if doctype == "binary" || doctype == "contact"
+        return callback() if doctype == "album" || doctype == "photo"
+        if doctypes[doctype]
+            saveFile doc, doctype, callback
+        else
+            doctypes[doctype] = true
+            createDir pack, "files/#{other}/#{doctype}", (err) ->
+                if err?
+                    callback err
+                else
+                    saveFile doc, doctype, callback
+    allDocuments couchClient, 0, save, (err) ->
+        if err?
+            log.info 'Error while exporting other doctypes: ', err
+        else
+            log.info 'Other doctypes have been exported successfully'
+        next err
+
 
 
 module.exports.exportDoc = (filename, callback) ->
@@ -221,6 +273,7 @@ module.exports.exportDoc = (filename, callback) ->
         (next) -> exportPhotos(pack, references, next)
         (next) -> exportAlbums(pack, references, next)
         (next) -> exportContacts(pack, next)
+        (next) -> exportOthers(pack, next)
     ], (err) ->
         if err?
             callback err

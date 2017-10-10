@@ -161,7 +161,7 @@ exportAlbums = (pack, references, next) ->
             data =
                 _id: album.value._id
                 _rev: album.value._rev
-                name: album.value.title
+                name: album.value.title || album.id
                 type: 'io.cozy.photos.albums'
             albumsref += JSON.stringify(data) + '\n'
             cb()
@@ -189,7 +189,7 @@ exportContacts = (pack, next) ->
             async.eachSeries contacts.rows, (contact, cb) ->
                 return cb() unless contact?.value?
                 vcard = vcardParser.toVCF contact.value
-                n = contact.value.n
+                n = contact.value.n || contact.id
                 n = n.replace /;+|-/g, '_'
                 filename = "Contact_#{n}.vcf"
                 createMetadata pack, "contacts/#{filename}", vcard, cb

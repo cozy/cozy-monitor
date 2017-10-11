@@ -59,7 +59,7 @@ allDocuments = (couchClient, offset, forEach, done) ->
             , (err) ->
                 if err
                     done err
-                else if body.rows.length == limit && offset < 10000
+                else if body.rows.length == limit
                     offset += limit
                     allDocuments couchClient, offset, forEach, done
                 else

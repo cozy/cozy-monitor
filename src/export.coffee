@@ -46,10 +46,10 @@ getContent = (couchClient, binaryId, type, callback) ->
             stream.on 'error', (err) -> log.error err
             callback null, stream
 
-# Note: using offset is accidentally quadratic (sic)
-allDocuments = (couchClient, offset, forEach, done) ->
-    limit = 100
-    u = "cozy/_all_docs?include_docs=true&limit=#{limit}&offset=#{offset}"
+allDocuments = (couchClient, start, forEach, done) ->
+    limit = 1000
+    u = "cozy/_all_docs?include_docs=true&limit=#{limit}"
+    u += "&skip=1&startkey=\"#{start}\"" if start?
     couchClient.get u, (err, res, body) ->
         if err?
             done err
@@ -60,8 +60,8 @@ allDocuments = (couchClient, offset, forEach, done) ->
                 if err
                     done err
                 else if body.rows.length == limit
-                    offset += limit
-                    allDocuments couchClient, offset, forEach, done
+                    start = body.rows[limit-1].id
+                    allDocuments couchClient, start, forEach, done
                 else
                     done null
 
@@ -244,7 +244,7 @@ exportOthers = (pack, next) ->
                     callback err
                 else
                     saveFile doc, doctype, callback
-    allDocuments couchClient, 0, save, (err) ->
+    allDocuments couchClient, null, save, (err) ->
         if err?
             log.info 'Error while exporting other doctypes: ', err
         else

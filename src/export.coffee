@@ -261,7 +261,11 @@ module.exports.exportDoc = (filename, callback) ->
         level: 6
         memLevel: 6
     gzip.on 'error', (err) -> log.error err
-    tarball = fs.createWriteStream filename
+    if filename is '-'
+        process.env.NODE_ENV = 'test' # XXX hack to avoid logs on stdout
+        tarball = process.stdout
+    else
+        tarball = fs.createWriteStream filename
     tarball.on 'error', callback
     tarball.on 'close', callback
     pack.pipe(gzip).pipe(tarball)

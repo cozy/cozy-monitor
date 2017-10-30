@@ -19,17 +19,52 @@ configureCouchClient = ->
         couchClient.setBasicAuth username, password
 
 
+createViews = (callback) ->
+    views =
+        views:
+            files:
+                map: "
+function (doc) {
+  if (doc.docType && doc.docType.toLowerCase() === 'file') {
+    emit(doc.path, doc)
+  }
+}"
+            folders:
+                map: "
+function (doc) {
+  if (doc.docType && doc.docType.toLowerCase() === 'folder') {
+    emit(doc.path, doc)
+  }
+}"
+    couchClient.put 'cozy/_design/cozy-monitor-export', views, callback
+
+
 getFiles = (couchClient, callback) ->
-    couchClient.get 'cozy/_design/file/_view/byfolder', (err, res, body) ->
-        callback err, body
+    couchClient.get 'cozy/_design/cozy-monitor-export/_view/files', (err, res, body) ->
+        if err
+            callback err
+        else if res.statusCode isnt 200
+            callback "status code #{res.statusCode} for files"
+        else
+            callback null, body
 
 getDirs = (couchClient, callback) ->
-    couchClient.get 'cozy/_design/folder/_view/byfolder', (err, res, body) ->
-        callback err, body
+    couchClient.get 'cozy/_design/cozy-monitor-export/_view/folders', (err, res, body) ->
+        if err
+            callback err
+        else if res.statusCode isnt 200
+            callback "status code #{res.statusCode} for folders"
+        else
+            callback null, body
 
 getAllElements = (couchClient, element, callback) ->
     couchClient.get "cozy/_design/#{element}/_view/all", (err, res, body) ->
-        callback err, body
+        if err
+            callback err
+        else if res.statusCode isnt 200
+            callback "status code #{res.statusCode} for #{element}"
+        else
+            callback null, body
 
 getContent = (couchClient, binaryId, type, callback) ->
     couchClient.saveFileAsStream "cozy/#{binaryId}/file", (err, stream) ->
@@ -271,6 +306,7 @@ module.exports.exportDoc = (filename, callback) ->
     pack.pipe(gzip).pipe(tarball)
     references = []
     async.series [
+        (next) -> createViews(next)
         (next) -> exportDirs(pack, next)
         (next) -> exportFiles(pack, next)
         (next) -> fetchLocale(next)

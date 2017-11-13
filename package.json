@@ -43,7 +43,7 @@
     "printit": "0.1.19",
     "request-json-light": "0.5.22",
     "shelljs": "0.6.0",
-    "tar-stream": "1.5.4"
+    "tar-stream": "1.5.5"
   },
   "devDependencies": {
     "chai": "3.5.0",

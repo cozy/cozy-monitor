@@ -19,17 +19,52 @@ configureCouchClient = ->
         couchClient.setBasicAuth username, password
 
 
+createViews = (callback) ->
+    views =
+        views:
+            files:
+                map: "
+function (doc) {
+  if (doc.docType && doc.docType.toLowerCase() === 'file') {
+    emit(doc.path, doc)
+  }
+}"
+            folders:
+                map: "
+function (doc) {
+  if (doc.docType && doc.docType.toLowerCase() === 'folder') {
+    emit(doc.path, doc)
+  }
+}"
+    couchClient.put 'cozy/_design/cozy-monitor-export', views, callback
+
+
 getFiles = (couchClient, callback) ->
-    couchClient.get 'cozy/_design/file/_view/byfolder', (err, res, body) ->
-        callback err, body
+    couchClient.get 'cozy/_design/cozy-monitor-export/_view/files', (err, res, body) ->
+        if err
+            callback err
+        else if res.statusCode isnt 200
+            callback "status code #{res.statusCode} for files"
+        else
+            callback null, body
 
 getDirs = (couchClient, callback) ->
-    couchClient.get 'cozy/_design/folder/_view/byfolder', (err, res, body) ->
-        callback err, body
+    couchClient.get 'cozy/_design/cozy-monitor-export/_view/folders', (err, res, body) ->
+        if err
+            callback err
+        else if res.statusCode isnt 200
+            callback "status code #{res.statusCode} for folders"
+        else
+            callback null, body
 
 getAllElements = (couchClient, element, callback) ->
     couchClient.get "cozy/_design/#{element}/_view/all", (err, res, body) ->
-        callback err, body
+        if err
+            callback err
+        else if res.statusCode isnt 200
+            callback "status code #{res.statusCode} for #{element}"
+        else
+            callback null, body
 
 getContent = (couchClient, binaryId, type, callback) ->
     couchClient.saveFileAsStream "cozy/#{binaryId}/file", (err, stream) ->
@@ -45,6 +80,26 @@ getContent = (couchClient, binaryId, type, callback) ->
         else
             stream.on 'error', (err) -> log.error err
             callback null, stream
+
+allDocuments = (couchClient, start, forEach, done) ->
+    limit = 1000
+    u = "cozy/_all_docs?include_docs=true&limit=#{limit}"
+    u += "&skip=1&startkey=\"#{start}\"" if start?
+    couchClient.get u, (err, res, body) ->
+        if err?
+            done err
+        else
+            async.eachSeries body.rows, (row, cb) ->
+                forEach row.doc, cb
+            , (err) ->
+                if err
+                    done err
+                else if body.rows.length == limit
+                    start = body.rows[limit-1].id
+                    allDocuments couchClient, start, forEach, done
+                else
+                    done null
+
 
 
 createDir = (pack, name, callback) ->
@@ -73,7 +128,7 @@ createFileStream = (pack, name, stream, callback) ->
         entry.write buf
         entry.end()
 
-createMetadata = (pack, name, data, callback) ->
+createFile = (pack, name, data, callback) ->
     entry = pack.entry({
         name: name
         size: Buffer.byteLength(data, 'utf8')
@@ -89,7 +144,7 @@ exportDirs = (pack, next) ->
     getDirs couchClient, (err, dirs) ->
         return next err if err?
         return next null unless dirs?.rows?
-        async.eachOf dirs.rows, (dir, key, cb) ->
+        async.eachSeries dirs.rows, (dir, cb) ->
             createDir pack, "files/#{dir.value.path}/#{dir.value.name}", cb
         , (err) ->
             if err
@@ -161,7 +216,7 @@ exportAlbums = (pack, references, next) ->
             data =
                 _id: album.value._id
                 _rev: album.value._rev
-                name: album.value.title
+                name: album.value.title || album.id
                 type: 'io.cozy.photos.albums'
             albumsref += JSON.stringify(data) + '\n'
             cb()
@@ -171,10 +226,10 @@ exportAlbums = (pack, references, next) ->
                 return next err
             createDir pack, 'albums', (err) ->
                 return next err if err?
-                createMetadata pack, 'albums/albums.json', albumsref, (err) ->
+                createFile pack, 'albums/albums.json', albumsref, (err) ->
                     return next err if err?
                     ref = references.join('\n')
-                    createMetadata pack, 'albums/references.json', ref, (err) ->
+                    createFile pack, 'albums/references.json', ref, (err) ->
                         if err?
                             log.info 'Error while exporting albums: ', err
                         else
@@ -189,16 +244,48 @@ exportContacts = (pack, next) ->
             async.eachSeries contacts.rows, (contact, cb) ->
                 return cb() unless contact?.value?
                 vcard = vcardParser.toVCF contact.value
-                n = contact.value.n
+                n = contact.value.n || contact.id
                 n = n.replace /;+|-/g, '_'
                 filename = "Contact_#{n}.vcf"
-                createMetadata pack, "contacts/#{filename}", vcard, cb
+                createFile pack, "contacts/#{filename}", vcard, cb
             , (err, value) ->
                 if err
                     log.info 'Error while exporting contacts: ', err
                 else
                     log.info 'Contacts have been exported successfully'
                 next err
+
+
+exportOthers = (pack, next) ->
+    doctypes = {}
+    other = "Other"
+    other = "Autres" if locale is "fr"
+    saveFile = (doc, doctype, callback) ->
+        name = "files/#{other}/#{doctype}/#{doc._id}"
+        data = JSON.stringify doc
+        createFile pack, name, data, callback
+    save = (doc, callback) ->
+        return callback() unless doc.docType?
+        doctype = doc.docType.toLowerCase()
+        return callback() if doctype == "file" || doctype == "folder"
+        return callback() if doctype == "binary" || doctype == "contact"
+        return callback() if doctype == "album" || doctype == "photo"
+        if doctypes[doctype]
+            saveFile doc, doctype, callback
+        else
+            doctypes[doctype] = true
+            createDir pack, "files/#{other}/#{doctype}", (err) ->
+                if err?
+                    callback err
+                else
+                    saveFile doc, doctype, callback
+    allDocuments couchClient, null, save, (err) ->
+        if err?
+            log.info 'Error while exporting other doctypes: ', err
+        else
+            log.info 'Other doctypes have been exported successfully'
+        next err
+
 
 
 module.exports.exportDoc = (filename, callback) ->
@@ -209,18 +296,24 @@ module.exports.exportDoc = (filename, callback) ->
         level: 6
         memLevel: 6
     gzip.on 'error', (err) -> log.error err
-    tarball = fs.createWriteStream filename
+    if filename is '-'
+        process.env.NODE_ENV = 'test' # XXX hack to avoid logs on stdout
+        tarball = process.stdout
+    else
+        tarball = fs.createWriteStream filename
     tarball.on 'error', callback
     tarball.on 'close', callback
     pack.pipe(gzip).pipe(tarball)
     references = []
     async.series [
+        (next) -> createViews(next)
         (next) -> exportDirs(pack, next)
         (next) -> exportFiles(pack, next)
         (next) -> fetchLocale(next)
         (next) -> exportPhotos(pack, references, next)
         (next) -> exportAlbums(pack, references, next)
         (next) -> exportContacts(pack, next)
+        (next) -> exportOthers(pack, next)
     ], (err) ->
         if err?
             callback err

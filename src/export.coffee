@@ -258,8 +258,7 @@ exportContacts = (pack, next) ->
 
 exportOthers = (pack, next) ->
     doctypes = {}
-    other = "Other"
-    other = "Autres" if locale is "fr"
+    other = "Archive"
     saveFile = (doc, doctype, callback) ->
         name = "files/#{other}/#{doctype}/#{doc._id}"
         data = JSON.stringify doc

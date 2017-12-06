@@ -111,22 +111,32 @@ createDir = (pack, name, callback) ->
 
 # Warning: we don't stream but use a buffer because we need the exact size for
 # the tarball header before starting to write data, and the size from couchdb
-# is not always reliable.
-createFileStream = (pack, name, stream, callback) ->
-    chunks = []
-    stream.on 'error', (err) -> callback err
-    stream.on 'data', (chunk) -> chunks.push chunk
-    stream.on 'end', ->
-        buf = Buffer.concat chunks
-        entry = pack.entry({
+# is not always reliable. Except when the file is big (more than 0.5GB) and
+# buffering it may take too much memory.
+createFileStream = (pack, name, size, stream, callback) ->
+    if +size > 500000000
+        stream.pipe pack.entry({
             name: name
-            size: Buffer.byteLength(buf, 'binary')
+            size: size
             mode: 0o640
             mtime: new Date
             type: 'file'
         }, callback)
-        entry.write buf
-        entry.end()
+    else
+        chunks = []
+        stream.on 'error', (err) -> callback err
+        stream.on 'data', (chunk) -> chunks.push chunk
+        stream.on 'end', ->
+            buf = Buffer.concat chunks
+            entry = pack.entry({
+                name: name
+                size: Buffer.byteLength(buf, 'binary')
+                mode: 0o640
+                mtime: new Date
+                type: 'file'
+            }, callback)
+            entry.write buf
+            entry.end()
 
 createFile = (pack, name, data, callback) ->
     entry = pack.entry({
@@ -163,7 +173,8 @@ exportFiles = (pack, next) ->
             getContent couchClient, binaryId, 'file', (err, stream) ->
                 return cb err if err?
                 name = "files/#{file.value.path}/#{file.value.name}"
-                createFileStream pack, name, stream, cb
+                size = file?.value?.size
+                createFileStream pack, name, size, stream, cb
         , (err, value) ->
             if err
                 log.info 'Error while exporting files: ', err
@@ -195,7 +206,7 @@ exportPhotos = (pack, references, next) ->
                 references.push JSON.stringify(data)
                 getContent couchClient, binaryId, 'raw', (err, stream) ->
                     return cb err if err?
-                    createFileStream pack, "#{dir}/#{name}", stream, cb
+                    createFileStream pack, "#{dir}/#{name}", 0, stream, cb
             , (err, value) ->
                 if err
                     log.info 'Error while exporting photos: ', err

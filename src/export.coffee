@@ -189,6 +189,7 @@ fetchLocale = (next) ->
 
 exportPhotos = (pack, references, next) ->
     getAllElements couchClient, 'photo', (err, photos) ->
+        return next null if err is "status code 404 for photo"
         return next err if err?
         return next null unless photos?.rows?
         dirname = 'Uploaded from Cozy Photos/'
@@ -216,6 +217,7 @@ exportPhotos = (pack, references, next) ->
 
 exportAlbums = (pack, references, next) ->
     getAllElements couchClient, 'album', (err, albums) ->
+        return next null if err is "status code 404 for album"
         return next err if err?
         return next null unless albums?.rows?
         albumsref = ''

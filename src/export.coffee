@@ -84,7 +84,7 @@ getContent = (couchClient, binaryId, type, callback) ->
 allDocuments = (couchClient, start, forEach, done) ->
     limit = 1000
     u = "cozy/_all_docs?include_docs=true&limit=#{limit}"
-    u += "&skip=1&startkey=\"#{start}\"" if start?
+    u += "&skip=1&startkey=\"#{encodeURIComponent start}\"" if start?
     couchClient.get u, (err, res, body) ->
         if err?
             done err
